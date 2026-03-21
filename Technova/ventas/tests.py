@@ -3,14 +3,13 @@ from decimal import Decimal
 
 from django.test import TestCase
 
+from common.container import get_checkout_service, get_venta_service
 from carrito.models import Carrito, DetalleCarrito
 from envios.models import Envio, Transportadora
 from pagos.models import Pago
 from productos.models import Producto
 from proveedores.models import Proveedor
 from usuarios.models import Usuario
-from ventas.application.checkout_service import CheckoutService
-from ventas.application.venta_service import VentaService
 from ventas.models import Venta
 
 
@@ -57,8 +56,8 @@ class FlujoVentaTestCase(TestCase):
         carrito = Carrito.objects.create(usuario=self.usuario, estado=Carrito.Estado.ACTIVO)
         DetalleCarrito.objects.create(carrito=carrito, producto=self.producto, cantidad=2)
 
-        resultado = CheckoutService().ejecutar_checkout(
-            usuario=self.usuario,
+        resultado = get_checkout_service().ejecutar_checkout(
+            usuario_id=self.usuario.id,
             carrito_id=carrito.id,
             metodo_pago="pse",
             numero_factura="FAC-1000",
@@ -83,8 +82,8 @@ class FlujoVentaTestCase(TestCase):
         carrito = Carrito.objects.create(usuario=self.usuario, estado=Carrito.Estado.ACTIVO)
         DetalleCarrito.objects.create(carrito=carrito, producto=self.producto, cantidad=3)
 
-        checkout = CheckoutService().ejecutar_checkout(
-            usuario=self.usuario,
+        checkout = get_checkout_service().ejecutar_checkout(
+            usuario_id=self.usuario.id,
             carrito_id=carrito.id,
             metodo_pago="pse",
             numero_factura="FAC-1001",
@@ -94,7 +93,7 @@ class FlujoVentaTestCase(TestCase):
             costo_envio=Decimal("0"),
         )
 
-        resultado = VentaService().anular_venta(checkout.venta_id)
+        resultado = get_venta_service().anular_venta(checkout.venta_id)
         self.assertEqual(resultado.venta_id, checkout.venta_id)
 
         venta = Venta.objects.get(id=checkout.venta_id)
@@ -110,8 +109,8 @@ class FlujoVentaTestCase(TestCase):
         carrito = Carrito.objects.create(usuario=self.usuario, estado=Carrito.Estado.ACTIVO)
         DetalleCarrito.objects.create(carrito=carrito, producto=self.producto, cantidad=1)
 
-        primero = CheckoutService().ejecutar_checkout(
-            usuario=self.usuario,
+        primero = get_checkout_service().ejecutar_checkout(
+            usuario_id=self.usuario.id,
             carrito_id=carrito.id,
             metodo_pago="pse",
             numero_factura="FAC-IDEMP-1",
@@ -120,8 +119,8 @@ class FlujoVentaTestCase(TestCase):
             numero_guia="GUIA-IDEMP-1",
             costo_envio=Decimal("0"),
         )
-        segundo = CheckoutService().ejecutar_checkout(
-            usuario=self.usuario,
+        segundo = get_checkout_service().ejecutar_checkout(
+            usuario_id=self.usuario.id,
             carrito_id=carrito.id,
             metodo_pago="pse",
             numero_factura="FAC-IDEMP-1",

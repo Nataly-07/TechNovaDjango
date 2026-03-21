@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from ordenes.domain.entities import OrdenCompraEntidad
 from ordenes.domain.repositories import OrdenCompraRepositoryPort
+from ordenes.domain.value_objects import Dinero
 
 
 class OrdenCompraService:
@@ -13,7 +14,10 @@ class OrdenCompraService:
         for item in orden.items:
             if item.cantidad <= 0:
                 raise ValueError("Cada item debe tener cantidad mayor a cero.")
+            Dinero.crear(item.precio_unitario)
+            Dinero.crear(item.subtotal)
             total += item.subtotal
+        Dinero.crear(total)
         orden_calculada = OrdenCompraEntidad(
             id=orden.id,
             proveedor_id=orden.proveedor_id,

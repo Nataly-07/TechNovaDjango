@@ -1,32 +1,45 @@
-from django.utils import timezone
+from datetime import date
 
-from pagos.models import Pago
+from pagos.domain.entities import PagoEntidad
+from pagos.domain.repositories import PagoRepositoryPort
+from pagos.domain.value_objects import EstadoPago
 
 
 class PagoStateService:
+    def __init__(self, repository: PagoRepositoryPort) -> None:
+        self.repository = repository
+
     allowed_transitions = {
-        Pago.EstadoPago.PENDIENTE: {Pago.EstadoPago.APROBADO, Pago.EstadoPago.RECHAZADO},
-        Pago.EstadoPago.APROBADO: {Pago.EstadoPago.REEMBOLSADO},
-        Pago.EstadoPago.RECHAZADO: {Pago.EstadoPago.PENDIENTE},
-        Pago.EstadoPago.REEMBOLSADO: set(),
+        EstadoPago.PENDIENTE: {EstadoPago.APROBADO, EstadoPago.RECHAZADO},
+        EstadoPago.APROBADO: {EstadoPago.REEMBOLSADO},
+        EstadoPago.RECHAZADO: {EstadoPago.PENDIENTE},
+        EstadoPago.REEMBOLSADO: set(),
     }
 
-    def actualizar_estado(self, pago_id: int, nuevo_estado: str) -> Pago:
-        pago = Pago.objects.filter(id=pago_id).first()
+    def actualizar_estado(self, pago_id: int, nuevo_estado: str) -> PagoEntidad:
+        pago = self.repository.obtener_por_id(pago_id)
         if pago is None:
             raise ValueError("El pago no existe.")
 
-        if nuevo_estado == pago.estado_pago:
+        nuevo_estado_vo = EstadoPago.validar(nuevo_estado)
+        estado_actual_vo = EstadoPago.validar(pago.estado_pago)
+        if nuevo_estado_vo == estado_actual_vo:
             return pago
 
-        permitidos = self.allowed_transitions.get(pago.estado_pago, set())
-        if nuevo_estado not in permitidos:
+        permitidos = self.allowed_transitions.get(estado_actual_vo, set())
+        if nuevo_estado_vo not in permitidos:
             raise ValueError(
                 f"Transicion invalida de {pago.estado_pago} a {nuevo_estado}."
             )
 
-        pago.estado_pago = nuevo_estado
-        if nuevo_estado == Pago.EstadoPago.APROBADO:
-            pago.fecha_pago = timezone.localdate()
-        pago.save(update_fields=["estado_pago", "fecha_pago", "actualizado_en"])
-        return pago
+        actualizado = self.repository.actualizar_estado(pago_id=pago.id, estado_pago=nuevo_estado_vo.value)
+        if nuevo_estado_vo == EstadoPago.APROBADO:
+            return PagoEntidad(
+                id=actualizado.id,
+                fecha_pago=date.today(),
+                numero_factura=actualizado.numero_factura,
+                fecha_factura=actualizado.fecha_factura,
+                monto=actualizado.monto,
+                estado_pago=actualizado.estado_pago,
+            )
+        return actualizado

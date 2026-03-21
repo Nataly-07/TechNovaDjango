@@ -1,5 +1,6 @@
 from pagos.domain.entities import PagoEntidad
 from pagos.domain.repositories import PagoRepositoryPort
+from pagos.domain.value_objects import Dinero, EstadoPago, NumeroFactura
 
 
 class PagoService:
@@ -7,8 +8,7 @@ class PagoService:
         self.repository = repository
 
     def registrar_pago(self, pago: PagoEntidad) -> PagoEntidad:
-        if pago.monto <= 0:
-            raise ValueError("El monto del pago debe ser mayor que cero.")
-        if not pago.numero_factura.strip():
-            raise ValueError("El numero de factura es obligatorio.")
+        NumeroFactura.crear(pago.numero_factura)
+        Dinero.crear(pago.monto)
+        EstadoPago.validar(pago.estado_pago)
         return self.repository.guardar(pago)

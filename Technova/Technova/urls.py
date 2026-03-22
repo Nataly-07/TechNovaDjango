@@ -21,7 +21,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from common.health_views import health_live, health_ready
 
 urlpatterns = [
-    path("", include("usuario.web_urls")),
+    path("", include("web.urls")),
     path("admin/", admin.site.urls),
     path("api/v1/health/live/", health_live, name="health_live"),
     path("api/v1/health/ready/", health_ready, name="health_ready"),

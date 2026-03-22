@@ -1,0 +1,545 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--gradient-primary);
+    padding: 10px 20px;
+    border-radius: 0 0 30px 30px;
+    border: 1px solid var(--bondi-blue);
+}
+
+.menu-icon {
+    font-size: 28px;
+    cursor: pointer;
+    color: black;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 24px;
+    font-weight: bold;
+    color: black;
+}
+
+.logo img {
+    height: 50px;
+}
+
+.search-bar {
+    display: flex;
+    flex: 1;
+    margin: 0 20px;
+    max-width: 500px;
+    background-color: white;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid #5f5f5f;
+}
+
+.search-bar input {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    outline: none;
+}
+
+.search-btn {
+    background: none;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.account, .cart {
+    display: flex;
+    align-items: center;
+    background: var(--gradient-secondary);
+    padding: 5px 15px;
+    border-radius: 50px;
+    color: white;
+    font-weight: bold;
+    gap: 10px;
+    border: 1px solid var(--bondi-blue);
+}
+
+.account img {
+    height: 35px;
+    border-radius: 50%;
+}
+
+.cart-icon {
+    font-size: 20px;
+}
+
+* {
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    margin: 0;
+    background: white;
+}
+
+.container {
+    max-width: 800px;
+    margin: 20px auto;
+    border: 2px solid var(--bondi-blue);
+    border-radius: 15px;
+    background: var(--janna-light);
+    padding-bottom: 10px;
+}
+
+/* Steps */
+.steps {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 15px 15px 0 0;
+}
+
+.step {
+    padding: 8px 12px;
+    color: #666;
+}
+
+.step.active {
+    background: var(--gradient-primary);
+    color: white;
+    border-radius: 10px;
+}
+
+/* Content */
+.content {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* Formulario */
+.form-section {
+    flex: 1;
+    background: white;
+    border-radius: 15px;
+    padding: 15px;
+    border: 2px solid var(--bondi-blue);
+}
+
+.section-title {
+    background: var(--gradient-primary);
+    color: white;
+    padding: 8px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: var(--eden);
+    margin-bottom: 8px;
+    font-size: 14px;
+    transition: color 0.3s ease;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--sinbad);
+    border-radius: 12px;
+    font-size: 14px;
+    background: white;
+    color: var(--eden);
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--bondi-blue);
+    box-shadow: 0 0 0 3px rgba(7, 153, 182, 0.1);
+    transform: translateY(-1px);
+}
+
+.form-group input:hover {
+    border-color: var(--bondi-blue-light);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.form-group input::placeholder {
+    color: #999;
+    font-style: italic;
+}
+
+/* Estilo para campos requeridos */
+.form-group.required label::after {
+    content: " *";
+    color: var(--danger);
+    font-weight: bold;
+}
+
+/* Estilo para campos con error */
+.form-group.error input {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+}
+
+.form-group.error label {
+    color: var(--danger);
+}
+
+/* Estilo para campos válidos */
+.form-group.valid input {
+    border-color: var(--success);
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+}
+
+/* Animación de entrada */
+.form-group input {
+    animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Botón */
+.continue-btn {
+    background: var(--gradient-primary);
+    color: white;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 12px;
+    width: 100%;
+    margin-top: 20px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.continue-btn:hover {
+    background: var(--gradient-primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+}
+
+.continue-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 212, 255, 0.3);
+}
+
+.continue-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Efecto de ondas en el botón */
+.continue-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.continue-btn:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* Estilos para campos select */
+.form-group select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--sinbad);
+    border-radius: 12px;
+    font-size: 14px;
+    background: white;
+    color: var(--eden);
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+}
+
+.form-group select:focus {
+    outline: none;
+    border-color: var(--bondi-blue);
+    box-shadow: 0 0 0 3px rgba(7, 153, 182, 0.1);
+    transform: translateY(-1px);
+}
+
+.form-group select:hover {
+    border-color: var(--bondi-blue-light);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilos para textarea */
+.form-group textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--sinbad);
+    border-radius: 12px;
+    font-size: 14px;
+    background: white;
+    color: var(--eden);
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--bondi-blue);
+    box-shadow: 0 0 0 3px rgba(7, 153, 182, 0.1);
+    transform: translateY(-1px);
+}
+
+.form-group textarea:hover {
+    border-color: var(--bondi-blue-light);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.form-group textarea::placeholder {
+    color: #999;
+    font-style: italic;
+}
+
+/* Estilos para radio buttons y checkboxes */
+.form-group input[type="radio"],
+.form-group input[type="checkbox"] {
+    width: auto;
+    margin-right: 8px;
+    transform: scale(1.2);
+    accent-color: var(--bondi-blue);
+}
+
+.form-group .radio-group,
+.form-group .checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group .radio-item,
+.form-group .checkbox-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border: 2px solid var(--sinbad);
+    border-radius: 8px;
+    background: white;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.form-group .radio-item:hover,
+.form-group .checkbox-item:hover {
+    border-color: var(--bondi-blue-light);
+    background: var(--janna-light);
+}
+
+.form-group .radio-item input:checked + label,
+.form-group .checkbox-item input:checked + label {
+    color: var(--bondi-blue);
+    font-weight: 600;
+}
+
+.form-group .radio-item:has(input:checked),
+.form-group .checkbox-item:has(input:checked) {
+    border-color: var(--bondi-blue);
+    background: var(--janna-light);
+}
+
+/* Carrito */
+.cart-section {
+    flex: 1;
+    background: var(--sinbad-light);
+    border-radius: 15px;
+    padding: 15px;
+}
+
+.cart-title {
+    background: var(--gradient-primary);
+    color: white;
+    padding: 8px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.cart-summary p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+.discount {
+    color: red;
+    font-weight: bold;
+}
+
+/* Producto */
+.cart-product {
+    display: flex;
+    margin-top: 10px;
+    background: white;
+    border-radius: 10px;
+    padding: 10px;
+    align-items: center;
+}
+
+.cart-product img {
+    width: 80px;
+    height: auto;
+    margin-right: 10px;
+    border-radius: 10px;
+}
+
+.product-details p {
+    margin: 3px 0;
+    font-size: 14px;
+}
+
+.product-details a {
+    color: var(--bondi-blue);
+    font-size: 13px;
+    text-decoration: underline;
+}
+
+/* Footer */
+.footer-msg {
+    background: var(--gradient-primary);
+    color: white;
+    text-align: center;
+    padding: 10px;
+    border-radius: 0 0 15px 15px;
+    font-weight: bold;
+}
+
+   body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background-color: #f9fff9;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .header, .footer-msg {
+      background: var(--gradient-primary);
+      color: white;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .confirmacion-compra {
+      max-width: 600px;
+      margin: auto;
+      padding: 40px 24px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+      text-align: center;
+      margin-top: 60px;
+      animation: fadeIn 0.8s ease;
+    }
+
+    .check-circle {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: var(--gradient-secondary);
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: popIn 0.5s ease-out forwards;
+    }
+
+    .check-circle svg {
+      fill: white;
+      width: 40px;
+      height: 40px;
+    }
+
+    .confirmacion-compra h2 {
+      color: #00d4ff;
+      font-size: 2rem;
+      margin-bottom: 16px;
+    }
+
+    .confirmacion-compra p {
+      font-size: 1.1rem;
+      margin: 12px 0;
+      color: #333;
+    }
+
+    .acciones-finales {
+      margin-top: 30px;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .acciones-finales a {
+      background: var(--gradient-secondary);
+      color: white;
+      text-decoration: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    .acciones-finales a:hover {
+      background: var(--gradient-primary-hover);
+      transform: translateY(-2px);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0); }
+      70% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }

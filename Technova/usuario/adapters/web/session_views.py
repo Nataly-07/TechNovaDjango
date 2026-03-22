@@ -14,13 +14,6 @@ SESSION_USUARIO_ID = "usuario_id"
 SESSION_USUARIO_ROL = "usuario_rol"
 
 
-def index_public(request: HttpRequest) -> HttpResponse:
-    """Raiz publica: con sesion va al portal; si no, al login (hasta exista landing catalogo)."""
-    if request.session.get(SESSION_USUARIO_ID):
-        return redirect("home_portal")
-    return redirect("web_login")
-
-
 def registro_stub(request: HttpRequest) -> HttpResponse:
     """Reservado: plantilla de registro alineada al proyecto Spring."""
     return HttpResponse(
@@ -48,10 +41,11 @@ def _urls_api_usuario() -> dict[str, str]:
 def login_web(request: HttpRequest) -> HttpResponse:
     if request.method == "GET":
         if request.session.get(SESSION_USUARIO_ID):
-            return redirect("home_portal")
+            return redirect("inicio_autenticado")
         ctx = {
             "api_usuario": _urls_api_usuario(),
             "account_activated": request.GET.get("accountActivated") == "true",
+            "account_deactivated_notice": request.GET.get("accountDeactivated") == "true",
         }
         return render(request, "usuarios/login.html", ctx)
 
@@ -76,7 +70,7 @@ def login_web(request: HttpRequest) -> HttpResponse:
     request.session[SESSION_USUARIO_ID] = usuario.id
     request.session[SESSION_USUARIO_ROL] = usuario.rol
     messages.success(request, "Sesion iniciada correctamente.")
-    return redirect("home_portal")
+    return redirect("inicio_autenticado")
 
 
 @require_http_methods(["GET"])

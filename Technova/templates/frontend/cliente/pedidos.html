@@ -1,0 +1,13 @@
+{% extends "frontend/base_cliente.html" %}
+{% load static %}
+{% block title %}Pedidos — Technova{% endblock %}
+{% block cliente_content %}
+<h1>Mis pedidos (ventas)</h1>
+<p style="color:#666;">Equivalente a la vista Java <em>cliente/pedidos</em> — datos de <code>/api/v1/venta/mias/</code></p>
+<div id="page-data">Cargando…</div>
+{% endblock %}
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'frontend/js/technova-pages.js' %}"></script>
+<script>document.addEventListener('DOMContentLoaded', function () { TechnovaPages.pedidos(); });</script>
+{% endblock %}

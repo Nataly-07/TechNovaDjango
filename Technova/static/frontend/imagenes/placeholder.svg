@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#1a1a2e"/><stop offset="100%" stop-color="#16213e"/>
+  </linearGradient></defs>
+  <rect width="320" height="240" fill="url(#g)"/>
+  <text x="160" y="125" fill="#7f8c8d" font-family="system-ui,sans-serif" font-size="14" text-anchor="middle">Technova</text>
+</svg>

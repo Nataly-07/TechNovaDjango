@@ -1,0 +1,277 @@
+/* Base */
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  margin: 0;
+  padding: 0;
+}
+
+/* Header TECHNOVA */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--gradient-primary);
+  padding: 10px 20px;
+  border-radius: 0 0 30px 30px;
+  border: 1px solid #5f5f5f;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  flex-wrap: wrap;
+}
+.menu-icon {
+  font-size: 28px;
+  cursor: pointer;
+  color: black;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+  font-weight: bold;
+  color: black;
+  text-decoration: none;
+}
+.logo img {
+  height: 50px;
+}
+.search-bar {
+  display: flex;
+  flex: 1;
+  margin: 10px 20px;
+  max-width: 500px;
+  background-color: white;
+  border-radius: 20px;
+  border: 1px solid #5f5f5f;
+}
+.search-bar input {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  font-size: 14px;
+}
+.search-btn {
+  background: none;
+  border: none;
+  padding: 10px;
+  font-size: 18px;
+  color: #00d4ff;
+  cursor: pointer;
+}
+.acciones-usuario {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.account, .cart {
+  display: flex;
+  align-items: center;
+  background: var(--gradient-secondary);
+  padding: 8px 18px;
+  border-radius: 30px;
+  color: white;
+  font-weight: bold;
+  gap: 8px;
+  border: 1px solid #4b4b4b;
+  text-decoration: none;
+  transition: background 0.3s, transform 0.2s;
+}
+.account:hover, .cart:hover {
+  background: var(--gradient-primary-hover);
+  transform: scale(1.05);
+}
+
+/* Formulario */
+.login-box {
+  background: var(--gradient-primary);
+  width: 420px;
+  margin: 50px auto;
+  padding: 35px;
+  border-radius: 15px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  text-align: center;
+}
+.login-box h2 {
+  font-size: 24px;
+  margin-bottom: 5px;
+  color: #000;
+}
+.login-box h3 {
+  font-size: 18px;
+  margin-bottom: 20px;
+  color: #000;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+label {
+  text-align: left;
+  font-weight: bold;
+  font-size: 14px;
+  color: #2e2e2e;
+  margin-bottom: 4px;
+}
+
+.campo-icono {
+  position: relative;
+}
+.campo-icono input {
+  width: 100%;
+  padding: 12px 36px 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #b5d7b8;
+  font-size: 15px;
+  outline: none;
+}
+select {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #b5d7b8;
+  font-size: 15px;
+  outline: none;
+  width: 100%;
+}
+input:focus, select:focus {
+  border-color: #00d4ff;
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+}
+
+.icono {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+}
+input.valid + .icono::before {
+  content: "✅";
+  color: #00d4ff;
+}
+input.invalid + .icono::before {
+  content: "❌";
+  color: #dc2626;
+}
+
+.requisito {
+  font-size: 12px;
+  color: #555;
+  margin-top: 3px;
+  text-align: left;
+  transition: 0.2s;
+}
+.requisito.valid {
+  color: #00d4ff;
+}
+
+.password-requisitos {
+  background: var(--gradient-light);
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: left;
+  margin-top: -10px;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+.password-requisitos .requisito {
+  margin: 5px 0;
+  opacity: 0.8;
+  color: #4a5568;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+.password-requisitos .requisito.valid {
+  opacity: 1;
+  font-weight: 600;
+  color: #00d4ff;
+  transform: translateX(5px);
+}
+/* Transición especial cuando todos los requisitos están completos */
+.password-requisitos.all-complete {
+  background: linear-gradient(135deg, #e6f7ff 0%, #b3e5fc 100%);
+  border-color: #00d4ff;
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2);
+  transform: scale(1.02);
+  animation: successPulse 0.6s ease-in-out;
+}
+.password-requisitos.all-complete .requisito.valid {
+  color: #0277bd;
+  font-weight: 700;
+}
+/* Ocultar los requisitos cuando se completen todos */
+.password-requisitos.all-complete {
+  opacity: 0;
+  max-height: 0;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  transition: all 0.5s ease-in-out;
+}
+/* Animación de éxito antes de ocultar */
+@keyframes successPulse {
+  0% { transform: scale(1.02); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1.02); }
+}
+
+/* Confirmación */
+.mensaje-confirmacion {
+  font-size: 14px;
+  font-weight: 500;
+}
+.mensaje-exito {
+  color: #00d4ff;
+}
+.login-btn {
+  background: var(--gradient-secondary);
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.login-btn:hover {
+  background: var(--gradient-primary-hover);
+  transform: translateY(-2px);
+}
+.login-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  position: relative;
+}
+
+.campo-icono {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.campo-icono input {
+  flex: 1;
+  padding: 12px 36px 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #b5d7b8;
+  font-size: 15px;
+  outline: none;
+  width: 100%;
+}
+
+.icono {
+  position: absolute;
+  right: 12px;
+  font-size: 18px;
+}

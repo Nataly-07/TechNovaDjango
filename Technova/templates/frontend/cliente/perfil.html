@@ -1,0 +1,214 @@
+{% extends "frontend/base_cliente.html" %}
+{% load static %}
+{% block title %}Dashboard Cliente — Technova{% endblock %}
+{% block cliente_header_welcome %}
+<div class="header-welcome">
+  <h1>¡Bienvenido{% if usuario %}, <span>{{ usuario.nombres }}</span>{% endif %}!</h1>
+  <p>Panel de cliente de Technova</p>
+</div>
+{% endblock %}
+{% block cliente_content %}
+{% if not usuario %}
+<p style="color:#c0392b;">No se encontró tu usuario.</p>
+{% else %}
+<div class="profile-card">
+  <img src="{% static 'frontend/imagenes/userim.png' %}" alt="Foto de perfil">
+  <div class="profile-details">
+    <h2>{{ usuario.nombres }} {{ usuario.apellidos }}</h2>
+    <p><i class="bx bx-envelope"></i> <span>{{ usuario.correo_electronico }}</span></p>
+    <p><i class="bx bx-shield"></i> <span>{{ usuario.get_rol_display }}</span></p>
+    <div class="profile-actions">
+      <a href="{% url 'web_cliente_perfil_editar' %}" class="edit-profile"><i class="bx bx-edit"></i> Editar perfil</a>
+      <button type="button" id="desactivarCuentaBtn" class="deactivate-account-btn" style="background:#dc3545;color:#fff;border:none;cursor:pointer;">
+        <i class="bx bx-user-x"></i> Desactivar cuenta
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard-cards">
+  <div class="card">
+    <div class="card-icon"><i class="bx bx-heart"></i></div>
+    <div class="card-content">
+      <h3>Mis Favoritos</h3>
+      <p>Productos que te gustan</p>
+      <div class="card-stats">
+        <span class="stat-number">{{ favoritos_count }}</span>
+        <span class="stat-label">productos favoritos</span>
+      </div>
+      <a href="{% url 'web_favoritos' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Favoritos</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-icon"><i class="bx bx-cart"></i></div>
+    <div class="card-content">
+      <h3>Mi Carrito</h3>
+      <p>Productos en tu carrito</p>
+      <div class="card-stats">
+        <span class="stat-number">{{ carrito_count }}</span>
+        <span class="stat-label">productos en carrito</span>
+      </div>
+      <a href="{% url 'web_carrito' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Carrito</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-icon"><i class="bx bx-package"></i></div>
+    <div class="card-content">
+      <h3>Mis Pedidos</h3>
+      <p>Historial de compras</p>
+      <div class="card-stats">
+        <span class="stat-number">{{ pedidos_count }}</span>
+        <span class="stat-label">pedidos realizados</span>
+      </div>
+      <a href="{% url 'web_cliente_mis_compras' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Pedidos</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-icon"><i class="bx bx-bell"></i></div>
+    <div class="card-content">
+      <h3>Notificaciones</h3>
+      <p>Mantente informado de las novedades</p>
+      <div class="card-stats">
+        <span class="stat-number">{{ notificaciones_count }}</span>
+        <span class="stat-label">notificaciones pendientes</span>
+      </div>
+      <a href="{% url 'web_cliente_notificaciones' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Notificaciones</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-icon"><i class="bx bx-credit-card"></i></div>
+    <div class="card-content">
+      <h3>Medios de Pago</h3>
+      <p>Gestiona tus métodos de pago</p>
+      <div class="card-stats">
+        <span class="stat-number">{{ medios_pago_count }}</span>
+        <span class="stat-label">métodos configurados</span>
+      </div>
+      <a href="{% url 'web_login' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Gestionar Pagos</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-icon"><i class="bx bx-shopping-bag"></i></div>
+    <div class="card-content">
+      <h3>Mis Compras</h3>
+      <p>Historial de tus compras realizadas</p>
+      <div class="card-stats">
+        <span class="stat-number">{{ compras_count }}</span>
+        <span class="stat-label">compras realizadas</span>
+      </div>
+      <a href="{% url 'web_cliente_mis_compras' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Compras</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-icon"><i class="bx bx-headphone"></i></div>
+    <div class="card-content">
+      <h3>Atención al Cliente</h3>
+      <p>Soporte y ayuda personalizada</p>
+      <div class="card-stats">
+        <span class="stat-number">24/7</span>
+        <span class="stat-label">disponible</span>
+      </div>
+      <a href="{% url 'web_cliente_atencion' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Contactar Soporte</a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div id="desactivarCuentaModal" class="desactivar-modal-overlay" aria-hidden="true">
+  <div class="desactivar-modal" role="dialog" aria-labelledby="desactivarTitulo">
+    <h2 id="desactivarTitulo"><i class="bx bx-error-circle" style="color:#dc3545;"></i> Desactivar cuenta</h2>
+    <div id="desactivarError" style="display:none;background:#fee;color:#c33;padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid #fcc;">
+      <span id="desactivarErrorMessage"></span>
+    </div>
+    <p style="color:#666;line-height:1.6;margin:0;">
+      ¿Estás seguro de que deseas desactivar tu cuenta? Se cerrará la sesión y no podrás iniciar sesión hasta que un administrador reactive tu cuenta.
+    </p>
+    <div class="desactivar-modal-actions">
+      <button type="button" id="cancelarDesactivarBtn" class="btn btn-secondary">Cancelar</button>
+      <button type="button" id="confirmarDesactivarBtn" class="deactivate-account-btn" style="background:#dc3545;color:#fff;border:none;">
+        <i class="bx bx-user-x"></i> Sí, desactivar cuenta
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function () {
+  function csrfToken() {
+    var el = document.querySelector('input[name=csrfmiddlewaretoken]');
+    if (el && el.value) return el.value;
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  var btn = document.getElementById('desactivarCuentaBtn');
+  var modal = document.getElementById('desactivarCuentaModal');
+  var errBox = document.getElementById('desactivarError');
+  var errMsg = document.getElementById('desactivarErrorMessage');
+  var confirmBtn = document.getElementById('confirmarDesactivarBtn');
+  var cancelBtn = document.getElementById('cancelarDesactivarBtn');
+  function cerrar() {
+    if (modal) {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    if (errBox) errBox.style.display = 'none';
+  }
+  function abrir() {
+    if (modal) {
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+    if (errBox) errBox.style.display = 'none';
+  }
+  btn?.addEventListener('click', function (e) {
+    e.preventDefault();
+    abrir();
+  });
+  cancelBtn?.addEventListener('click', cerrar);
+  modal?.addEventListener('click', function (e) {
+    if (e.target === modal) cerrar();
+  });
+  confirmBtn?.addEventListener('click', async function () {
+    var t = csrfToken();
+    if (!t) {
+      if (errBox && errMsg) {
+        errMsg.textContent = 'No se encontró token CSRF. Recarga la página.';
+        errBox.style.display = 'block';
+      }
+      return;
+    }
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Desactivando…';
+    try {
+      var r = await fetch('{% url "web_cliente_perfil_desactivar" %}', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': t,
+        },
+        body: '{}',
+      });
+      var data = await r.json().catch(function () { return {}; });
+      if (r.ok && data.success) {
+        window.location.href = '{% url "web_login" %}?accountDeactivated=true';
+        return;
+      }
+      if (errBox && errMsg) {
+        errMsg.textContent = data.message || 'No se pudo desactivar la cuenta.';
+        errBox.style.display = 'block';
+      }
+    } catch (e) {
+      if (errBox && errMsg) {
+        errMsg.textContent = 'Error de red. Intenta de nuevo.';
+        errBox.style.display = 'block';
+      }
+    }
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = '<i class="bx bx-user-x"></i> Sí, desactivar cuenta';
+  });
+})();
+</script>
+{% endblock %}

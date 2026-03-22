@@ -1,0 +1,65 @@
+{% extends "frontend/base_tienda.html" %}
+{% load static %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
+<link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+<link rel="stylesheet" href="{% static 'frontend/css/technova-cliente-area.css' %}">
+{% endblock %}
+{% block body %}
+<script>window.TECHNOVA_SESION_SERVIDOR = true;</script>
+<header class="header">
+  <a href="{% url 'inicio_autenticado' %}" class="logo">
+    <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Technova" style="height:52px;width:auto;">
+    <span>TECHNOVA</span>
+  </a>
+  {% block cliente_header_welcome %}
+  <div class="header-welcome">
+    <h1>¡Bienvenido!</h1>
+    <p>Panel de cliente de Technova</p>
+  </div>
+  {% endblock %}
+  <div class="acciones-usuario">
+    <a href="{% url 'web_cliente_perfil' %}" class="account"><i class="bx bx-user-circle" aria-hidden="true"></i><span>Perfil</span></a>
+    <button type="button" class="account" id="btnSalirHeader" style="background:none;border:none;cursor:pointer;font:inherit;color:inherit;display:inline-flex;align-items:center;gap:6px;">
+      <i class="bx bx-log-out" aria-hidden="true"></i><span>Cerrar sesión</span>
+    </button>
+  </div>
+</header>
+
+<div class="dashboard-wrapper">
+  <aside class="menu-dashboard">
+    <div class="menu">
+      <div class="enlace"><a href="{% url 'web_cliente_perfil' %}"><i class="bx bx-user-circle"></i> Mi Perfil</a></div>
+      <div class="enlace"><a href="{% url 'web_favoritos' %}"><i class="bx bx-heart"></i> Favoritos</a></div>
+      <div class="enlace"><a href="{% url 'web_cliente_notificaciones' %}"><i class="bx bx-bell"></i> Notificaciones</a></div>
+      <div class="enlace"><a href="{% url 'web_carrito' %}"><i class="bx bx-cart"></i> Carrito</a></div>
+      <div class="enlace"><a href="{% url 'web_cliente_pedidos' %}"><i class="bx bx-package"></i> Pedidos</a></div>
+      <div class="enlace"><a href="{% url 'web_cliente_mis_compras' %}"><i class="bx bx-shopping-bag"></i> Mis compras</a></div>
+      <div class="enlace"><a href="{% url 'web_cliente_atencion' %}"><i class="bx bx-headphone"></i> Atención al cliente</a></div>
+      <div class="enlace">
+        <button type="button" id="btnSalirCliente" style="background:none;border:none;color:inherit;cursor:pointer;padding:0;width:100%;text-align:left;display:flex;align-items:center;gap:10px;font:inherit;">
+          <i class="bx bx-log-out"></i> Cerrar sesión
+        </button>
+      </div>
+      <div class="enlace"><a href="{% url 'inicio_autenticado' %}"><i class="bx bx-home"></i> Volver a la tienda</a></div>
+    </div>
+  </aside>
+  <main class="main-content cliente-dashboard-main">
+    {% block cliente_content %}{% endblock %}
+  </main>
+</div>
+
+<footer class="cliente-dashboard-footer">
+  <p style="margin:0;">&copy; 2025 Technova</p>
+</footer>
+
+<script>
+(function () {
+  function salir() {
+    if (window.TechnovaAuth) window.TechnovaAuth.logout();
+  }
+  document.getElementById('btnSalirCliente')?.addEventListener('click', salir);
+  document.getElementById('btnSalirHeader')?.addEventListener('click', salir);
+})();
+</script>
+{% endblock %}

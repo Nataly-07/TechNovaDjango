@@ -1,0 +1,89 @@
+{% extends "frontend/base_tienda.html" %}
+{% load static %}
+{% block title %}Technova — Inicio{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'frontend/css/technova-home.css' %}">
+{% endblock %}
+{% block body %}
+<div class="tecn-header-shell">
+<header class="header header--tecn">
+  <a href="{% url 'inicio_autenticado' %}" class="logo">
+    <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Technova" class="logo-marca" width="48" height="48">
+    <span>TECHNOVA</span>
+  </a>
+  <div class="busqueda-header-wrapper">
+    <div class="busqueda-input-wrapper">
+      <input type="text" id="busquedaTermino" class="busqueda-input" placeholder="Buscar productos..."
+             autocomplete="off"
+             onkeypress="if(event.key==='Enter') buscarProductos()">
+      <button type="button" onclick="buscarProductos()" class="btn-buscar" title="Buscar" aria-label="Buscar"><span>🔍</span></button>
+      <button type="button" onclick="limpiarFiltros()" class="btn-limpiar" title="Limpiar" aria-label="Limpiar"><span>✕</span></button>
+      <button type="button" onclick="toggleFiltros()" class="btn-filtros-toggle" id="btnFiltrosToggle"><span>⚙️ Filtros</span></button>
+    </div>
+    <div class="filtros-header-container" id="filtrosContainer" style="display: none;">
+      <div class="filtro-header-item"><label>MARCA</label><input type="text" id="filtroMarca" class="filtro-select-header" placeholder="Marca"></div>
+      <div class="filtro-header-item"><label>CATEGORÍA</label><input type="text" id="filtroCategoria" class="filtro-select-header" placeholder="Categoría"></div>
+      <div class="filtro-header-item"><label>PRECIO MÍN</label><input type="number" id="filtroPrecioMin" class="filtro-input-header" min="0" step="0.01"></div>
+      <div class="filtro-header-item"><label>PRECIO MÁX</label><input type="number" id="filtroPrecioMax" class="filtro-input-header" min="0" step="0.01"></div>
+      <div class="filtro-header-item"><label>DISPONIBILIDAD</label>
+        <select id="filtroDisponibilidad" class="filtro-select-header">
+          <option value="">Todas</option>
+          <option value="disponible">Disponible</option>
+          <option value="agotado">Agotado</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="acciones-usuario">
+    <a href="{% url 'web_cliente_perfil' %}" class="account" id="linkPerfil"><i class="bx bx-user-circle" aria-hidden="true"></i><span>Mi cuenta</span></a>
+    <a href="{% url 'web_favoritos' %}" class="account"><i class="bx bx-heart" aria-hidden="true"></i><span>Favoritos</span></a>
+    <a href="{% url 'web_carrito' %}" class="account"><i class="bx bx-cart" aria-hidden="true"></i><span>Carrito</span></a>
+    <a href="#" class="account" id="linkCerrarSesionHeader"><i class="bx bx-log-out" aria-hidden="true"></i><span>Cerrar sesión</span></a>
+  </div>
+</header>
+<nav class="menu-principal menu-principal--tecn">
+  <ul>
+    <li><a href="{% url 'inicio_autenticado' %}">Inicio</a></li>
+  </ul>
+</nav>
+</div>
+
+<div class="busqueda-filtros-container">
+  <div id="resultadosBusqueda" class="resultados-container">
+    <h3 class="resultados-titulo">Resultados de búsqueda</h3>
+    <div id="productosFiltrados" class="productos-grid"></div>
+  </div>
+</div>
+
+<div class="mas-vendido-container" id="productosOriginales">
+  <div class="mas-vendido-header">
+    <span class="vendido">Catálogo</span>
+  </div>
+  <div class="carrusel-productos-contenedor">
+    <button type="button" class="carrusel-btn prev" aria-label="Anterior">&#10094;</button>
+    <div class="carrusel-track"></div>
+    <button type="button" class="carrusel-btn next" aria-label="Siguiente">&#10095;</button>
+  </div>
+</div>
+
+<div class="info-botones">
+  <div class="info-btn"><span class="icon">&#128666;</span><span>Envíos<br>a todo el país</span></div>
+  <div class="info-btn"><span class="icon">&#128179;</span><span>Métodos<br>de pago</span></div>
+  <div class="info-btn"><span class="icon">&#128100;</span><span>Atención<br>virtual</span></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'frontend/js/carrusel.js' %}"></script>
+<script src="{% static 'frontend/js/technova-cliente-home.js' %}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var lOut = document.getElementById('linkCerrarSesionHeader');
+    if (lOut && window.TechnovaAuth) {
+      lOut.addEventListener('click', function (e) {
+        e.preventDefault();
+        window.TechnovaAuth.logout();
+      });
+    }
+  });
+</script>
+{% endblock %}

@@ -32,7 +32,7 @@
       {% endfor %}
     </ul>
     {% endif %}
-    <p><a href="{% url 'index_public' %}">Inicio</a></p>
+    <p><a href="{% url 'inicio_autenticado' %}">Inicio</a></p>
     <form action="{% url 'web_logout' %}" method="post" style="margin-top:1rem;">
       {% csrf_token %}
       <button type="submit">Cerrar sesión</button>

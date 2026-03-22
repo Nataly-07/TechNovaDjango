@@ -1,0 +1,12 @@
+{% extends "frontend/base_cliente.html" %}
+{% load static %}
+{% block title %}Notificaciones — Technova{% endblock %}
+{% block cliente_content %}
+<h1>Notificaciones</h1>
+<div id="page-data">Cargando…</div>
+{% endblock %}
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'frontend/js/technova-pages.js' %}"></script>
+<script>document.addEventListener('DOMContentLoaded', function () { TechnovaPages.notificaciones(); });</script>
+{% endblock %}

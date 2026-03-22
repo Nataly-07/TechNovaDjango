@@ -868,7 +868,7 @@
 <body>
   <!-- Header -->
   <header class="header">
-    <a href="{% url 'index_public' %}" class="logo">
+    <a href="{% url 'root' %}" class="logo">
       <img src="{% static 'frontend/imagenes/logo technova.png' %}" alt="Logo" style="cursor:pointer;">
       <span>TECHNOVA</span>
     </a>
@@ -1003,6 +1003,12 @@
       <div class="success-message" id="successMessage" style="display: block; background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #c3e6cb;">
         <i class='bx bx-check-circle'></i>
         <span>Cuenta activada correctamente. Ya puedes iniciar sesión.</span>
+      </div>
+      {% endif %}
+      {% if account_deactivated_notice %}
+      <div class="success-message" style="display: block; background: #e0f2fe; color: #0369a1; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #bae6fd;">
+        <i class='bx bx-info-circle'></i>
+        <span>Tu cuenta fue desactivada. Ya puedes cerrar esta ventana o contactar soporte si necesitas reactivarla.</span>
       </div>
       {% endif %}
       {% for message in messages %}

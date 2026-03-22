@@ -1,0 +1,485 @@
+/* Estilos para la página de pedidos del cliente */
+
+/* Header de la página */
+.page-header {
+    background: var(--gradient-primary);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.page-header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.page-header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+/* Sección de filtros */
+.filters-section {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+
+.search-filter {
+    flex: 1;
+    min-width: 300px;
+    position: relative;
+}
+
+.search-filter i {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+    font-size: 18px;
+}
+
+.search-filter input {
+    width: 100%;
+    padding: 12px 15px 12px 45px;
+    border: 2px solid var(--sinbad);
+    border-radius: 12px;
+    font-size: 14px;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.search-filter input:focus {
+    outline: none;
+    border-color: var(--bondi-blue);
+    box-shadow: 0 0 0 3px rgba(7, 153, 182, 0.1);
+}
+
+.status-filter select {
+    padding: 12px 15px;
+    border: 2px solid var(--sinbad);
+    border-radius: 12px;
+    font-size: 14px;
+    background: white;
+    min-width: 200px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.status-filter select:focus {
+    outline: none;
+    border-color: var(--bondi-blue);
+    box-shadow: 0 0 0 3px rgba(7, 153, 182, 0.1);
+}
+
+/* Contenedor de pedidos */
+.pedidos-container {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+/* Tarjeta de pedido */
+.pedido-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.pedido-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    border-color: var(--bondi-blue);
+}
+
+/* Header del pedido */
+.pedido-header {
+    background: var(--gradient-light);
+    padding: 20px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.pedido-info h3 {
+    color: var(--eden);
+    font-size: 1.4rem;
+    margin-bottom: 5px;
+}
+
+.pedido-info .fecha {
+    color: #666;
+    font-size: 14px;
+}
+
+/* Badges de estado */
+.estado-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.estado-badge.entregado {
+    background: #d4edda;
+    color: #155724;
+    border: 2px solid #c3e6cb;
+}
+
+.estado-badge.transito {
+    background: #cce5ff;
+    color: #004085;
+    border: 2px solid #b3d7ff;
+}
+
+.estado-badge.preparacion {
+    background: #fff3cd;
+    color: #856404;
+    border: 2px solid #ffeaa7;
+}
+
+.estado-badge.pendiente {
+    background: #f8d7da;
+    color: #721c24;
+    border: 2px solid #f5c6cb;
+}
+
+.estado-badge.cancelado {
+    background: #e2e3e5;
+    color: #383d41;
+    border: 2px solid #d6d8db;
+}
+
+/* Contenido del pedido */
+.pedido-content {
+    padding: 25px;
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.producto-info {
+    display: flex;
+    gap: 20px;
+    flex: 1;
+    min-width: 300px;
+}
+
+.producto-img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 2px solid var(--sinbad);
+}
+
+.producto-details h4 {
+    color: var(--eden);
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+}
+
+.producto-details p {
+    color: #666;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.producto-details .precio {
+    color: var(--bondi-blue);
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.pedido-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    min-width: 200px;
+}
+
+.stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: var(--janna-light);
+    border-radius: 8px;
+}
+
+.stat .label {
+    color: #666;
+    font-size: 14px;
+}
+
+.stat .value {
+    color: var(--eden);
+    font-weight: 600;
+}
+
+/* Información de tracking */
+.tracking-info {
+    padding: 0 25px 25px;
+}
+
+.tracking-info h4 {
+    color: var(--eden);
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tracking-details {
+    background: var(--janna-light);
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 4px solid var(--bondi-blue);
+}
+
+.tracking-details p {
+    margin-bottom: 8px;
+    color: #555;
+    font-size: 14px;
+}
+
+.tracking-details strong {
+    color: var(--eden);
+}
+
+/* Acciones del pedido */
+.pedido-actions {
+    padding: 20px 25px;
+    background: #f8f9fa;
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.btn-primary, .btn-secondary, .btn-outline {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    border: none;
+}
+
+.btn-primary {
+    background: var(--gradient-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--gradient-primary-hover);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: var(--bondi-blue);
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: var(--bondi-blue-dark);
+    transform: translateY(-1px);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--bondi-blue);
+    border: 2px solid var(--bondi-blue);
+}
+
+.btn-outline:hover:not(:disabled) {
+    background: var(--bondi-blue);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.btn-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-cancel {
+    background: transparent;
+    color: #e74c3c;
+    border: 2px solid #e74c3c;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+.btn-cancel:hover:not(:disabled) {
+    background: #e74c3c;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+}
+
+.btn-cancel:disabled {
+    background: #bdc3c7;
+    color: #7f8c8d;
+    border-color: #bdc3c7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    opacity: 0.5;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .page-header h1 {
+        font-size: 2rem;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .filters-section {
+        flex-direction: column;
+    }
+    
+    .search-filter {
+        min-width: auto;
+    }
+    
+    .pedido-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .pedido-content {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .producto-info {
+        min-width: auto;
+    }
+    
+    .pedido-stats {
+        min-width: auto;
+    }
+    
+    .pedido-actions {
+        flex-direction: column;
+    }
+    
+    .btn-primary, .btn-secondary, .btn-outline, .btn-cancel {
+        justify-content: center;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.pedido-card {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+.pedido-card:nth-child(1) { animation-delay: 0.1s; }
+.pedido-card:nth-child(2) { animation-delay: 0.2s; }
+.pedido-card:nth-child(3) { animation-delay: 0.3s; }
+.pedido-card:nth-child(4) { animation-delay: 0.4s; }
+.pedido-card:nth-child(5) { animation-delay: 0.5s; }
+
+/* Estado sin pedidos */
+.no-pedidos {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+    padding: 40px 20px;
+}
+
+.no-pedidos-content {
+    text-align: center;
+    max-width: 400px;
+}
+
+.no-pedidos-content i {
+    font-size: 4rem;
+    color: var(--bondi-blue);
+    margin-bottom: 20px;
+    opacity: 0.7;
+}
+
+.no-pedidos-content h3 {
+    color: var(--eden);
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+}
+
+.no-pedidos-content p {
+    color: #666;
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 25px;
+}
+
+.no-pedidos-content .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: var(--gradient-primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.no-pedidos-content .btn-primary:hover {
+    background: var(--gradient-primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+}
+
+/* Estilos para características de productos */
+.caracteristicas {
+    color: #888 !important;
+    font-size: 12px !important;
+    margin-top: 5px !important;
+}

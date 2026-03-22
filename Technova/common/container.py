@@ -1,41 +1,50 @@
-from atencion_cliente.application.query_service import AtencionQueryService
-from atencion_cliente.application.services import AtencionClienteService
-from atencion_cliente.infrastructure.query_repository import AtencionQueryRepository
-from atencion_cliente.infrastructure.repositories import AtencionClienteOrmRepository
-from carrito.application.query_service import CarritoQueryService
-from carrito.application.services import CarritoService
-from carrito.infrastructure.query_repository import CarritoQueryRepository
-from carrito.infrastructure.repositories import CarritoOrmRepository
-from compras.application.services import CompraService
-from compras.infrastructure.repositories import CompraOrmRepository
-from envios.application.query_service import EnvioQueryService
-from envios.application.services import EnvioService
-from envios.infrastructure.query_repository import EnvioQueryRepository
-from envios.infrastructure.repositories import EnvioOrmRepository
-from mensajeria.application.query_service import MensajeriaQueryService
-from mensajeria.application.services import NotificacionService
-from mensajeria.infrastructure.query_repository import MensajeriaQueryRepository
-from mensajeria.infrastructure.repositories import NotificacionOrmRepository
-from ordenes.application.query_service import OrdenesQueryService
-from ordenes.application.services import OrdenCompraService
-from ordenes.infrastructure.query_repository import OrdenesQueryRepository
-from ordenes.infrastructure.persistence.repository_adapter import OrdenPersistenceAdapter
-from pagos.application.payment_state_service import PagoStateService
-from pagos.application.query_service import PagoQueryService
-from pagos.application.services import PagoService
-from pagos.infrastructure.query_repository import PagoQueryRepository
-from pagos.infrastructure.persistence.repository_adapter import PagoPersistenceAdapter
-from productos.application.services import ProductoService
-from productos.infrastructure.repositories import ProductoOrmRepository
-from ventas.application.checkout_service import CheckoutService
-from ventas.application.query_service import VentasQueryService
-from ventas.application.venta_service import VentaService
-from ventas.infrastructure.query_repository import VentasQueryRepository
-from ventas.infrastructure.transaction_adapter import VentaTransactionAdapter
+from atencion_cliente.application.use_cases.atencion_cliente_usecases import (
+    AtencionClienteService,
+    AtencionQueryService,
+)
+from atencion_cliente.infrastructure.repositories.atencion_cliente_repository_impl import (
+    AtencionClienteOrmRepository,
+)
+from atencion_cliente.infrastructure.repositories.atencion_query_repository_impl import (
+    AtencionQueryRepository,
+)
+from carrito.application.use_cases.carrito_usecases import (
+    CarritoLineasService,
+    CarritoQueryService,
+    CarritoService,
+)
+from carrito.infrastructure.repositories.carrito_lineas_repository_impl import CarritoLineasRepository
+from carrito.infrastructure.repositories.carrito_query_repository_impl import CarritoQueryRepository
+from carrito.infrastructure.repositories.carrito_repository_impl import CarritoOrmRepository
+from compra.application.use_cases.compra_usecases import CompraService
+from compra.infrastructure.repositories.compra_repository_impl import CompraOrmRepository
+from envio.application.use_cases.envio_usecases import EnvioQueryService, EnvioService
+from envio.infrastructure.repositories.envio_query_repository_impl import EnvioQueryRepository
+from envio.infrastructure.repositories.envio_repository_impl import EnvioOrmRepository
+from mensajeria.application.use_cases.mensajeria_usecases import MensajeriaQueryService, NotificacionService
+from mensajeria.infrastructure.repositories.mensajeria_query_repository_impl import MensajeriaQueryRepository
+from mensajeria.infrastructure.repositories.notificacion_repository_impl import NotificacionOrmRepository
+from orden.application.use_cases.orden_usecases import OrdenCompraService, OrdenQueryService
+from orden.infrastructure.repositories.orden_compra_repository_impl import OrdenPersistenceAdapter
+from orden.infrastructure.repositories.orden_query_repository_impl import OrdenQueryRepository
+from pago.application.use_cases.pago_usecases import PagoQueryService, PagoService, PagoStateService
+from pago.infrastructure.repositories.pago_query_repository_impl import PagoQueryRepository
+from pago.infrastructure.repositories.pago_repository_impl import PagoPersistenceAdapter
+from producto.application.use_cases.producto_usecases import ProductoService
+from producto.infrastructure.repositories.producto_repository_impl import ProductoOrmRepository
+from proveedor.application.use_cases.proveedor_usecases import ProveedorService
+from proveedor.infrastructure.repositories.proveedor_repository_impl import ProveedorOrmRepository
+from venta.application.use_cases.venta_usecases import CheckoutService, VentaService, VentaQueryService
+from venta.infrastructure.repositories.venta_transaction_adapter_impl import VentaTransactionAdapter
+from venta.infrastructure.repositories.venta_query_repository_impl import VentaQueryRepository
 
 
 def get_producto_service() -> ProductoService:
     return ProductoService(ProductoOrmRepository())
+
+
+def get_proveedor_service() -> ProveedorService:
+    return ProveedorService(ProveedorOrmRepository())
 
 
 def get_compra_service() -> CompraService:
@@ -51,6 +60,10 @@ def get_carrito_service() -> CarritoService:
 
 def get_carrito_query_service() -> CarritoQueryService:
     return CarritoQueryService(CarritoQueryRepository())
+
+
+def get_carrito_lineas_service() -> CarritoLineasService:
+    return CarritoLineasService(CarritoLineasRepository())
 
 
 def get_pago_service() -> PagoService:
@@ -77,8 +90,8 @@ def get_orden_service() -> OrdenCompraService:
     return OrdenCompraService(OrdenPersistenceAdapter())
 
 
-def get_orden_query_service() -> OrdenesQueryService:
-    return OrdenesQueryService(OrdenesQueryRepository())
+def get_orden_query_service() -> OrdenQueryService:
+    return OrdenQueryService(OrdenQueryRepository())
 
 
 def get_atencion_service() -> AtencionClienteService:
@@ -97,8 +110,8 @@ def get_mensajeria_query_service() -> MensajeriaQueryService:
     return MensajeriaQueryService(MensajeriaQueryRepository())
 
 
-def get_ventas_query_service() -> VentasQueryService:
-    return VentasQueryService(VentasQueryRepository())
+def get_venta_query_service() -> VentaQueryService:
+    return VentaQueryService(VentaQueryRepository())
 
 
 def get_checkout_service() -> CheckoutService:

@@ -1,7 +1,7 @@
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
 
-from usuarios.models import Usuario
+from usuario.models import Usuario
 
 
 class UsuarioJWTAuthentication(JWTAuthentication):

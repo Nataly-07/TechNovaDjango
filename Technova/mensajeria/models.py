@@ -1,1 +1,1 @@
-from mensajeria.infrastructure.persistence.models import *  # noqa: F401,F403
+from mensajeria.infrastructure.models import *  # noqa: F401,F403

@@ -2,7 +2,7 @@ import json
 
 from django.test import Client, TestCase
 
-from usuarios.models import Usuario
+from usuario.models import Usuario
 
 
 class MensajeriaApiJwtTestCase(TestCase):

@@ -31,6 +31,11 @@ SECRET_KEY = os.getenv(
 DEBUG = _env_bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = _env_list("DJANGO_ALLOWED_HOSTS", ["127.0.0.1", "localhost"])
 
+# CORS: lista separada por comas, p. ej. http://localhost:3000,https://app.example.com
+_cors_origins_raw = os.getenv("DJANGO_CORS_ALLOWED_ORIGINS", "").strip()
+CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+CORS_ALLOW_CREDENTIALS = _env_bool("DJANGO_CORS_ALLOW_CREDENTIALS", False)
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -38,23 +43,26 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "corsheaders",
     "rest_framework",
     "drf_spectacular",
-    "usuarios",
-    "proveedores",
-    "productos",
-    "compras",
-    "ventas",
-    "envios",
-    "ordenes",
+    "common.apps.CommonConfig",
+    "usuario",
+    "proveedor",
+    "producto",
+    "compra",
+    "venta",
+    "envio",
+    "orden",
     "atencion_cliente",
     "mensajeria",
     "carrito",
-    "pagos",
+    "pago",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -86,9 +94,9 @@ ASGI_APPLICATION = "Technova.asgi.application"
 DATABASES = {
     "default": {
         "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql"),
-        "NAME": os.getenv("DB_NAME", "Technova"),
+        "NAME": os.getenv("DB_NAME", "technova"),
         "USER": os.getenv("DB_USER", "postgres"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "postgres"),
+        "PASSWORD": os.getenv("DB_PASSWORD", "12345"),
         "HOST": os.getenv("DB_HOST", "localhost"),
         "PORT": os.getenv("DB_PORT", "5432"),
     }
@@ -128,7 +136,12 @@ SIMPLE_JWT = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Technova API",
-    "DESCRIPTION": "Documentacion OpenAPI de Technova",
+    "DESCRIPTION": (
+        "API REST Technova (JWT). La mayoría de rutas son vistas Django documentadas en "
+        "`API_CONTRACTS.md`. Salud: `GET /api/v1/health/live/` y `/api/v1/health/ready/` "
+        "(públicas). Esquema OpenAPI cubre sobre todo endpoints DRF; use el contrato "
+        "Markdown como fuente de verdad para todas las rutas."
+    ),
     "VERSION": "1.0.0",
     "AUTHENTICATION_WHITELIST": [],
     "SECURITY": [{"BearerAuth": []}],

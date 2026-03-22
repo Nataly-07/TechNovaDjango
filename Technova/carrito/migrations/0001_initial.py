@@ -9,8 +9,8 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('productos', '0001_initial'),
-        ('usuarios', '0001_initial'),
+        ('producto', '0001_initial'),
+        ('usuario', '0001_initial'),
     ]
 
     operations = [
@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('fecha_creacion', models.DateTimeField(auto_now_add=True)),
                 ('estado', models.CharField(choices=[('activo', 'Activo'), ('cerrado', 'Cerrado'), ('abandonado', 'Abandonado')], default='activo', max_length=20)),
-                ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='carritos', to='usuarios.usuario')),
+                ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='carritos', to='usuario.usuario')),
             ],
             options={
                 'verbose_name': 'carrito',
@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
                 ('creado_en', models.DateTimeField(auto_now_add=True)),
                 ('actualizado_en', models.DateTimeField(auto_now=True)),
                 ('carrito', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='detalles', to='carrito.carrito')),
-                ('producto', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='detalles_carrito', to='productos.producto')),
+                ('producto', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='detalles_carrito', to='producto.producto')),
             ],
             options={
                 'verbose_name': 'detalle de carrito',
@@ -52,8 +52,8 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('creado_en', models.DateTimeField(auto_now_add=True)),
                 ('actualizado_en', models.DateTimeField(auto_now=True)),
-                ('producto', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favoritos', to='productos.producto')),
-                ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favoritos', to='usuarios.usuario')),
+                ('producto', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favoritos', to='producto.producto')),
+                ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favoritos', to='usuario.usuario')),
             ],
             options={
                 'verbose_name': 'favorito',

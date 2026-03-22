@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('usuarios', '0001_initial'),
+        ('usuario', '0001_initial'),
     ]
 
     operations = [
@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
                 ('respuesta', models.TextField(blank=True)),
                 ('creado_en', models.DateTimeField(auto_now_add=True)),
                 ('actualizado_en', models.DateTimeField(auto_now=True)),
-                ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='solicitudes_atencion', to='usuarios.usuario')),
+                ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='solicitudes_atencion', to='usuario.usuario')),
             ],
             options={
                 'verbose_name': 'atencion al cliente',
@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
                 ('evaluacion_cliente', models.CharField(blank=True, choices=[('resuelta', 'Resuelta'), ('no_resuelta', 'No resuelta')], max_length=20)),
                 ('creado_en', models.DateTimeField(auto_now_add=True)),
                 ('actualizado_en', models.DateTimeField(auto_now=True)),
-                ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='reclamos', to='usuarios.usuario')),
+                ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='reclamos', to='usuario.usuario')),
             ],
             options={
                 'verbose_name': 'reclamo',

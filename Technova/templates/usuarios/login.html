@@ -865,11 +865,12 @@
     }
   </style>
 </head>
-<body>
+<body data-technova-template="login-spring-django">
+  <!-- Plantilla completa: formulario email/contrasena + modales. Si solo ves un aviso de API, reinicia runserver desde la carpeta Technova (donde esta manage.py). -->
   <!-- Header -->
   <header class="header">
     <a href="{% url 'root' %}" class="logo">
-      <img src="{% static 'frontend/imagenes/logo technova.png' %}" alt="Logo" style="cursor:pointer;">
+      <img src="{% static 'frontend/imagenes/logo-technova.svg' %}" alt="Logo" style="cursor:pointer;">
       <span>TECHNOVA</span>
     </a>
 
@@ -984,7 +985,7 @@
     <div class="form-wrapper">
       <div class="form-header">
         <div class="logo">
-          <img src="{% static 'frontend/imagenes/logo technova.png' %}" alt="Logo Technova" style="width: 100%; height: 100%; object-fit: contain;">
+          <img src="{% static 'frontend/imagenes/logo-technova.svg' %}" alt="Logo Technova" style="width: 100%; height: 100%; object-fit: contain;">
         </div>
         <h1 class="form-title">Iniciar Sesión</h1>
         <p class="form-subtitle">Bienvenido de vuelta a TechNova</p>
@@ -1039,9 +1040,9 @@
         </div>
       </div>
 
-      <form id="loginForm" action="{% url 'web_login' %}" method="POST" novalidate style="display: block !important; width: 100% !important; visibility: visible !important; opacity: 1 !important;">
+      <form id="loginForm" action="{% url 'web_login' %}" method="post" novalidate style="display: block !important; width: 100% !important; visibility: visible !important; opacity: 1 !important;">
         {% csrf_token %}
-        
+
         <div class="form-group" style="display: block !important; width: 100% !important; margin-bottom: 20px !important; visibility: visible !important; opacity: 1 !important; height: auto !important;">
           <label for="email" style="display: block !important; margin-bottom: 6px !important; color: #4a5568 !important; font-weight: 600 !important; font-size: 13px !important; visibility: visible !important;">Correo electrónico</label>
           <div class="input-wrapper" style="position: relative !important; display: block !important; width: 100% !important; visibility: visible !important; opacity: 1 !important;">
@@ -1344,16 +1345,9 @@
       }
 
       const email = loginForm.email.value.trim().toLowerCase();
-      const password = loginForm.password.value.trim();
 
       // Normalizar email antes de enviar
       loginForm.email.value = email;
-
-      if (password.length < 8) {
-        event.preventDefault();
-        showError(passwordError, 'La contraseña debe tener al menos 8 caracteres.');
-        return;
-      }
 
       // Verificar si la cuenta está desactivada ANTES de enviar el formulario
       event.preventDefault();
@@ -1499,7 +1493,9 @@
               
               // Redirigir al login después de 2 segundos
               setTimeout(() => {
-                window.location.href = Config.web_login + '?accountActivated=true';
+                const base = Config.web_login;
+                const join = base.includes('?') ? '&' : '?';
+                window.location.href = base + join + 'accountActivated=true';
               }, 2000);
             } else {
               reactivateAccountError.style.display = 'block';

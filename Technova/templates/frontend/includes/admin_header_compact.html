@@ -1,0 +1,16 @@
+{% load static %}
+<header class="header">
+  <div class="logo" style="cursor: default;">
+    <img src="{% static 'frontend/imagenes/logo-technova.svg' %}" alt="Technova" width="50" height="50" loading="eager" decoding="async">
+    <span>TECHNOVA</span>
+  </div>
+  <div class="acciones-usuario">
+    <a href="{% url 'web_admin_perfil' %}" class="account"><i class="bx bx-user-circle"></i> <span>Perfil</span></a>
+    <form method="post" action="{% url 'web_logout' %}" style="display:inline;">
+      {% csrf_token %}
+      <button type="submit" class="account" style="background:none;border:none;color:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">
+        <i class="bx bx-log-out"></i> <span>Cerrar Sesión</span>
+      </button>
+    </form>
+  </div>
+</header>

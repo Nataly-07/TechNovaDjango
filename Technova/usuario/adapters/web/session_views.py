@@ -8,22 +8,50 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
+from usuario.application.registro_usuario_service import registrar_usuario_desde_payload
 from usuario.application.use_cases.autenticacion_usecases import autenticar_por_correo
+from usuario.models import Usuario
 
 SESSION_USUARIO_ID = "usuario_id"
 SESSION_USUARIO_ROL = "usuario_rol"
 
 
-def registro_stub(request: HttpRequest) -> HttpResponse:
-    """Reservado: plantilla de registro alineada al proyecto Spring."""
-    return HttpResponse(
-        "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Registro</title></head>"
-        "<body style='font-family:sans-serif;padding:2rem;'>"
-        "<p>Registro: proximamente (misma vista que TechNova Java).</p>"
-        "<p><a href='" + reverse("web_login") + "'>Volver al login</a></p>"
-        "</body></html>",
-        content_type="text/html; charset=utf-8",
-    )
+@require_http_methods(["GET", "POST"])
+def registro_web(request: HttpRequest) -> HttpResponse:
+    """Registro web (plantilla Spring); delega creacion en `registrar_usuario_desde_payload`."""
+    if request.method == "GET":
+        return render(request, "usuarios/registro.html", {})
+
+    correo = (request.POST.get("correo") or "").strip().lower()
+    confirmar = (request.POST.get("confirmar-correo") or "").strip().lower()
+    password = request.POST.get("password") or ""
+    password_confirmation = request.POST.get("password_confirmation") or ""
+
+    if correo != confirmar:
+        messages.error(request, "Los correos no coinciden.")
+        return redirect("web_registro")
+    if password != password_confirmation:
+        messages.error(request, "Las contrasenas no coinciden.")
+        return redirect("web_registro")
+
+    payload = {
+        "email": correo,
+        "password": password,
+        "firstName": (request.POST.get("nombre") or "").strip(),
+        "lastName": (request.POST.get("apellido") or "").strip(),
+        "documentType": (request.POST.get("tipo-doc") or "").strip(),
+        "documentNumber": (request.POST.get("documento") or "").strip(),
+        "phone": (request.POST.get("telefono") or "").strip(),
+        "address": (request.POST.get("direccion") or "").strip(),
+    }
+
+    result = registrar_usuario_desde_payload(payload, admin_usuario=None)
+    if result.error:
+        messages.error(request, result.error)
+        return redirect("web_registro")
+
+    messages.success(request, "Cuenta creada correctamente. Ya puedes iniciar sesion.")
+    return redirect("web_login")
 
 
 def _urls_api_usuario() -> dict[str, str]:
@@ -41,6 +69,13 @@ def _urls_api_usuario() -> dict[str, str]:
 def login_web(request: HttpRequest) -> HttpResponse:
     if request.method == "GET":
         if request.session.get(SESSION_USUARIO_ID):
+            uid = request.session.get(SESSION_USUARIO_ID)
+            try:
+                u = Usuario.objects.get(pk=uid)
+                if u.rol == Usuario.Rol.ADMIN:
+                    return redirect("web_admin_perfil")
+            except Usuario.DoesNotExist:
+                pass
             return redirect("inicio_autenticado")
         ctx = {
             "api_usuario": _urls_api_usuario(),
@@ -70,6 +105,8 @@ def login_web(request: HttpRequest) -> HttpResponse:
     request.session[SESSION_USUARIO_ID] = usuario.id
     request.session[SESSION_USUARIO_ROL] = usuario.rol
     messages.success(request, "Sesion iniciada correctamente.")
+    if usuario.rol == Usuario.Rol.ADMIN:
+        return redirect("web_admin_perfil")
     return redirect("inicio_autenticado")
 
 

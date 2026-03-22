@@ -2,7 +2,6 @@
 API REST de usuarios (/api/usuario/).
 Formato de usuario en data: campos estilo UsuarioDto (firstName, email, role, estado, ...).
 """
-import re
 
 from django.contrib.auth.hashers import make_password
 from django.db import IntegrityError
@@ -14,6 +13,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from common.api import error_response, parse_json_body, success_response
 from common.auth import require_auth
 from common.jwt_authentication import UsuarioJWTAuthentication
+from usuario.application.registro_usuario_service import (
+    mensaje_integridad_registro,
+    registrar_usuario_desde_payload,
+    validar_contrasena_politica,
+)
 from usuario.application.use_cases.autenticacion_usecases import autenticar_por_correo
 from usuario.models import Usuario
 
@@ -31,20 +35,6 @@ def _payload_str(payload: dict, *keys: str, default: str | None = None) -> str |
         if k in payload and payload[k] is not None and str(payload[k]).strip() != "":
             return str(payload[k]).strip()
     return default
-
-
-def _validar_contrasena_recuperacion(password: str) -> str | None:
-    if len(password) < 8:
-        return "La contrasena debe tener minimo 8 caracteres, mayuscula, minuscula, numero y caracter especial"
-    if not re.search(r"[A-Z]", password):
-        return "La contrasena debe tener minimo 8 caracteres, mayuscula, minuscula, numero y caracter especial"
-    if not re.search(r"[a-z]", password):
-        return "La contrasena debe tener minimo 8 caracteres, mayuscula, minuscula, numero y caracter especial"
-    if not re.search(r"\d", password):
-        return "La contrasena debe tener minimo 8 caracteres, mayuscula, minuscula, numero y caracter especial"
-    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-        return "La contrasena debe tener minimo 8 caracteres, mayuscula, minuscula, numero y caracter especial"
-    return None
 
 
 def usuario_a_dto(usuario: Usuario) -> dict:
@@ -99,64 +89,11 @@ def _registrar_usuario(request):
     except ValueError as exc:
         return error_response(str(exc), status=400)
 
-    email = (_payload_str(payload, "email", "correo_electronico", "correo") or "").lower()
-    password = _payload_str(payload, "password", "contrasena")
-    first_name = _payload_str(payload, "firstName", "nombres")
-    last_name = _payload_str(payload, "lastName", "apellidos")
-    doc_type = _payload_str(payload, "documentType", "tipo_documento")
-    doc_num = _payload_str(payload, "documentNumber", "numero_documento")
-    phone = _payload_str(payload, "phone", "telefono")
-    address = _payload_str(payload, "address", "direccion") or ""
-
-    if not all([email, password, first_name, last_name, doc_type, doc_num, phone]):
-        return error_response(
-            "Faltan campos requeridos (email, password, firstName, lastName, documentType, documentNumber, phone).",
-            status=400,
-        )
-
-    err = _validar_contrasena_recuperacion(password)
-    if err:
-        return error_response(err, status=400)
-
-    nombre_base = _payload_str(payload, "name", "nombre_usuario") or email.split("@")[0]
-    nombre_usuario = nombre_base
-    suffix = 0
-    while Usuario.objects.filter(nombre_usuario=nombre_usuario).exists():
-        suffix += 1
-        nombre_usuario = f"{nombre_base}{suffix}"
-
-    rol = Usuario.Rol.CLIENTE
     admin = _usuario_optional_admin(request)
-    raw_rol = (_payload_str(payload, "role", "rol") or "").lower()
-    if admin and raw_rol and _rol_valido(raw_rol):
-        rol = raw_rol
-
-    try:
-        usuario = Usuario.objects.create(
-            nombre_usuario=nombre_usuario,
-            correo_electronico=email,
-            contrasena_hash=make_password(password),
-            nombres=first_name,
-            apellidos=last_name,
-            tipo_documento=doc_type,
-            numero_documento=doc_num,
-            telefono=phone,
-            direccion=address,
-            rol=rol,
-            activo=True,
-        )
-    except IntegrityError:
-        msg = _mensaje_integridad_registro()
-        return error_response(msg, status=400)
-
-    return success_response(usuario_a_dto(usuario), message="Usuario creado", status=201)
-
-
-def _mensaje_integridad_registro() -> str:
-    return (
-        "Los datos ingresados ya existen en el sistema. Por favor, verifica tu informacion "
-        "(correo o documento duplicado)."
-    )
+    result = registrar_usuario_desde_payload(payload, admin_usuario=admin)
+    if result.error:
+        return error_response(result.error, status=400)
+    return success_response(usuario_a_dto(result.usuario), message="Usuario creado", status=201)
 
 
 @csrf_exempt
@@ -235,7 +172,7 @@ def _actualizar_usuario(request, usuario_id: int):
 
     pwd = _payload_str(payload, "password", "contrasena")
     if pwd:
-        err = _validar_contrasena_recuperacion(pwd)
+        err = validar_contrasena_politica(pwd)
         if err:
             return error_response(err, status=400)
         usuario.contrasena_hash = make_password(pwd)
@@ -251,7 +188,7 @@ def _actualizar_usuario(request, usuario_id: int):
     try:
         usuario.save()
     except IntegrityError:
-        return error_response(_mensaje_integridad_registro(), status=400)
+        return error_response(mensaje_integridad_registro(), status=400)
 
     return success_response(usuario_a_dto(usuario))
 
@@ -337,7 +274,7 @@ def recuperar_contrasena(request):
             status=200,
         )
 
-    err = _validar_contrasena_recuperacion(new_password)
+    err = validar_contrasena_politica(new_password)
     if err:
         return success_response({"success": False, "message": err}, status=200)
 

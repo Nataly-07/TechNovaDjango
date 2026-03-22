@@ -1,0 +1,52 @@
+<div class="menu-dashboard">
+  <div class="menu">
+    <div class="enlace">
+      <a href="{% url 'web_admin_perfil' %}">
+        <i class="bx bx-user-circle"></i> Mi Perfil
+      </a>
+    </div>
+    <div class="enlace">
+      <a href="{% url 'web_admin_perfil' %}">
+        <i class="bx bx-chart"></i> Dashboard
+      </a>
+    </div>
+    <div class="enlace">
+      <a href="#"> <i class="bx bx-bell"></i> Notificaciones </a>
+    </div>
+    <div class="enlace">
+      <a href="{% url 'web_admin_usuarios' %}"> <i class="bx bx-user"></i> Usuarios </a>
+    </div>
+    <div class="enlace">
+      <a href="{% url 'web_admin_inventario' %}"> <i class="bx bx-shopping-bag"></i> Movimiento de Artículos </a>
+    </div>
+    <div class="enlace">
+      <a href="#"> <i class="bx bx-file-blank"></i> Reportes </a>
+    </div>
+    <div class="enlace">
+      <a href="#"> <i class="bx bx-user-circle"></i> Proveedores </a>
+    </div>
+    <div class="enlace">
+      <a href="#"> <i class="bx bx-cart-alt"></i> Órdenes de Compra Prov. </a>
+    </div>
+    <div class="enlace">
+      <a href="#"> <i class="bx bx-message"></i> Mensajes </a>
+    </div>
+    <div class="enlace">
+      <a href="#"> <i class="bx bx-cart"></i> Pedidos </a>
+    </div>
+    <div class="enlace">
+      <a href="#"> <i class="bx bx-credit-card"></i> Pagos </a>
+    </div>
+    <div class="enlace">
+      <form method="post" action="{% url 'web_logout' %}">
+        {% csrf_token %}
+        <button
+          type="submit"
+          style="background:none;border:none;color:inherit;cursor:pointer;padding:0;width:100%;text-align:left;display:flex;align-items:center;gap:10px;"
+        >
+          <i class="bx bx-log-out"></i> Cerrar Sesión
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

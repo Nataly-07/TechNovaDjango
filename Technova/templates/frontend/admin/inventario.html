@@ -1,0 +1,796 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Movimiento de Artículos — Technova</title>
+  <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    .dashboard-wrapper .main-content { flex: 1; width: 100%; max-width: none; margin: 0; padding: 24px 24px 24px 0; overflow-x: visible; }
+    .inventario-container { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 12px 30px rgba(24, 39, 75, 0.08); border: 1px solid #e8edf7; min-height: calc(100vh - 140px); }
+    .inventario-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 12px; }
+    .inventario-header h2 { color: #2c3e50; margin: 0; font-size: 1.8rem; }
+    .btn-agregar {
+      background: linear-gradient(135deg, #00cc44 0%, #00a638 100%);
+      color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px; font-size: 1rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .btn-agregar:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 204, 68, 0.3); }
+    .btn-agregar:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+    #modalAgregarProducto .modal-content { max-width: 720px; width: 94%; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #333; font-size: 0.95rem; }
+    .form-group label i { margin-right: 6px; color: #667eea; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 12px 14px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; box-sizing: border-box;
+    }
+    .form-group textarea { min-height: 72px; resize: vertical; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .modal-actions { display: flex; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 2px solid #f0f0f0; flex-wrap: wrap; }
+    .btn-modal { flex: 1; min-width: 140px; padding: 12px 20px; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-modal-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .btn-modal-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3); }
+    .btn-modal-secondary { background: #e0e0e0; color: #333; }
+    .field-feedback { min-height: 1.15rem; margin-top: 6px; font-size: 0.82rem; line-height: 1.35; transition: color 0.15s ease; }
+    .field-feedback.is-ok { color: #0d9488; font-weight: 600; }
+    .field-feedback.is-err { color: #dc2626; font-weight: 500; }
+    .field-feedback.is-muted { color: #64748b; }
+    .field-feedback:empty { min-height: 0; margin-top: 0; }
+    #modalAgregarProducto .form-group.field-ok input,
+    #modalAgregarProducto .form-group.field-ok select,
+    #modalAgregarProducto .form-group.field-ok textarea { border-color: #10b981 !important; box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25); }
+    #modalAgregarProducto .form-group.field-err input,
+    #modalAgregarProducto .form-group.field-err select,
+    #modalAgregarProducto .form-group.field-err textarea { border-color: #ef4444 !important; box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2); }
+    #modalAgregarProducto .form-group.field-neutral input,
+    #modalAgregarProducto .form-group.field-neutral select,
+    #modalAgregarProducto .form-group.field-neutral textarea { border-color: #e0e0e0; box-shadow: none; }
+    .hint-margen { color: #667eea; font-size: 0.85rem; margin-top: 6px; display: block; }
+    @media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } }
+    .stats-bar { display: flex; gap: 20px; margin-bottom: 25px; flex-wrap: wrap; }
+    .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; border-radius: 12px; flex: 1; min-width: 150px; }
+    .stat-card.warning { background: linear-gradient(135deg, #ff9500 0%, #ff7700 100%); }
+    .stat-card.danger { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
+    .stat-card h4 { margin: 0 0 5px 0; font-size: 0.9rem; opacity: 0.9; }
+    .stat-card .number { font-size: 1.8rem; font-weight: 700; margin: 0; }
+    .filtros-section { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; align-items: end; }
+    .filtro-group { flex: 1; min-width: 200px; }
+    .filtro-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50; }
+    .filtro-group input, .filtro-group select { width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 10px; }
+    .btn-filtrar { padding: 10px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid #dfe7f6; padding-bottom: 8px; flex-wrap: wrap; }
+    .tab { padding: 10px 18px; background: #f4f8ff; border: 1px solid #dbe5f7; border-radius: 10px; font-weight: 600; color: #4a5f82; cursor: pointer; border: none; font-size: 1rem; }
+    .tab.active { color: #fff; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-color: #667eea; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .table-container { overflow-x: auto; border: 1px solid #e8edf7; border-radius: 14px; background: #fff; margin-bottom: 20px; }
+    .table-inventario { width: 100%; min-width: 900px; border-collapse: collapse; }
+    .table-inventario thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .table-inventario th, .table-inventario td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e0e0e0; font-size: 0.92rem; }
+    .estado-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+    .estado-activo { background: #d4edda; color: #155724; }
+    .estado-inactivo { background: #f8d7da; color: #721c24; }
+    .stock-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; margin-left: 6px; }
+    .stock-badge.alto { background: #d4edda; color: #155724; }
+    .stock-badge.medio { background: #fff3cd; color: #856404; }
+    .stock-badge.bajo { background: #f8d7da; color: #721c24; }
+    .stock-badge.agotado { background: #dc3545; color: white; }
+    .acciones-botones { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn-accion { padding: 6px 10px; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: #fff; }
+    .btn-ver { background: linear-gradient(135deg, #2f4b68 0%, #1f3552 100%); }
+    .btn-activar { background: #28a745; }
+    .btn-desactivar { background: #dc3545; }
+    .movimientos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+    .movimiento-card { border: 1px solid #e8edf7; border-radius: 14px; padding: 16px; background: #fafcff; }
+    .empty-state { text-align: center; padding: 40px 16px; color: #7f8c8d; }
+    .modal { display: none; position: fixed; z-index: 10050; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: #fff; border-radius: 16px; padding: 22px; max-width: 640px; width: 92%; max-height: 88vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .close-modal { background: none; border: none; font-size: 1.6rem; cursor: pointer; color: #999; }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; font-size: 0.9rem; }
+    .detail-item { background: #f8fbff; border: 1px solid #e5edf8; border-radius: 8px; padding: 8px 10px; }
+    .alert { padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+    .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+  </style>
+</head>
+<body>
+  {% include "frontend/includes/admin_header_compact.html" %}
+
+  <div class="dashboard-wrapper">
+    {% include "frontend/layouts/sidebar_admin.html" %}
+    <main class="main-content">
+      <div class="inventario-container">
+        <div class="inventario-header">
+          <h2><i class="bx bx-shopping-bag"></i> Movimiento de Artículos</h2>
+          <button type="button" id="btnAbrirAgregarProducto" class="btn-agregar" onclick="abrirModalAgregarProducto()" aria-haspopup="dialog">
+            <i class="bx bx-plus-circle"></i> Agregar Producto
+          </button>
+        </div>
+
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+          <i class="bx {% if message.tags == 'error' %}bx-error-circle{% else %}bx-check-circle{% endif %}"></i>
+          <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+
+        <div class="stats-bar">
+          <div class="stat-card"><h4>Total productos</h4><p class="number">{{ total_productos }}</p></div>
+          <div class="stat-card warning"><h4>Bajo stock (&lt;10)</h4><p class="number">{{ productos_bajo_stock }}</p></div>
+          <div class="stat-card danger"><h4>Agotados</h4><p class="number">{{ productos_agotados }}</p></div>
+        </div>
+
+        <form class="filtros-section" method="get" action="{% url 'web_admin_inventario' %}">
+          <div class="filtro-group">
+            <label for="filtroCategoria">Categoría</label>
+            <select id="filtroCategoria" name="categoria">
+              <option value="">Todas</option>
+              {% for cat in categorias_opts %}
+              <option value="{{ cat }}" {% if categoria == cat %}selected{% endif %}>{{ cat }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filtro-group">
+            <label for="filtroBusqueda">Buscar</label>
+            <input type="text" id="filtroBusqueda" name="busqueda" placeholder="Nombre o código" value="{{ busqueda }}">
+          </div>
+          <div class="filtro-group">
+            <button type="submit" class="btn-filtrar"><i class="bx bx-search"></i> Buscar</button>
+          </div>
+        </form>
+
+        <div class="tabs">
+          <button type="button" class="tab active" data-tab="productos">Productos</button>
+          <button type="button" class="tab" data-tab="movimientos">Movimientos</button>
+          <button type="button" class="tab" data-tab="marcas">Marcas y categorías</button>
+          <button type="button" class="tab" data-tab="recientes">Productos más recientes</button>
+        </div>
+
+        <div id="tab-productos" class="tab-content active">
+          <div class="table-container">
+            {% if productos %}
+            <table class="table-inventario">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Código</th>
+                  <th>Nombre</th>
+                  <th>Precio venta</th>
+                  <th>Marca</th>
+                  <th>Stock</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyProductos">
+                {% for p in productos %}
+                <tr data-producto-id="{{ p.id }}">
+                  <td>{{ p.id }}</td>
+                  <td>{{ p.codigo }}</td>
+                  <td>{{ p.nombre }}</td>
+                  <td>{% if p.precio_venta %}{{ p.precio_venta }}{% else %}{{ p.costo_unitario }}{% endif %}</td>
+                  <td>{{ p.marca|default:"—" }}</td>
+                  <td>
+                    {{ p.stock }}
+                    {% if p.activo %}
+                      {% if p.stock == 0 %}<span class="stock-badge agotado">Agotado</span>
+                      {% elif p.stock < 10 %}<span class="stock-badge bajo">Bajo</span>
+                      {% elif p.stock < 50 %}<span class="stock-badge medio">Medio</span>
+                      {% else %}<span class="stock-badge alto">Alto</span>
+                      {% endif %}
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if p.activo %}
+                    <span class="estado-badge estado-activo"><i class="bx bx-check-circle"></i> Activo</span>
+                    {% else %}
+                    <span class="estado-badge estado-inactivo"><i class="bx bx-x-circle"></i> Inactivo</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="acciones-botones">
+                      <button type="button" class="btn-accion btn-ver" data-id="{{ p.id }}" onclick="verProducto(this.dataset.id)"><i class="bx bx-show"></i> Ver</button>
+                      <form method="post" action="{% url 'web_admin_producto_estado' p.id %}" style="display:inline;" onsubmit="return confirm('¿Cambiar estado del producto?');">
+                        {% csrf_token %}
+                        {% if p.activo %}
+                        <input type="hidden" name="activar" value="false">
+                        <button type="submit" class="btn-accion btn-desactivar"><i class="bx bx-x-circle"></i> Desactivar</button>
+                        {% else %}
+                        <input type="hidden" name="activar" value="true">
+                        <button type="submit" class="btn-accion btn-activar"><i class="bx bx-check-circle"></i> Activar</button>
+                        {% endif %}
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state"><i class="bx bx-package" style="font-size:3rem;opacity:.5;"></i><h3>No hay productos</h3><p>Ajusta filtros o usa <strong>Agregar Producto</strong> para crear el primero.</p></div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div id="tab-movimientos" class="tab-content">
+          <div class="movimientos-grid">
+            <div class="movimiento-card">
+              <h3 style="margin-top:0;">Compras (entradas)</h3>
+              {% if compras_recientes %}
+              <div class="table-container" style="border:none;">
+                <table class="table-inventario" style="min-width:0;">
+                  <thead><tr><th>ID</th><th>Fecha</th><th>Total</th><th>Ítems</th></tr></thead>
+                  <tbody>
+                    {% for c in compras_recientes %}
+                    <tr>
+                      <td>{{ c.compra_id }}</td>
+                      <td>{{ c.fecha_compra }}</td>
+                      <td>{{ c.total }}</td>
+                      <td>{{ c.items }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% else %}
+              <p style="color:#7f8c8d;">No hay compras registradas.</p>
+              {% endif %}
+            </div>
+            <div class="movimiento-card">
+              <h3 style="margin-top:0;">Ventas (salidas)</h3>
+              {% if ventas_recientes %}
+              <div class="table-container" style="border:none;">
+                <table class="table-inventario" style="min-width:0;">
+                  <thead><tr><th>ID</th><th>Fecha</th><th>Cliente (correo)</th></tr></thead>
+                  <tbody>
+                    {% for v in ventas_recientes %}
+                    <tr>
+                      <td>{{ v.venta_id }}</td>
+                      <td>{{ v.fecha_venta }}</td>
+                      <td>{{ v.usuario }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% else %}
+              <p style="color:#7f8c8d;">No hay ventas registradas.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-marcas" class="tab-content">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+            <div>
+              <h3 style="color:#2c3e50;"><i class="bx bx-category"></i> Categorías</h3>
+              <div class="table-container">
+                {% if categorias_info %}
+                <table class="table-inventario" style="min-width:0;">
+                  <thead><tr><th>Nombre</th><th>Productos</th></tr></thead>
+                  <tbody>
+                    {% for c in categorias_info %}
+                    <tr><td>{{ c.nombre }}</td><td><strong>{{ c.cantidad }}</strong></td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">Sin categorías en productos.</div>
+                {% endif %}
+              </div>
+            </div>
+            <div>
+              <h3 style="color:#2c3e50;"><i class="bx bx-purchase-tag"></i> Marcas</h3>
+              <div class="table-container">
+                {% if marcas_info %}
+                <table class="table-inventario" style="min-width:0;">
+                  <thead><tr><th>Nombre</th><th>Productos</th></tr></thead>
+                  <tbody>
+                    {% for m in marcas_info %}
+                    <tr><td>{{ m.nombre }}</td><td><strong>{{ m.cantidad }}</strong></td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">Sin marcas en productos.</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-recientes" class="tab-content">
+          <div class="table-container">
+            <table class="table-inventario">
+              <thead>
+                <tr>
+                  <th>ID</th><th>Código</th><th>Nombre</th><th>Precio</th><th>Marca</th><th>Stock</th><th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyRecientes"></tbody>
+            </table>
+            <div id="emptyRecientes" class="empty-state" style="display:none;"><p>No hay productos para mostrar.</p></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="modalAgregarProducto" class="modal" role="dialog" aria-modal="true" aria-labelledby="tituloAgregarProducto">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="tituloAgregarProducto" style="margin:0;"><i class="bx bx-package"></i> Nuevo producto</h3>
+        <button type="button" class="close-modal" onclick="cerrarModalAgregarProducto()" aria-label="Cerrar">&times;</button>
+      </div>
+      <form id="formAgregarProducto" method="post" action="{% url 'web_admin_producto_crear' %}" novalidate>
+        {% csrf_token %}
+        <div class="form-row">
+          <div class="form-group field-neutral" data-field-wrap="codigo">
+            <label for="codigo"><i class="bx bx-barcode"></i> Código *</label>
+            <input type="text" name="codigo" id="codigo" required maxlength="50" placeholder="SKU único" autocomplete="off" aria-describedby="feed-codigo">
+            <p class="field-feedback" id="feed-codigo" role="status"></p>
+          </div>
+          <div class="form-group field-neutral" data-field-wrap="nombre">
+            <label for="nombre"><i class="bx bx-purchase-tag-alt"></i> Nombre *</label>
+            <input type="text" name="nombre" id="nombre" required maxlength="120" placeholder="Nombre del producto" aria-describedby="feed-nombre">
+            <p class="field-feedback" id="feed-nombre" role="status"></p>
+          </div>
+        </div>
+        <div class="form-group field-neutral" data-field-wrap="proveedor_id">
+          <label for="proveedor_id"><i class="bx bx-buildings"></i> Proveedor *</label>
+          <select name="proveedor_id" id="proveedor_id" required aria-describedby="feed-proveedor_id">
+            <option value="">Selecciona un proveedor</option>
+            {% for pr in proveedores %}
+            <option value="{{ pr.id }}">{{ pr.nombre }}</option>
+            {% endfor %}
+          </select>
+          <p class="field-feedback" id="feed-proveedor_id" role="status"></p>
+        </div>
+        <div class="form-row">
+          <div class="form-group field-neutral" data-field-wrap="categoria">
+            <label for="categoria"><i class="bx bx-category"></i> Categoría *</label>
+            <input type="text" name="categoria" id="categoria" required maxlength="120" placeholder="Ej. Periféricos" aria-describedby="feed-categoria">
+            <p class="field-feedback" id="feed-categoria" role="status"></p>
+          </div>
+          <div class="form-group field-neutral" data-field-wrap="marca">
+            <label for="marca"><i class="bx bx-badge"></i> Marca *</label>
+            <input type="text" name="marca" id="marca" required maxlength="120" placeholder="Marca" aria-describedby="feed-marca">
+            <p class="field-feedback" id="feed-marca" role="status"></p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group field-neutral" data-field-wrap="stock">
+            <label for="stock"><i class="bx bx-cube"></i> Stock inicial *</label>
+            <input type="number" name="stock" id="stock" required min="0" step="1" inputmode="numeric" placeholder="0" aria-describedby="feed-stock">
+            <p class="field-feedback" id="feed-stock" role="status"></p>
+          </div>
+          <div class="form-group field-neutral" data-field-wrap="costo_unitario">
+            <label for="costo_unitario"><i class="bx bx-dollar-circle"></i> Costo unitario *</label>
+            <input type="text" name="costo_unitario" id="costo_unitario" inputmode="decimal" required placeholder="0.00" aria-describedby="feed-costo_unitario">
+            <p class="field-feedback" id="feed-costo_unitario" role="status"></p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group field-neutral" data-field-wrap="margen_pct">
+            <label for="margen_pct"><i class="bx bx-trending-up"></i> Margen sobre costo (%)</label>
+            <input type="text" id="margen_pct" inputmode="decimal" placeholder="Ej. 25" autocomplete="off" aria-describedby="feed-margen_pct">
+            <small class="hint-margen"><i class="bx bx-info-circle"></i> Opcional: calcula el precio de venta a partir del costo. Puedes editar el precio manualmente.</small>
+            <p class="field-feedback" id="feed-margen_pct" role="status"></p>
+          </div>
+          <div class="form-group field-neutral" data-field-wrap="precio_venta">
+            <label for="precio_venta"><i class="bx bx-money"></i> Precio de venta *</label>
+            <input type="text" name="precio_venta" id="precio_venta" inputmode="decimal" required placeholder="0.00" aria-describedby="feed-precio_venta">
+            <p class="field-feedback" id="feed-precio_venta" role="status"></p>
+          </div>
+        </div>
+        <div class="form-group field-neutral" data-field-wrap="descripcion">
+          <label for="descripcion"><i class="bx bx-align-left"></i> Descripción</label>
+          <textarea name="descripcion" id="descripcion" maxlength="4000" placeholder="Opcional" aria-describedby="feed-descripcion"></textarea>
+          <p class="field-feedback" id="feed-descripcion" role="status"></p>
+        </div>
+        <div class="form-group field-neutral" data-field-wrap="imagen_url">
+          <label for="imagen_url"><i class="bx bx-image"></i> URL de imagen</label>
+          <input type="url" name="imagen_url" id="imagen_url" maxlength="500" placeholder="https://… (opcional)" aria-describedby="feed-imagen_url">
+          <p class="field-feedback" id="feed-imagen_url" role="status"></p>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn-modal btn-modal-primary"><i class="bx bx-save"></i> Guardar producto</button>
+          <button type="button" class="btn-modal btn-modal-secondary" onclick="cerrarModalAgregarProducto()"><i class="bx bx-x"></i> Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalProducto" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="margin:0;"><i class="bx bx-detail"></i> Detalle del producto</h3>
+        <button type="button" class="close-modal" onclick="cerrarProducto()" aria-label="Cerrar">&times;</button>
+      </div>
+      <div id="modalProductoBody"></div>
+    </div>
+  </div>
+
+  <footer><p>&copy; 2025 Technova</p></footer>
+
+  <script>
+    const PRODUCTOS = {{ productos_json }};
+    const HAY_PROVEEDORES = {% if proveedores %}true{% else %}false{% endif %};
+
+    function setFieldStateProd(fieldId, state, text) {
+      var feed = document.getElementById('feed-' + fieldId);
+      if (!feed) return;
+      feed.textContent = text || '';
+      feed.className = 'field-feedback';
+      if (state === 'ok') feed.classList.add('is-ok');
+      else if (state === 'err') feed.classList.add('is-err');
+      else if (state === 'muted') feed.classList.add('is-muted');
+      var wrap = document.querySelector('#modalAgregarProducto [data-field-wrap="' + fieldId + '"]');
+      if (wrap) {
+        wrap.classList.remove('field-ok', 'field-err', 'field-neutral');
+        if (state === 'ok') wrap.classList.add('field-ok');
+        else if (state === 'err') wrap.classList.add('field-err');
+        else wrap.classList.add('field-neutral');
+      }
+    }
+
+    function parseDecimalJS(s) {
+      var t = String(s || '').trim().replace(',', '.');
+      if (!t) return null;
+      var n = Number(t);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function validateCodigoProd() {
+      var v = document.getElementById('codigo').value.trim();
+      if (!v) {
+        setFieldStateProd('codigo', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (v.length > 50) {
+        setFieldStateProd('codigo', 'err', 'Máximo 50 caracteres.');
+        return false;
+      }
+      setFieldStateProd('codigo', 'ok', 'Código válido.');
+      return true;
+    }
+
+    function validateNombreProd() {
+      var v = document.getElementById('nombre').value.trim();
+      if (!v) {
+        setFieldStateProd('nombre', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (v.length > 120) {
+        setFieldStateProd('nombre', 'err', 'Máximo 120 caracteres.');
+        return false;
+      }
+      setFieldStateProd('nombre', 'ok', 'Nombre válido.');
+      return true;
+    }
+
+    function validateProveedorProd() {
+      var v = document.getElementById('proveedor_id').value;
+      if (!v) {
+        setFieldStateProd('proveedor_id', 'muted', 'Selecciona un proveedor.');
+        return false;
+      }
+      setFieldStateProd('proveedor_id', 'ok', 'Proveedor seleccionado.');
+      return true;
+    }
+
+    function validateCategoriaProd() {
+      var v = document.getElementById('categoria').value.trim();
+      if (!v) {
+        setFieldStateProd('categoria', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (v.length > 120) {
+        setFieldStateProd('categoria', 'err', 'Máximo 120 caracteres.');
+        return false;
+      }
+      setFieldStateProd('categoria', 'ok', 'Válido.');
+      return true;
+    }
+
+    function validateMarcaProd() {
+      var v = document.getElementById('marca').value.trim();
+      if (!v) {
+        setFieldStateProd('marca', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (v.length > 120) {
+        setFieldStateProd('marca', 'err', 'Máximo 120 caracteres.');
+        return false;
+      }
+      setFieldStateProd('marca', 'ok', 'Válido.');
+      return true;
+    }
+
+    function validateStockProd() {
+      var raw = document.getElementById('stock').value;
+      var n = parseInt(raw, 10);
+      if (raw === '' || raw === null || Number.isNaN(n)) {
+        setFieldStateProd('stock', 'muted', 'Indica un entero ≥ 0.');
+        return false;
+      }
+      if (n < 0) {
+        setFieldStateProd('stock', 'err', 'El stock no puede ser negativo.');
+        return false;
+      }
+      setFieldStateProd('stock', 'ok', 'Stock válido.');
+      return true;
+    }
+
+    function validateCostoProd() {
+      var c = parseDecimalJS(document.getElementById('costo_unitario').value);
+      if (c === null) {
+        setFieldStateProd('costo_unitario', 'muted', 'Indica el costo unitario.');
+        return false;
+      }
+      if (c < 0) {
+        setFieldStateProd('costo_unitario', 'err', 'Debe ser mayor o igual a 0.');
+        return false;
+      }
+      setFieldStateProd('costo_unitario', 'ok', 'Costo válido.');
+      return true;
+    }
+
+    function validateMargenOpcional() {
+      var t = document.getElementById('margen_pct').value.trim();
+      if (!t) {
+        setFieldStateProd('margen_pct', 'neutral', '');
+        return true;
+      }
+      var m = parseDecimalJS(t);
+      if (m === null) {
+        setFieldStateProd('margen_pct', 'err', 'Número no válido.');
+        return false;
+      }
+      setFieldStateProd('margen_pct', 'ok', 'Se aplicará al calcular el precio.');
+      return true;
+    }
+
+    function validatePrecioVentaProd() {
+      var costo = parseDecimalJS(document.getElementById('costo_unitario').value);
+      var p = parseDecimalJS(document.getElementById('precio_venta').value);
+      if (p === null) {
+        setFieldStateProd('precio_venta', 'muted', 'Indica el precio de venta.');
+        return false;
+      }
+      if (p <= 0) {
+        setFieldStateProd('precio_venta', 'err', 'Debe ser mayor que 0.');
+        return false;
+      }
+      if (costo !== null && p <= costo) {
+        setFieldStateProd('precio_venta', 'err', 'Debe ser mayor que el costo unitario.');
+        return false;
+      }
+      setFieldStateProd('precio_venta', 'ok', 'Precio coherente con el costo.');
+      return true;
+    }
+
+    function validateDescripcionProd() {
+      var v = document.getElementById('descripcion').value.trim();
+      if (!v) {
+        setFieldStateProd('descripcion', 'muted', 'Opcional.');
+        return true;
+      }
+      setFieldStateProd('descripcion', 'ok', 'Descripción registrada.');
+      return true;
+    }
+
+    function validateImagenProd() {
+      var v = document.getElementById('imagen_url').value.trim();
+      if (!v) {
+        setFieldStateProd('imagen_url', 'muted', 'Opcional.');
+        return true;
+      }
+      if (v.length > 500) {
+        setFieldStateProd('imagen_url', 'err', 'URL demasiado larga (máx. 500).');
+        return false;
+      }
+      if (!/^https?:\/\//i.test(v)) {
+        setFieldStateProd('imagen_url', 'err', 'Debe comenzar con http:// o https://');
+        return false;
+      }
+      setFieldStateProd('imagen_url', 'ok', 'URL válida.');
+      return true;
+    }
+
+    function validarTodoProducto() {
+      var ok = true;
+      if (!validateCodigoProd()) ok = false;
+      if (!validateNombreProd()) ok = false;
+      if (!validateProveedorProd()) ok = false;
+      if (!validateCategoriaProd()) ok = false;
+      if (!validateMarcaProd()) ok = false;
+      if (!validateStockProd()) ok = false;
+      if (!validateCostoProd()) ok = false;
+      if (!validateMargenOpcional()) ok = false;
+      if (!validatePrecioVentaProd()) ok = false;
+      if (!validateDescripcionProd()) ok = false;
+      if (!validateImagenProd()) ok = false;
+      return ok;
+    }
+
+    function resetValidacionProducto() {
+      ['codigo', 'nombre', 'proveedor_id', 'categoria', 'marca', 'stock', 'costo_unitario', 'margen_pct', 'precio_venta', 'descripcion', 'imagen_url'].forEach(function (id) {
+        setFieldStateProd(id, 'neutral', '');
+      });
+    }
+
+    function recalcPrecioDesdeMargen() {
+      var mRaw = document.getElementById('margen_pct').value.trim();
+      if (!mRaw) return;
+      var m = parseDecimalJS(mRaw);
+      var c = parseDecimalJS(document.getElementById('costo_unitario').value);
+      if (m === null || c === null || c < 0) return;
+      var p = c * (1 + m / 100);
+      document.getElementById('precio_venta').value = p.toFixed(2);
+      validatePrecioVentaProd();
+    }
+
+    function syncMargenDesdePrecio() {
+      var c = parseDecimalJS(document.getElementById('costo_unitario').value);
+      var p = parseDecimalJS(document.getElementById('precio_venta').value);
+      if (c === null || c <= 0 || p === null) return;
+      var m = ((p / c) - 1) * 100;
+      var rounded = Math.round(m * 100) / 100;
+      document.getElementById('margen_pct').value = String(rounded);
+      validateMargenOpcional();
+    }
+
+    function abrirModalAgregarProducto() {
+      if (!HAY_PROVEEDORES) {
+        var msg = 'Registra al menos un proveedor activo en el admin de Django (app Proveedores) antes de crear productos.';
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ title: 'Sin proveedores', text: msg, icon: 'info', confirmButtonText: 'Entendido' });
+        } else {
+          window.alert(msg);
+        }
+        return;
+      }
+      resetValidacionProducto();
+      document.getElementById('modalAgregarProducto').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function cerrarModalAgregarProducto() {
+      document.getElementById('modalAgregarProducto').classList.remove('show');
+      document.body.style.overflow = 'auto';
+      var f = document.getElementById('formAgregarProducto');
+      if (f) f.reset();
+      resetValidacionProducto();
+    }
+
+    document.getElementById('modalAgregarProducto').addEventListener('click', function (e) {
+      if (e.target === this) cerrarModalAgregarProducto();
+    });
+
+    (function bindFormProducto() {
+      var ids = ['codigo', 'nombre', 'proveedor_id', 'categoria', 'marca', 'stock', 'descripcion', 'imagen_url'];
+      ids.forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var fn = {
+          codigo: validateCodigoProd,
+          nombre: validateNombreProd,
+          proveedor_id: validateProveedorProd,
+          categoria: validateCategoriaProd,
+          marca: validateMarcaProd,
+          stock: validateStockProd,
+          descripcion: validateDescripcionProd,
+          imagen_url: validateImagenProd
+        }[id];
+        if (fn) {
+          el.addEventListener('input', fn);
+          el.addEventListener('change', fn);
+        }
+      });
+      document.getElementById('costo_unitario').addEventListener('input', function () {
+        validateCostoProd();
+        recalcPrecioDesdeMargen();
+      });
+      document.getElementById('margen_pct').addEventListener('input', function () {
+        validateMargenOpcional();
+        recalcPrecioDesdeMargen();
+      });
+      document.getElementById('precio_venta').addEventListener('input', function () {
+        validatePrecioVentaProd();
+        syncMargenDesdePrecio();
+      });
+      document.getElementById('formAgregarProducto').addEventListener('submit', function (e) {
+        if (!validarTodoProducto()) {
+          e.preventDefault();
+          var firstErr = document.querySelector('#modalAgregarProducto .form-group.field-err input, #modalAgregarProducto .form-group.field-err select, #modalAgregarProducto .form-group.field-err textarea');
+          if (firstErr) firstErr.focus();
+          else if (typeof Swal !== 'undefined') {
+            Swal.fire({ title: 'Revisa los campos', text: 'Corrige los mensajes en rojo antes de guardar.', icon: 'warning', confirmButtonText: 'Entendido' });
+          }
+        }
+      });
+    })();
+
+    document.querySelectorAll('.tab').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var name = btn.getAttribute('data-tab');
+        document.querySelectorAll('.tab').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.tab-content').forEach(function (c) { c.classList.remove('active'); });
+        btn.classList.add('active');
+        var el = document.getElementById('tab-' + name);
+        if (el) el.classList.add('active');
+        if (name === 'recientes') renderRecientes();
+      });
+    });
+    function renderRecientes() {
+      var body = document.getElementById('tbodyRecientes');
+      var empty = document.getElementById('emptyRecientes');
+      var rows = Array.prototype.slice.call(document.querySelectorAll('#tbodyProductos tr[data-producto-id]'));
+      rows.sort(function (a, b) {
+        return Number(b.getAttribute('data-producto-id')) - Number(a.getAttribute('data-producto-id'));
+      });
+      body.innerHTML = '';
+      if (!rows.length) { empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
+      rows.forEach(function (row) {
+        var clone = row.cloneNode(true);
+        var cells = clone.querySelectorAll('td');
+        if (cells.length > 7) {
+          var tr = document.createElement('tr');
+          for (var i = 0; i < 7; i++) tr.appendChild(cells[i].cloneNode(true));
+          body.appendChild(tr);
+        }
+      });
+    }
+    function verProducto(id) {
+      var p = PRODUCTOS.find(function (x) { return String(x.id) === String(id); });
+      if (!p) return;
+      var c = p.caracteristica || {};
+      var precioVenta = c.precioVenta != null ? c.precioVenta : '—';
+      document.getElementById('modalProductoBody').innerHTML =
+        '<div class="detail-grid">' +
+        '<div class="detail-item"><strong>ID</strong><br>' + escapeHtml(String(p.id)) + '</div>' +
+        '<div class="detail-item"><strong>Código</strong><br>' + escapeHtml(p.codigo) + '</div>' +
+        '<div class="detail-item"><strong>Nombre</strong><br>' + escapeHtml(p.nombre) + '</div>' +
+        '<div class="detail-item"><strong>Stock</strong><br>' + escapeHtml(String(p.stock)) + '</div>' +
+        '<div class="detail-item"><strong>Categoría</strong><br>' + escapeHtml(c.categoria || '—') + '</div>' +
+        '<div class="detail-item"><strong>Marca</strong><br>' + escapeHtml(c.marca || '—') + '</div>' +
+        '<div class="detail-item"><strong>Proveedor</strong><br>' + escapeHtml(p.proveedor || '—') + '</div>' +
+        '<div class="detail-item"><strong>Estado</strong><br>' + (p.estado ? 'Activo' : 'Inactivo') + '</div>' +
+        '<div class="detail-item"><strong>Precio compra</strong><br>' + escapeHtml(String(c.precioCompra || '—')) + '</div>' +
+        '<div class="detail-item"><strong>Precio venta</strong><br>' + escapeHtml(String(precioVenta)) + '</div>' +
+        '</div>' +
+        '<p style="margin-top:12px;"><strong>Descripción:</strong><br>' + escapeHtml(c.descripcion || '—') + '</p>' +
+        (p.imagen ? '<p><a href="' + escapeAttr(p.imagen) + '" target="_blank" rel="noopener">Abrir imagen</a></p>' : '');
+      document.getElementById('modalProducto').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+    function escapeHtml(s) {
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+    function escapeAttr(s) {
+      return String(s).replace(/"/g, '&quot;');
+    }
+    function cerrarProducto() {
+      document.getElementById('modalProducto').classList.remove('show');
+      document.body.style.overflow = 'auto';
+    }
+    document.getElementById('modalProducto').addEventListener('click', function (e) {
+      if (e.target === this) cerrarProducto();
+    });
+  </script>
+</body>
+</html>

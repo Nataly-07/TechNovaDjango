@@ -1,0 +1,682 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Gestión de Usuarios — Technova</title>
+  <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    .dashboard-wrapper .main-content { flex: 1; width: 100%; max-width: none; margin: 0; padding: 24px 24px 24px 0; overflow-x: visible; }
+    .usuarios-container { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 12px 30px rgba(24, 39, 75, 0.08); border: 1px solid #e8edf7; width: 100%; min-height: calc(100vh - 140px); }
+    .usuarios-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 12px; }
+    .usuarios-header h2 { color: #2c3e50; margin: 0; font-size: 1.8rem; }
+    .btn-agregar {
+      background: linear-gradient(135deg, #00cc44 0%, #00a638 100%);
+      color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px; font-size: 1rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .btn-agregar:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 204, 68, 0.3); }
+    #modalAgregar .modal-content { max-width: 620px; width: 94%; }
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #333; font-size: 0.95rem; }
+    .form-group label i { margin-right: 6px; color: #667eea; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 12px 14px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; box-sizing: border-box;
+    }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .modal-actions { display: flex; gap: 12px; margin-top: 22px; padding-top: 18px; border-top: 2px solid #f0f0f0; flex-wrap: wrap; }
+    .btn-modal { flex: 1; min-width: 140px; padding: 12px 20px; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-modal-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .btn-modal-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3); }
+    .btn-modal-secondary { background: #e0e0e0; color: #333; }
+    .password-requisitos { margin-top: 8px; font-size: 12px; color: #666; }
+    .password-requisitos .requisito.ok { color: #10b981; font-weight: 600; }
+    .password-requisitos .requisito.bad { color: #ef4444; }
+    .hint-email { color: #667eea; font-size: 0.85rem; margin-top: 6px; display: block; }
+    .field-feedback { min-height: 1.15rem; margin-top: 6px; font-size: 0.82rem; line-height: 1.35; transition: color 0.15s ease; }
+    .field-feedback.is-ok { color: #0d9488; font-weight: 600; }
+    .field-feedback.is-err { color: #dc2626; font-weight: 500; }
+    .field-feedback.is-muted { color: #64748b; }
+    .field-feedback:empty { min-height: 0; margin-top: 0; }
+    #modalAgregar .form-group.field-ok input,
+    #modalAgregar .form-group.field-ok select { border-color: #10b981 !important; box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25); }
+    #modalAgregar .form-group.field-err input,
+    #modalAgregar .form-group.field-err select { border-color: #ef4444 !important; box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2); }
+    #modalAgregar .form-group.field-neutral input,
+    #modalAgregar .form-group.field-neutral select { border-color: #e0e0e0; box-shadow: none; }
+    @media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } }
+    .filtros-section { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; align-items: end; }
+    .filtro-group { flex: 1; min-width: 200px; }
+    .filtro-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50; font-size: 0.9rem; }
+    .filtro-group input, .filtro-group select { width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 0.95rem; }
+    .btn-filtrar { padding: 10px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
+    .stats-bar { display: flex; gap: 20px; margin-bottom: 25px; flex-wrap: wrap; }
+    .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; border-radius: 12px; flex: 1; min-width: 150px; }
+    .stat-card h4 { margin: 0 0 5px 0; font-size: 0.9rem; opacity: 0.9; }
+    .stat-card .number { font-size: 1.8rem; font-weight: 700; margin: 0; }
+    .table-container { overflow-x: auto; border: 1px solid #e8edf7; border-radius: 14px; background: #fff; }
+    .table-usuarios { width: 100%; min-width: 760px; border-collapse: collapse; }
+    .table-usuarios thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .table-usuarios th, .table-usuarios td { padding: 15px; text-align: left; border-bottom: 1px solid #e0e0e0; }
+    .table-usuarios tbody tr:hover { background: #f7f9fc; }
+    .rol-tag { padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: white; display: inline-block; min-width: 100px; text-align: center; }
+    .rol-tag.admin { background: linear-gradient(135deg, #007acc 0%, #005fa3 100%); }
+    .rol-tag.cliente { background: linear-gradient(135deg, #00cc44 0%, #00a638 100%); }
+    .rol-tag.empleado { background: linear-gradient(135deg, #ff9500 0%, #ff7700 100%); }
+    .estado-badge { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+    .estado-activo { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .estado-inactivo { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .acciones-usuario { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-accion { padding: 6px 12px; border: none; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-weight: 500; }
+    .btn-info { background: #ffc107; color: #000; }
+    .btn-activar { background: #28a745; color: white; }
+    .btn-desactivar { background: #dc3545; color: white; }
+    .empty-state { text-align: center; padding: 60px 20px; color: #7f8c8d; }
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: white; border-radius: 20px; padding: 24px; max-width: 720px; width: 92%; max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 2px solid #f0f0f0; padding-bottom: 12px; }
+    .close-modal { background: none; border: none; font-size: 1.8rem; cursor: pointer; color: #999; }
+    .user-view-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+    .user-section { border: 1px solid #e8edf7; border-radius: 14px; padding: 14px; background: #fbfdff; }
+    .user-section h4 { margin: 0 0 10px; color: #2f4364; font-size: 0.95rem; }
+    .user-readonly { width: 100%; padding: 10px; border: 1px solid #dce6f5; border-radius: 8px; background: #f5f8fd; font-weight: 600; }
+    .compra-mini { border: 1px solid #e6edf8; border-radius: 10px; padding: 10px; margin-bottom: 8px; font-size: 0.88rem; }
+    .alert { padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    @media (max-width: 768px) { .user-view-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  {% include "frontend/includes/admin_header_compact.html" %}
+
+  <div class="dashboard-wrapper">
+    {% include "frontend/layouts/sidebar_admin.html" %}
+    <main class="main-content">
+      <div class="usuarios-container">
+        <div class="usuarios-header">
+          <h2><i class="bx bx-user"></i> Gestión de Usuarios</h2>
+          <button type="button" class="btn-agregar" onclick="abrirModalAgregar()" aria-haspopup="dialog">
+            <i class="bx bx-plus-circle"></i> Agregar Usuario
+          </button>
+        </div>
+
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+          <i class="bx {% if message.tags == 'error' %}bx-error-circle{% else %}bx-check-circle{% endif %}"></i>
+          <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+
+        <div class="stats-bar">
+          <div class="stat-card"><h4>Total</h4><p class="number">{{ total_usuarios }}</p></div>
+          <div class="stat-card" style="background: linear-gradient(135deg, #00cc44 0%, #00a638 100%);"><h4>Clientes</h4><p class="number">{{ total_clientes }}</p></div>
+          <div class="stat-card" style="background: linear-gradient(135deg, #007acc 0%, #005fa3 100%);"><h4>Administradores</h4><p class="number">{{ total_admin }}</p></div>
+          <div class="stat-card" style="background: linear-gradient(135deg, #ff9500 0%, #ff7700 100%);"><h4>Empleados</h4><p class="number">{{ total_empleados }}</p></div>
+        </div>
+
+        <form class="filtros-section" method="get" action="{% url 'web_admin_usuarios' %}">
+          <div class="filtro-group">
+            <label for="filtroRol">Filtrar por rol</label>
+            <select id="filtroRol" name="rol">
+              <option value="">Todos los roles</option>
+              <option value="admin" {% if rol == "admin" %}selected{% endif %}>Administrador</option>
+              <option value="cliente" {% if rol == "cliente" %}selected{% endif %}>Cliente</option>
+              <option value="empleado" {% if rol == "empleado" %}selected{% endif %}>Empleado</option>
+            </select>
+          </div>
+          <div class="filtro-group">
+            <label for="filtroBusqueda">Buscar</label>
+            <input type="text" id="filtroBusqueda" name="busqueda" placeholder="Nombre, correo o documento" value="{{ busqueda }}">
+          </div>
+          <div class="filtro-group">
+            <button type="submit" class="btn-filtrar"><i class="bx bx-search"></i> Buscar</button>
+          </div>
+        </form>
+
+        <div class="table-container">
+          {% if usuarios %}
+          <table class="table-usuarios">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Correo</th>
+                <th>Rol</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in usuarios %}
+              <tr>
+                <td>{{ u.id }}</td>
+                <td>{{ u.nombres }} {{ u.apellidos }}</td>
+                <td>{{ u.correo_electronico }}</td>
+                <td><span class="rol-tag {{ u.rol }}">{{ u.get_rol_display }}</span></td>
+                <td>
+                  {% if u.activo %}
+                  <span class="estado-badge estado-activo"><i class="bx bx-check-circle"></i> Activo</span>
+                  {% else %}
+                  <span class="estado-badge estado-inactivo"><i class="bx bx-x-circle"></i> Inactivo</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="acciones-usuario">
+                    <button type="button" class="btn-accion btn-info" data-id="{{ u.id }}" onclick="verUsuario(this.dataset.id)"><i class="bx bx-info-circle"></i> Ver</button>
+                    <form method="post" action="{% url 'web_admin_usuario_estado' u.id %}" style="display:inline;" onsubmit="return confirm('¿Cambiar estado de este usuario?');">
+                      {% csrf_token %}
+                      {% if u.activo %}
+                      <input type="hidden" name="activar" value="false">
+                      <button type="submit" class="btn-accion btn-desactivar"><i class="bx bx-x-circle"></i> Desactivar</button>
+                      {% else %}
+                      <input type="hidden" name="activar" value="true">
+                      <button type="submit" class="btn-accion btn-activar"><i class="bx bx-check-circle"></i> Activar</button>
+                      {% endif %}
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <div class="empty-state"><i class="bx bx-user-x" style="font-size:4rem;opacity:.5;"></i><h3>No se encontraron usuarios</h3><p>Prueba otros filtros.</p></div>
+          {% endif %}
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="modalAgregar" class="modal" role="dialog" aria-modal="true" aria-labelledby="tituloAgregarUsuario">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="tituloAgregarUsuario" style="margin:0;"><i class="bx bx-user-plus"></i> Agregar nuevo usuario</h3>
+        <button type="button" class="close-modal" onclick="cerrarModalAgregar()" aria-label="Cerrar">&times;</button>
+      </div>
+      <form id="formAgregarUsuario" method="post" action="{% url 'web_admin_usuario_crear' %}" novalidate>
+        {% csrf_token %}
+        <div class="form-group field-neutral" data-field-wrap="role">
+          <label for="role"><i class="bx bx-shield-quarter"></i> Rol *</label>
+          <select name="role" id="role" required aria-describedby="feed-role">
+            <option value="">Selecciona un rol</option>
+            <option value="admin">Administrador</option>
+            <option value="empleado">Empleado</option>
+          </select>
+          <p class="field-feedback" id="feed-role" role="status"></p>
+        </div>
+        <div class="form-row">
+          <div class="form-group field-neutral" data-field-wrap="firstName">
+            <label for="firstName"><i class="bx bx-user-circle"></i> Primer nombre *</label>
+            <input type="text" name="firstName" id="firstName" autocomplete="given-name" required placeholder="Primer nombre" maxlength="120" aria-describedby="feed-firstName">
+            <p class="field-feedback" id="feed-firstName" role="status"></p>
+          </div>
+          <div class="form-group field-neutral" data-field-wrap="lastName">
+            <label for="lastName"><i class="bx bx-user-circle"></i> Apellido *</label>
+            <input type="text" name="lastName" id="lastName" autocomplete="family-name" required placeholder="Apellido" maxlength="120" aria-describedby="feed-lastName">
+            <p class="field-feedback" id="feed-lastName" role="status"></p>
+          </div>
+        </div>
+        <div class="form-group field-neutral" data-field-wrap="email">
+          <label for="email"><i class="bx bx-envelope"></i> Correo electrónico *</label>
+          <input type="email" name="email" id="email" autocomplete="email" required placeholder="correo@ejemplo.com" maxlength="254" aria-describedby="feed-email">
+          <small class="hint-email"><i class="bx bx-info-circle"></i> Correo sugerido automáticamente según el rol y el nombre. Puedes editarlo.</small>
+          <p class="field-feedback" id="feed-email" role="status"></p>
+        </div>
+        <div class="form-group field-neutral" data-field-wrap="password">
+          <label for="password"><i class="bx bx-lock-alt"></i> Contraseña *</label>
+          <input type="password" name="password" id="password" autocomplete="new-password" required placeholder="Mínimo 8 caracteres, mayúscula, minúscula, número y especial" aria-describedby="feed-password password-requisitos">
+          <div class="password-requisitos" id="password-requisitos" style="display:none;" aria-hidden="true">
+            <p class="requisito bad" data-req="length">✗ Mínimo 8 caracteres</p>
+            <p class="requisito bad" data-req="upper">✗ Mayúscula</p>
+            <p class="requisito bad" data-req="lower">✗ Minúscula</p>
+            <p class="requisito bad" data-req="digit">✗ Número</p>
+            <p class="requisito bad" data-req="special">✗ Carácter especial (!@#$…)</p>
+          </div>
+          <p class="field-feedback" id="feed-password" role="status"></p>
+        </div>
+        <div class="form-group field-neutral" data-field-wrap="confirmPassword">
+          <label for="confirmPassword"><i class="bx bx-lock-alt"></i> Confirmar contraseña *</label>
+          <input type="password" name="confirmPassword" id="confirmPassword" autocomplete="new-password" required placeholder="Repite la contraseña" aria-describedby="feed-confirmPassword">
+          <p class="field-feedback" id="feed-confirmPassword" role="status"></p>
+        </div>
+        <div class="form-group field-neutral" data-field-wrap="phone">
+          <label for="phone"><i class="bx bx-phone"></i> Teléfono *</label>
+          <input type="tel" name="phone" id="phone" inputmode="numeric" autocomplete="tel" required placeholder="10 dígitos" maxlength="10" aria-describedby="feed-phone">
+          <p class="field-feedback" id="feed-phone" role="status"></p>
+        </div>
+        <div class="form-row">
+          <div class="form-group field-neutral" data-field-wrap="documentType">
+            <label for="documentType"><i class="bx bx-id-card"></i> Tipo de documento *</label>
+            <select name="documentType" id="documentType" required aria-describedby="feed-documentType">
+              <option value="">Selecciona</option>
+              <option value="CC">Cédula de ciudadanía</option>
+              <option value="CE">Cédula de extranjería</option>
+              <option value="PA">Pasaporte</option>
+              <option value="TI">Tarjeta de identidad</option>
+            </select>
+            <p class="field-feedback" id="feed-documentType" role="status"></p>
+          </div>
+          <div class="form-group field-neutral" data-field-wrap="documentNumber">
+            <label for="documentNumber"><i class="bx bx-id-card"></i> Número de documento *</label>
+            <input type="text" name="documentNumber" id="documentNumber" inputmode="numeric" required placeholder="7 a 10 dígitos" maxlength="10" aria-describedby="feed-documentNumber">
+            <p class="field-feedback" id="feed-documentNumber" role="status"></p>
+          </div>
+        </div>
+        <div class="form-group field-neutral" data-field-wrap="address">
+          <label for="address"><i class="bx bx-home"></i> Dirección *</label>
+          <input type="text" name="address" id="address" autocomplete="street-address" required placeholder="Dirección de residencia (mínimo 8 caracteres)" minlength="8" maxlength="500" aria-describedby="feed-address">
+          <p class="field-feedback" id="feed-address" role="status"></p>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn-modal btn-modal-primary"><i class="bx bx-save"></i> Guardar usuario</button>
+          <button type="button" class="btn-modal btn-modal-secondary" onclick="cerrarModalAgregar()"><i class="bx bx-x"></i> Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalUsuario" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="margin:0;"><i class="bx bx-id-card"></i> Información del usuario</h3>
+        <button type="button" class="close-modal" onclick="cerrarModal()" aria-label="Cerrar">&times;</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <footer><p>&copy; 2025 Technova</p></footer>
+
+  <script>
+    const USUARIOS = {{ usuarios_json }};
+
+    function setFieldState(fieldId, state, text) {
+      var feed = document.getElementById('feed-' + fieldId);
+      var input = document.getElementById(fieldId);
+      if (!feed) return;
+      feed.textContent = text || '';
+      feed.className = 'field-feedback';
+      if (state === 'ok') feed.classList.add('is-ok');
+      else if (state === 'err') feed.classList.add('is-err');
+      else if (state === 'muted') feed.classList.add('is-muted');
+      var wrap = document.querySelector('#modalAgregar [data-field-wrap="' + fieldId + '"]');
+      if (wrap) {
+        wrap.classList.remove('field-ok', 'field-err', 'field-neutral');
+        if (state === 'ok') wrap.classList.add('field-ok');
+        else if (state === 'err') wrap.classList.add('field-err');
+        else wrap.classList.add('field-neutral');
+      }
+    }
+
+    function validarPasswordPolicy(p) {
+      return {
+        length: p.length >= 8,
+        upper: /[A-Z]/.test(p),
+        lower: /[a-z]/.test(p),
+        digit: /\d/.test(p),
+        special: /[!@#$%^&*(),.?":{}|<>]/.test(p)
+      };
+    }
+
+    function passwordPolicyOk(p) {
+      var v = validarPasswordPolicy(p);
+      return Object.keys(v).every(function (k) { return v[k]; });
+    }
+
+    function actualizarRequisitosPasswordVisual() {
+      var p = document.getElementById('password').value;
+      var box = document.getElementById('password-requisitos');
+      if (!p) {
+        box.style.display = 'none';
+        box.setAttribute('aria-hidden', 'true');
+        return;
+      }
+      box.style.display = 'block';
+      box.setAttribute('aria-hidden', 'false');
+      var v = validarPasswordPolicy(p);
+      var labels = {
+        length: 'Mínimo 8 caracteres',
+        upper: 'Mayúscula',
+        lower: 'Minúscula',
+        digit: 'Número',
+        special: 'Carácter especial (!@#$…)'
+      };
+      Object.keys(labels).forEach(function (k) {
+        var el = box.querySelector('[data-req="' + k + '"]');
+        if (!el) return;
+        var ok = v[k];
+        el.classList.toggle('ok', ok);
+        el.classList.toggle('bad', !ok);
+        el.textContent = (ok ? '✓ ' : '✗ ') + labels[k];
+      });
+    }
+
+    function validateRole() {
+      var v = document.getElementById('role').value;
+      if (!v) {
+        setFieldState('role', 'muted', 'Selecciona administrador o empleado.');
+        return false;
+      }
+      if (v !== 'admin' && v !== 'empleado') {
+        setFieldState('role', 'err', 'El rol debe ser administrador o empleado.');
+        return false;
+      }
+      setFieldState('role', 'ok', 'Rol seleccionado correctamente.');
+      return true;
+    }
+
+    function validateFirstName() {
+      var v = document.getElementById('firstName').value.trim();
+      if (!v) {
+        setFieldState('firstName', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (v.length < 2 || !/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(v)) {
+        setFieldState('firstName', 'err', 'Mínimo 2 caracteres y solo letras.');
+        return false;
+      }
+      setFieldState('firstName', 'ok', 'Válido.');
+      return true;
+    }
+
+    function validateLastName() {
+      var v = document.getElementById('lastName').value.trim();
+      if (!v) {
+        setFieldState('lastName', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (v.length < 2 || !/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(v)) {
+        setFieldState('lastName', 'err', 'Mínimo 2 caracteres y solo letras.');
+        return false;
+      }
+      setFieldState('lastName', 'ok', 'Válido.');
+      return true;
+    }
+
+    function validateEmail() {
+      var v = document.getElementById('email').value.trim();
+      if (!v) {
+        setFieldState('email', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+        setFieldState('email', 'err', 'Formato de correo no válido.');
+        return false;
+      }
+      setFieldState('email', 'ok', 'Correo válido.');
+      return true;
+    }
+
+    function validatePassword() {
+      var p = document.getElementById('password').value;
+      actualizarRequisitosPasswordVisual();
+      if (!p) {
+        setFieldState('password', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (!passwordPolicyOk(p)) {
+        setFieldState('password', 'err', 'Completa todos los requisitos de contraseña abajo.');
+        return false;
+      }
+      setFieldState('password', 'ok', 'Contraseña segura.');
+      return true;
+    }
+
+    function validateConfirmPassword() {
+      var p = document.getElementById('password').value;
+      var c = document.getElementById('confirmPassword').value;
+      if (!c) {
+        setFieldState('confirmPassword', 'muted', 'Confirma tu contraseña.');
+        return false;
+      }
+      if (!passwordPolicyOk(p)) {
+        setFieldState('confirmPassword', 'err', 'Primero cumple la política de contraseña arriba.');
+        return false;
+      }
+      if (p !== c) {
+        setFieldState('confirmPassword', 'err', 'Las contraseñas no coinciden.');
+        return false;
+      }
+      setFieldState('confirmPassword', 'ok', 'Las contraseñas coinciden.');
+      return true;
+    }
+
+    function validatePhone() {
+      var v = document.getElementById('phone').value.trim();
+      if (!v) {
+        setFieldState('phone', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (v.length !== 10 || !/^\d{10}$/.test(v)) {
+        setFieldState('phone', 'err', 'Debe ser exactamente 10 dígitos.');
+        return false;
+      }
+      setFieldState('phone', 'ok', 'Teléfono válido.');
+      return true;
+    }
+
+    function validateDocumentType() {
+      var v = document.getElementById('documentType').value;
+      if (!v) {
+        setFieldState('documentType', 'muted', 'Selecciona un tipo de documento.');
+        return false;
+      }
+      setFieldState('documentType', 'ok', 'Tipo seleccionado.');
+      return true;
+    }
+
+    function validateDocumentNumber() {
+      var v = document.getElementById('documentNumber').value.trim();
+      if (!v) {
+        setFieldState('documentNumber', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (!/^\d+$/.test(v)) {
+        setFieldState('documentNumber', 'err', 'Solo números, sin letras ni símbolos.');
+        return false;
+      }
+      if (v.length < 7 || v.length > 10) {
+        setFieldState('documentNumber', 'err', 'Entre 7 y 10 dígitos.');
+        return false;
+      }
+      setFieldState('documentNumber', 'ok', 'Documento válido.');
+      return true;
+    }
+
+    function validateAddress() {
+      var v = document.getElementById('address').value.trim();
+      if (!v) {
+        setFieldState('address', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (v.length < 8) {
+        setFieldState('address', 'err', 'Mínimo 8 caracteres.');
+        return false;
+      }
+      setFieldState('address', 'ok', 'Dirección aceptada.');
+      return true;
+    }
+
+    function validarTodoFormularioAgregar() {
+      var ok = true;
+      if (!validateRole()) ok = false;
+      if (!validateFirstName()) ok = false;
+      if (!validateLastName()) ok = false;
+      if (!validateEmail()) ok = false;
+      if (!validatePassword()) ok = false;
+      if (!validateConfirmPassword()) ok = false;
+      if (!validatePhone()) ok = false;
+      if (!validateDocumentType()) ok = false;
+      if (!validateDocumentNumber()) ok = false;
+      if (!validateAddress()) ok = false;
+      return ok;
+    }
+
+    function resetValidacionModal() {
+      ['role', 'firstName', 'lastName', 'email', 'password', 'confirmPassword', 'phone', 'documentType', 'documentNumber', 'address'].forEach(function (id) {
+        setFieldState(id, 'neutral', '');
+      });
+      var box = document.getElementById('password-requisitos');
+      if (box) {
+        box.style.display = 'none';
+        box.setAttribute('aria-hidden', 'true');
+        var labels = {
+          length: 'Mínimo 8 caracteres',
+          upper: 'Mayúscula',
+          lower: 'Minúscula',
+          digit: 'Número',
+          special: 'Carácter especial (!@#$…)'
+        };
+        Object.keys(labels).forEach(function (k) {
+          var el = box.querySelector('[data-req="' + k + '"]');
+          if (el) {
+            el.classList.remove('ok');
+            el.classList.add('bad');
+            el.textContent = '✗ ' + labels[k];
+          }
+        });
+      }
+    }
+
+    function abrirModalAgregar() {
+      var em = document.getElementById('email');
+      if (em) em.dataset.manual = '';
+      resetValidacionModal();
+      document.getElementById('modalAgregar').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function cerrarModalAgregar() {
+      document.getElementById('modalAgregar').classList.remove('show');
+      document.body.style.overflow = 'auto';
+      var f = document.getElementById('formAgregarUsuario');
+      if (f) f.reset();
+      resetValidacionModal();
+    }
+
+    document.getElementById('modalAgregar').addEventListener('click', function (e) {
+      if (e.target === this) cerrarModalAgregar();
+    });
+
+    function normalizarParaEmail(s) {
+      return String(s || '').trim().toLowerCase()
+        .replace(/[áàäâ]/g, 'a').replace(/[éèëê]/g, 'e').replace(/[íìïî]/g, 'i')
+        .replace(/[óòöô]/g, 'o').replace(/[úùüû]/g, 'u').replace(/ñ/g, 'n')
+        .replace(/[^a-z0-9]/g, '');
+    }
+
+    function sugerirEmail() {
+      var role = document.getElementById('role').value;
+      var fn = normalizarParaEmail(document.getElementById('firstName').value);
+      var ln = normalizarParaEmail(document.getElementById('lastName').value);
+      var emailField = document.getElementById('email');
+      if (!role || !fn || emailField.dataset.manual === 'true') {
+        validateEmail();
+        return;
+      }
+      var base = fn + (ln || '');
+      var sug = '';
+      if (role === 'admin') sug = base + 'admin@technova.com';
+      else if (role === 'empleado') sug = base + 'empleado@technova.com';
+      if (sug) {
+        emailField.value = sug;
+        emailField.dataset.auto = 'true';
+      }
+      validateEmail();
+    }
+
+    document.getElementById('role').addEventListener('change', function () {
+      validateRole();
+      sugerirEmail();
+    });
+    document.getElementById('firstName').addEventListener('input', function () {
+      sugerirEmail();
+      validateFirstName();
+    });
+    document.getElementById('lastName').addEventListener('input', function () {
+      sugerirEmail();
+      validateLastName();
+    });
+    document.getElementById('email').addEventListener('input', function () {
+      this.dataset.manual = 'true';
+      validateEmail();
+    });
+    document.getElementById('password').addEventListener('input', function () {
+      validatePassword();
+      validateConfirmPassword();
+    });
+    document.getElementById('confirmPassword').addEventListener('input', validateConfirmPassword);
+    document.getElementById('phone').addEventListener('input', function () {
+      this.value = this.value.replace(/\D/g, '').slice(0, 10);
+      validatePhone();
+    });
+    document.getElementById('documentType').addEventListener('change', validateDocumentType);
+    document.getElementById('documentNumber').addEventListener('input', function () {
+      this.value = this.value.replace(/\D/g, '').slice(0, 10);
+      validateDocumentNumber();
+    });
+    document.getElementById('address').addEventListener('input', validateAddress);
+
+    document.getElementById('formAgregarUsuario').addEventListener('submit', function (e) {
+      if (!validarTodoFormularioAgregar()) {
+        e.preventDefault();
+        var firstErr = document.querySelector('#modalAgregar .form-group.field-err input, #modalAgregar .form-group.field-err select');
+        if (firstErr) firstErr.focus();
+        else if (typeof Swal !== 'undefined') {
+          Swal.fire({ title: 'Revisa los campos', text: 'Corrige los mensajes en rojo antes de guardar.', icon: 'warning', confirmButtonText: 'Entendido' });
+        }
+      }
+    });
+
+    function verUsuario(id) {
+      const u = USUARIOS.find(function (x) { return String(x.id) === String(id); });
+      if (!u) return;
+      let ventasHtml = '';
+      if (u.role === 'cliente' && u.ventas_preview && u.ventas_preview.length) {
+        ventasHtml = '<h4 style="margin:16px 0 8px;color:#2f4364;"><i class="bx bx-receipt"></i> Últimas ventas (cliente)</h4>';
+        u.ventas_preview.forEach(function (v) {
+          ventasHtml += '<div class="compra-mini">#' + v.id + ' — ' + v.fecha + ' — Total: $' + v.total + ' — ' + v.estado + '</div>';
+        });
+      } else if (u.role === 'cliente') {
+        ventasHtml = '<p style="color:#6e8098;margin-top:12px;">Sin ventas registradas.</p>';
+      }
+      document.getElementById('modalBody').innerHTML =
+        '<div class="user-view-grid">' +
+        '<section class="user-section"><h4><i class="bx bx-user-circle"></i> Datos personales</h4>' +
+        '<p><strong>Nombre:</strong> ' + escapeHtml(u.name) + '</p>' +
+        '<p><strong>Rol:</strong> ' + escapeHtml(u.role) + '</p>' +
+        '<p><strong>Estado:</strong> ' + (u.estado ? 'Activo' : 'Inactivo') + '</p></section>' +
+        '<section class="user-section"><h4><i class="bx bx-detail"></i> Contacto y documento</h4>' +
+        '<p><strong>Correo:</strong> ' + escapeHtml(u.email) + '</p>' +
+        '<p><strong>Teléfono:</strong> ' + escapeHtml(u.phone || '') + '</p>' +
+        '<p><strong>Documento:</strong> ' + escapeHtml(u.documentType || '') + ' ' + escapeHtml(u.documentNumber || '') + '</p>' +
+        '<p><strong>Dirección:</strong> ' + escapeHtml(u.address || '') + '</p></section></div>' + ventasHtml;
+      document.getElementById('modalUsuario').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+    function escapeHtml(s) {
+      if (!s) return '';
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+    function cerrarModal() {
+      document.getElementById('modalUsuario').classList.remove('show');
+      document.body.style.overflow = 'auto';
+    }
+    document.getElementById('modalUsuario').addEventListener('click', function (e) {
+      if (e.target === this) cerrarModal();
+    });
+  </script>
+</body>
+</html>

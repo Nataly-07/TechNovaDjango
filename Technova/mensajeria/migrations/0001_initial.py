@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('usuarios', '0001_initial'),
+        ('usuario', '0001_initial'),
     ]
 
     operations = [
@@ -29,10 +29,10 @@ class Migration(migrations.Migration):
                 ('fecha_respuesta', models.DateTimeField(blank=True, null=True)),
                 ('creado_en', models.DateTimeField(auto_now_add=True)),
                 ('actualizado_en', models.DateTimeField(auto_now=True)),
-                ('destinatario_usuario', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='mensajes_directos_recibidos', to='usuarios.usuario')),
-                ('empleado_asignado', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='mensajes_directos_asignados', to='usuarios.usuario')),
+                ('destinatario_usuario', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='mensajes_directos_recibidos', to='usuario.usuario')),
+                ('empleado_asignado', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='mensajes_directos_asignados', to='usuario.usuario')),
                 ('mensaje_padre', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='respuestas_hilo', to='mensajeria.mensajedirecto')),
-                ('remitente_usuario', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='mensajes_directos_enviados', to='usuarios.usuario')),
+                ('remitente_usuario', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='mensajes_directos_enviados', to='usuario.usuario')),
             ],
             options={
                 'verbose_name': 'mensaje directo',
@@ -55,8 +55,8 @@ class Migration(migrations.Migration):
                 ('data_adicional', models.JSONField(blank=True, default=dict)),
                 ('creado_en', models.DateTimeField(auto_now_add=True)),
                 ('actualizado_en', models.DateTimeField(auto_now=True)),
-                ('empleado_usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='mensajes_empleado_recibidos', to='usuarios.usuario')),
-                ('remitente_usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='mensajes_empleado_enviados', to='usuarios.usuario')),
+                ('empleado_usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='mensajes_empleado_recibidos', to='usuario.usuario')),
+                ('remitente_usuario', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='mensajes_empleado_enviados', to='usuario.usuario')),
             ],
             options={
                 'verbose_name': 'mensaje a empleado',
@@ -78,7 +78,7 @@ class Migration(migrations.Migration):
                 ('fecha_creacion', models.DateTimeField(auto_now_add=True)),
                 ('creado_en', models.DateTimeField(auto_now_add=True)),
                 ('actualizado_en', models.DateTimeField(auto_now=True)),
-                ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notificaciones', to='usuarios.usuario')),
+                ('usuario', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notificaciones', to='usuario.usuario')),
             ],
             options={
                 'verbose_name': 'notificacion',

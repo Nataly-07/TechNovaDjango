@@ -1,78 +1,115 @@
 # RBAC Matrix (API v1)
 
-Roles:
-- `admin`
-- `empleado`
-- `cliente`
+Roles: `admin`, `empleado`, `cliente`.
+
+Las reglas aplican a **`/api/v1/...`** y al alias **`/api/...`**.
 
 ## Auth
 
-- `POST /api/v1/auth/login/`: publico
-- `POST /api/v1/auth/refresh/`: publico
-- `GET /api/v1/auth/me/`: autenticado
+- `POST /auth/login/`, `POST /auth/refresh/`: publico (tambien bajo `/api/auth/...` sin `v1`)
+- `GET /auth/me/`: autenticado
 
-## Productos
+## Salud
 
-- `GET /api/v1/productos/`: publico/autenticado
+- `GET /health/live/`, `GET /health/ready/` (bajo `/api/v1/` y `/api/`): publico
 
-## Compras
+## Usuario (`/usuario/`)
 
-- `POST /api/v1/compras/registrar/`: `admin`, `empleado`
-  - ownership: `empleado` no puede registrar compra para otro usuario.
+- `GET /`: `admin`, `empleado`
+- `POST /`: registro publico (rol cliente; `admin` puede fijar rol si va autenticado como admin)
+- `GET|PUT /{id}/`: titular o `admin` (`PUT` rol/estado solo `admin`)
+- `DELETE /{id}/`: `admin`
+- `PATCH /{id}/estado/`: `admin`
+- `POST /verificar-identidad/`, `/recuperar-contrasena/`, `/activar-cuenta/`: publico
+- `GET /verificar-estado/`: publico
+- `POST /login/`: publico (devuelve JWT + DTO)
 
-## Ventas
+## Proveedor (`/proveedor/`)
 
-- `GET /api/v1/ventas/`: `admin`, `empleado`
-- `POST /api/v1/ventas/checkout/`: autenticado
-  - ownership: solo sobre carrito propio.
-- `POST /api/v1/ventas/{venta_id}/anular/`: `admin`, `empleado`
+- `GET /`: autenticado
+- `POST`, `PUT`, `DELETE`, `PATCH .../estado/`: `admin`, `empleado`
 
-## Carrito
+## Producto (`/producto/`)
 
-- `GET /api/v1/carrito/`: autenticado (cliente solo sus carritos)
-- `POST /api/v1/carrito/crear/`: autenticado
-  - ownership: `cliente`/`empleado` no crean para otro; `admin` si puede.
-- `GET /api/v1/carrito/favoritos/`: autenticado (cliente solo propios)
-- `POST /api/v1/carrito/favoritos/crear/`: autenticado
-  - ownership: `cliente`/`empleado` no crean para otro; `admin` si puede.
+- `GET` catalogo, filtros, detalle: publico
+- `POST`, `PUT`, `DELETE`, `PATCH .../estado/`: `admin`, `empleado`
 
-## Pagos
+## Caracteristicas (`/caracteristicas/`)
 
-- `GET /api/v1/pagos/`: `admin`, `empleado`
-- `POST /api/v1/pagos/registrar/`: `admin`, `empleado`
-- `POST /api/v1/pagos/{pago_id}/estado/`: `admin`, `empleado`
-- `GET /api/v1/pagos/metodos-usuario/`: autenticado (cliente solo propios)
-- `POST /api/v1/pagos/metodos-usuario/crear/`: autenticado
-  - ownership: `cliente`/`empleado` no crean para otro; `admin` si puede.
+- `GET`: publico
+- `POST`, `PUT`, `DELETE`: `admin`, `empleado`
 
-## Envios
+## Compra (`/compra/`)
 
-- `GET /api/v1/envios/`: `admin`, `empleado`
-- `POST /api/v1/envios/registrar/`: `admin`, `empleado`
-- `GET /api/v1/envios/transportadoras/`: `admin`, `empleado`
-- `POST /api/v1/envios/transportadoras/crear/`: `admin`, `empleado`
+- `GET /`, `PATCH /{id}/estado/`: `admin`, `empleado`
+- `GET /mias/`, `GET /{id}/` (solo si es el titular): autenticado
+- `POST /registrar/`: `admin`, `empleado` (empleado no registra para otro usuario)
 
-## Ordenes
+## Venta (`/venta/`)
 
-- `GET /api/v1/ordenes/`: `admin`, `empleado`
-- `POST /api/v1/ordenes/registrar/`: `admin`, `empleado`
+- `GET /`, `POST .../anular/`: `admin`, `empleado`
+- `GET /mias/`, `GET /{id}/` (titular o staff): autenticado
+- `POST /checkout/`: autenticado (carrito del JWT)
 
-## Atencion Cliente
+## Carrito (`/carrito/`)
 
-- `GET /api/v1/atencion-cliente/solicitudes/`: autenticado (cliente solo propias)
-- `POST /api/v1/atencion-cliente/solicitudes/crear/`: autenticado
-  - ownership: `cliente`/`empleado` no crean para otro; `admin` si puede.
-- `GET /api/v1/atencion-cliente/reclamos/`: autenticado (cliente solo propios)
-- `POST /api/v1/atencion-cliente/reclamos/crear/`: autenticado
-  - ownership: `cliente`/`empleado` no crean para otro; `admin` si puede.
+- Operaciones autenticadas; `cliente`/`empleado` solo sobre si mismo salvo `admin`
 
-## Mensajeria
+## Favoritos (`/favoritos/`)
 
-- `GET /api/v1/mensajeria/notificaciones/`: autenticado (cliente solo propias)
-- `POST /api/v1/mensajeria/notificaciones/crear/`: autenticado
-  - ownership: `cliente`/`empleado` no crean para otro; `admin` si puede.
-- `GET /api/v1/mensajeria/mensajes-directos/`: autenticado (cliente solo conversaciones propias)
-- `POST /api/v1/mensajeria/mensajes-directos/crear/`: autenticado
-  - ownership: `cliente`/`empleado` no puede enviar como otro remitente; `admin` si puede.
-- `GET /api/v1/mensajeria/mensajes-empleado/`: `admin`, `empleado`
-- `POST /api/v1/mensajeria/mensajes-empleado/crear/`: `admin`
+- `GET ""`: `admin`, `empleado`
+- Resto: autenticado; ownership como carrito (no operar favoritos de otro salvo `admin`)
+
+## Pago (`/pago/`)
+
+- Listados, detalle `GET /{id}/` y mutaciones de pagos: `admin`, `empleado`
+- Metodos de usuario (`/pago/metodos-usuario/`): autenticado; propietario o `admin`
+
+## Medios de pago (`/medios-pago/`)
+
+- Todo: `admin`, `empleado`
+
+## User payment methods (`/user-payment-methods/`)
+
+- `GET ""`: `admin`, `empleado`
+- `GET|POST /usuario/{id}/`: titular o `admin`
+
+## Envio (`/envio/`)
+
+- Listado, registro, detalle y actualizacion `GET|PUT /{id}/`, baja logica `DELETE /{id}/`, transportadoras anidadas: `admin`, `empleado`
+
+## Transportadoras (`/transportadoras/`)
+
+- Todo: `admin`, `empleado`
+
+## Orden (`/orden/`)
+
+- `GET /`, `GET /{id}/`, `POST /registrar/`, `PATCH /{id}/estado/`: `admin`, `empleado`
+
+## Atencion cliente (`/atencion-cliente/`)
+
+- Solicitudes/reclamos JSON: autenticado; ownership habitual (cliente solo propio)
+
+## Reclamos (`/reclamos/` — alias)
+
+- `GET /usuario/{id}/`: titular o staff
+- `GET /estado/{estado}/`, `PUT` responder/cerrar/enviar-admin: `admin`, `empleado`
+- `POST /`: autenticado (`usuarioId` propio salvo `admin`)
+- `PUT /{id}/evaluar-resolucion/`: titular del reclamo
+- `DELETE /{id}/`: titular o `admin`
+
+## Mensajeria (`/mensajeria/`)
+
+- Notificaciones/mensajes internos: segun rutas existentes
+
+## Notificaciones (`/notificaciones/` — alias)
+
+- `GET|POST ""`: `admin`, `empleado`
+- Rutas bajo `/usuario/{id}/...`: titular o `admin`
+
+## Mensajes directos (`/mensajes-directos/` — alias)
+
+- `GET ""`, estadisticas, por empleado: `admin`, `empleado` (empleado acotado a su id donde aplica)
+- Por usuario/conversacion: participante o staff
+- `POST` crear/conversacion/responder: autenticado con reglas de remitente
+- `PUT .../marcar-leido/`: participante con permiso de ver el mensaje

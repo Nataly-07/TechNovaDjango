@@ -3,9 +3,9 @@ from decimal import Decimal
 
 from django.test import Client, TestCase
 
-from productos.models import Producto
-from proveedores.models import Proveedor
-from usuarios.models import Usuario
+from producto.models import Producto
+from proveedor.models import Proveedor
+from usuario.models import Usuario
 
 
 class CarritoApiJwtTestCase(TestCase):

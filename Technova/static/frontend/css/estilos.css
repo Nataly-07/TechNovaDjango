@@ -1,0 +1,311 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  background: var(--gradient-primary);
+  padding: 10px 20px;
+  border-radius: 0 0 30px 30px;
+  border: 1px solid #5f5f5f;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.menu-icon {
+  font-size: 28px;
+  cursor: pointer;
+  color: black;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+  font-weight: bold;
+  color: black;
+  text-decoration: none;
+}
+
+.logo img {
+  height: 50px;
+}
+
+.search-bar {
+  display: flex;
+  flex: 1;
+  margin: 10px 20px;
+  max-width: 500px;
+  background-color: white;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid #5f5f5f;
+}
+
+.search-bar input {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+}
+
+.search-btn {
+  background: none;
+  border: none;
+  padding: 10px;
+  cursor: pointer;
+  font-size: 18px;
+  color: #00d4ff;
+}
+
+.acciones-usuario {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.account, .cart {
+  display: flex;
+  align-items: center;
+  background: var(--gradient-secondary);
+  padding: 8px 18px;
+  border-radius: 30px;
+  color: white;
+  font-weight: bold;
+  gap: 8px;
+  border: 1px solid #4b4b4b;
+  text-decoration: none;
+  transition: background 0.3s, transform 0.2s;
+}
+
+.account:hover, .cart:hover {
+  background: var(--gradient-primary-hover);
+  transform: scale(1.05);
+}
+
+.account span, .cart span {
+  font-size: 14px;
+}
+
+
+
+.login-box {
+  background: var(--gradient-primary);
+  width: 350px;
+  margin: 60px auto;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.login-box h2 {
+  margin-bottom: 5px;
+}
+
+.login-box form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.login-box label {
+  text-align: left;
+  margin-top: 15px;
+  font-weight: bold;
+  background: var(--gradient-secondary);
+  padding: 5px 10px;
+  border-radius: 10px;
+  display: inline-block;
+  color: white;
+}
+
+.login-box input {
+  padding: 10px;
+  margin-top: 5px;
+  border-radius: 10px;
+  border: none;
+}
+
+.login-btn {
+  background: var(--gradient-secondary);
+  color: white;
+  padding: 10px;
+  margin-top: 20px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.login-btn:hover {
+  background: var(--gradient-primary-hover);
+  transform: translateY(-2px);
+}
+
+.google-login {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  
+}
+
+.google-login img {
+  width: 20px;
+  height: 20px;
+}
+
+.forgot {
+  margin-top: 15px;
+  font-size: 14px;
+  text-decoration: none;
+  color: #00d4ff;
+}
+
+footer {
+  background: var(--gradient-primary);
+  color: white;
+  text-align: center;
+  padding: 1rem;
+  margin-top: 2rem;
+}
+
+/*javasript*/
+
+.msg-flotante {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 15px 20px;
+  background: #ff5252;
+  color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.5);
+  font-size: 16px;
+  transform: translateY(100px);
+  opacity: 0;
+  transition: transform 0.5s ease, opacity 0.5s ease;
+  z-index: 1000;
+}
+
+.msg-flotante.active {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.msg-flotante.success {
+  background: #4caf50;
+}
+
+.msg-flotante.error {
+  background: #f44336;
+}
+
+.oculto {
+  display: none;
+}
+
+
+.perfil {
+  padding: 20px;
+  text-align: center;
+  background: var(--gradient-light);
+  border-radius: 20px;
+  margin: 20px;
+}
+.perfil h1 {
+  margin-bottom: 20px;
+}
+.perfil p {
+  font-size: 18px;
+}
+
+
+.layout {
+  display: flex;
+}
+
+
+.menu-dashboard {
+  max-width: 150px;
+  background: var(--gradient-primary);
+  padding: 20px;
+  border-radius:15px;
+  border: 1px solid #5f5f5f;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+  color: #fff;
+}
+
+.menu-dashboard .logo {
+  display: flex;
+  align-items: center;
+}
+
+.menu-dashboard .logo img {
+  width: 40px;
+  margin-right: 20px;
+}
+
+.menu-dashboard .input-search {
+  width: 100%;
+  margin-bottom: 30px;
+  background: #E0E0E0;
+  padding: 15px;
+  border-radius: 8px;
+  color: #000000;
+  display: flex;
+  align-items: center;
+}
+
+.menu-dashboard .input-search input {
+  border: none;
+  outline: none;
+  background: none;
+  color: #000000;
+  font-size: 16px;
+}
+
+.menu-dashboard .enlace {
+  padding: 20px 17px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  cursor: pointer;
+  font-size: 20px;
+  transition: all 0.3s ease;
+}
+
+.menu-dashboard .enlace:hover {
+  background: #E0E0E0;
+  color: #000000;
+}
+
+.menu-dashboard .enlace i {
+  margin-right: 20px;
+  font-size: 25px;
+}
+
+
+.perfil {
+  flex-grow: 1;
+  padding: 20px;
+}
+
+
+footer {
+  background: #00c800;
+  color: #ffffff;
+  text-align: center;
+  padding: 1rem;
+  margin-top: 2rem;
+}
+
+

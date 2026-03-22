@@ -4,7 +4,7 @@ Formato de usuario en data: campos estilo UsuarioDto (firstName, email, role, es
 """
 import re
 
-from django.contrib.auth.hashers import check_password, make_password
+from django.contrib.auth.hashers import make_password
 from django.db import IntegrityError
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
@@ -14,15 +14,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from common.api import error_response, parse_json_body, success_response
 from common.auth import require_auth
 from common.jwt_authentication import UsuarioJWTAuthentication
+from usuario.application.use_cases.autenticacion_usecases import autenticar_por_correo
 from usuario.models import Usuario
-
-
-def _credenciales_validas(password_plano: str, valor_guardado: str) -> bool:
-    if not valor_guardado:
-        return False
-    if valor_guardado.startswith(("pbkdf2_", "argon2$", "bcrypt$", "scrypt$")):
-        return check_password(password_plano, valor_guardado)
-    return password_plano == valor_guardado
 
 
 def _emitir_tokens(usuario: Usuario) -> tuple[str, str]:
@@ -400,21 +393,15 @@ def usuarios_login_compat(request):
     if not email or not password:
         return error_response("Credenciales invalidas.", status=401)
 
-    try:
-        usuario = Usuario.objects.get(correo_electronico__iexact=email)
-    except Usuario.DoesNotExist:
-        return error_response("Credenciales invalidas.", status=401)
-
-    if not usuario.activo:
+    resultado = autenticar_por_correo(
+        email, password, tratar_inactivo_como_credenciales_invalidas=False
+    )
+    if resultado.error == "inactivo":
         return error_response("Cuenta inactiva.", status=401)
-
-    if not _credenciales_validas(password, usuario.contrasena_hash):
+    if resultado.usuario is None:
         return error_response("Credenciales invalidas.", status=401)
 
-    if not usuario.contrasena_hash.startswith(("pbkdf2_", "argon2$", "bcrypt$", "scrypt$")):
-        usuario.contrasena_hash = make_password(password)
-        usuario.save(update_fields=["contrasena_hash", "actualizado_en"])
-
+    usuario = resultado.usuario
     access, refresh = _emitir_tokens(usuario)
     return success_response(
         {

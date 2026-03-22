@@ -1,0 +1,1808 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TECHNOVA - Iniciar sesión</title>
+  <link rel="stylesheet" href="{% static 'frontend/css/estilos.css' %}" />
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}" />
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}" />
+  <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Override cualquier estilo externo que pueda ocultar el formulario */
+    #loginForm,
+    #loginForm *,
+    .form-wrapper form,
+    .form-wrapper form * {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+
+    #loginForm input[type="email"],
+    #loginForm input[type="password"] {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      width: 100% !important;
+      height: auto !important;
+      min-height: 44px !important;
+      max-height: none !important;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    .auth-container {
+      flex: 1;
+      position: relative;
+      width: 100%;
+      max-width: 1400px;
+      padding: 40px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+    }
+
+    .form-wrapper {
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      padding: 30px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      position: relative;
+      z-index: 10;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .form-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .logo {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 15px;
+      box-shadow: 0 6px 24px rgba(102, 126, 234, 0.3);
+    }
+
+    .logo i {
+      font-size: 24px;
+      color: white;
+    }
+
+    .form-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 6px;
+    }
+
+    .form-subtitle {
+      color: #718096;
+      font-size: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 20px !important;
+      position: relative;
+      display: block !important;
+      width: 100% !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      height: auto !important;
+      max-height: none !important;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      color: #4a5568;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .input-wrapper {
+      position: relative !important;
+      display: block !important;
+      width: 100% !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      height: auto !important;
+      max-height: none !important;
+    }
+
+    .form-group input {
+      width: 100% !important;
+      padding: 12px 45px 12px 16px !important;
+      border: 2px solid #e2e8f0 !important;
+      border-radius: 10px !important;
+      font-size: 14px !important;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+      background: #f8fafc !important;
+      box-sizing: border-box !important;
+      min-height: 44px !important;
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      height: auto !important;
+      max-height: none !important;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .input-icon {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #a0aec0;
+      font-size: 20px;
+    }
+
+    .form-group input:focus + .input-icon {
+      color: #667eea;
+    }
+
+    .error-message {
+      color: #e53e3e;
+      font-size: 14px;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .error-message i {
+      font-size: 16px;
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      margin-top: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4);
+    }
+
+    .login-btn:active {
+      transform: translateY(0);
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      margin: 30px 0;
+      color: #a0aec0;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e2e8f0;
+    }
+
+    .divider span {
+      padding: 0 20px;
+      font-size: 14px;
+    }
+
+    .register-link {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .register-link a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.3s ease;
+    }
+
+    .register-link a:hover {
+      color: #764ba2;
+    }
+
+    /* Decoraciones flotantes - Optimizadas */
+    .floating-shape {
+      position: absolute;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+      animation: float 4s ease-in-out infinite;
+      will-change: transform;
+    }
+
+    .shape-1 {
+      width: 80px;
+      height: 80px;
+      top: 10%;
+      left: 10%;
+      animation-delay: 0s;
+    }
+
+    .shape-2 {
+      width: 120px;
+      height: 120px;
+      top: 20%;
+      right: 15%;
+      animation-delay: 2s;
+    }
+
+    .shape-3 {
+      width: 60px;
+      height: 60px;
+      bottom: 20%;
+      left: 20%;
+      animation-delay: 4s;
+    }
+
+    .shape-4 {
+      width: 100px;
+      height: 100px;
+      bottom: 10%;
+      right: 10%;
+      animation-delay: 1s;
+    }
+
+    .shape-5 {
+      width: 40px;
+      height: 40px;
+      top: 50%;
+      left: 5%;
+      animation-delay: 3s;
+    }
+
+    .shape-6 {
+      width: 70px;
+      height: 70px;
+      top: 60%;
+      right: 5%;
+      animation-delay: 5s;
+    }
+
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-10px) rotate(45deg);
+      }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .form-wrapper {
+        margin: 20px;
+        padding: 30px 20px;
+      }
+
+      .form-title {
+        font-size: 24px;
+      }
+
+      .floating-shape {
+        display: none;
+      }
+    }
+
+    /* Animación de entrada - Optimizada y más rápida */
+    .form-wrapper {
+      animation: slideInUp 0.15s ease-out;
+      will-change: transform, opacity;
+    }
+
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Animaciones 3D para dispositivos - Optimizadas */
+    .device-animations {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      will-change: transform;
+    }
+
+    .device-3d {
+      position: absolute;
+      perspective: 1000px;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+
+    .laptop-3d {
+      top: 50%;
+      left: 5%;
+      transform: translateY(-50%);
+      animation: laptopFloat 4s ease-in-out infinite;
+    }
+
+    .laptop-screen {
+      font-size: 3em;
+      transform: rotateX(15deg) rotateY(-10deg);
+    }
+
+    .laptop-base {
+      width: 60px;
+      height: 8px;
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      border-radius: 4px;
+      transform: rotateX(15deg) rotateY(-10deg) translateZ(-10px);
+      box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .phone-3d {
+      top: 50%;
+      right: 5%;
+      transform: translateY(-50%);
+      animation: phoneFloat 3.5s ease-in-out infinite;
+    }
+
+    .phone-screen {
+      font-size: 2.5em;
+      transform: rotateX(20deg) rotateY(15deg);
+    }
+
+    .phone-body {
+      width: 30px;
+      height: 50px;
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      border-radius: 8px;
+      transform: rotateX(20deg) rotateY(15deg) translateZ(-5px);
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+    }
+
+    .tablet-3d {
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      animation: tabletFloat 4s ease-in-out infinite;
+    }
+
+    .tablet-screen {
+      font-size: 2.8em;
+      transform: rotateX(-10deg) rotateY(-20deg);
+    }
+
+    .tablet-body {
+      width: 50px;
+      height: 35px;
+      background: linear-gradient(45deg, #10b981, #059669);
+      border-radius: 6px;
+      transform: rotateX(-10deg) rotateY(-20deg) translateZ(-8px);
+      box-shadow: 0 0 18px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Dispositivos adicionales - Reducidos para mejor rendimiento */
+    .smartwatch-3d {
+      top: 15%;
+      right: 20%;
+      animation: smartwatchFloat 3s ease-in-out infinite;
+    }
+
+    .smartwatch-screen {
+      font-size: 2em;
+      transform: rotateX(25deg) rotateY(20deg);
+    }
+
+    .smartwatch-band {
+      width: 20px;
+      height: 30px;
+      background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+      border-radius: 10px;
+      transform: rotateX(25deg) rotateY(20deg) translateZ(-3px);
+      box-shadow: 0 0 12px rgba(255, 107, 107, 0.4);
+    }
+
+    .headphones-3d {
+      bottom: 30%;
+      right: 15%;
+      animation: headphonesFloat 3.5s ease-in-out infinite;
+    }
+
+    .headphones-icon {
+      font-size: 2.2em;
+      transform: rotateX(15deg) rotateY(-25deg);
+    }
+
+    .headphones-band {
+      width: 40px;
+      height: 8px;
+      background: linear-gradient(45deg, #9b59b6, #8e44ad);
+      border-radius: 4px;
+      transform: rotateX(15deg) rotateY(-25deg) translateZ(-6px);
+      box-shadow: 0 0 16px rgba(155, 89, 182, 0.4);
+    }
+
+    .camera-3d {
+      top: 60%;
+      left: 10%;
+      animation: cameraFloat 4s ease-in-out infinite;
+    }
+
+    .camera-icon {
+      font-size: 2.3em;
+      transform: rotateX(-15deg) rotateY(30deg);
+    }
+
+    .camera-body {
+      width: 35px;
+      height: 25px;
+      background: linear-gradient(45deg, #3498db, #2980b9);
+      border-radius: 8px;
+      transform: rotateX(-15deg) rotateY(30deg) translateZ(-7px);
+      box-shadow: 0 0 14px rgba(52, 152, 219, 0.4);
+    }
+
+    .keyboard-3d {
+      bottom: 15%;
+      left: 25%;
+      animation: keyboardFloat 4s ease-in-out infinite;
+    }
+
+    .keyboard-icon {
+      font-size: 2.1em;
+      transform: rotateX(20deg) rotateY(-15deg);
+    }
+
+    .keyboard-base {
+      width: 60px;
+      height: 12px;
+      background: linear-gradient(45deg, #2ecc71, #27ae60);
+      border-radius: 6px;
+      transform: rotateX(20deg) rotateY(-15deg) translateZ(-9px);
+      box-shadow: 0 0 13px rgba(46, 204, 113, 0.4);
+    }
+
+    .mouse-3d {
+      top: 70%;
+      right: 25%;
+      animation: mouseFloat 3.5s ease-in-out infinite;
+    }
+
+    .mouse-icon {
+      font-size: 1.8em;
+      transform: rotateX(10deg) rotateY(25deg);
+    }
+
+    .mouse-body {
+      width: 25px;
+      height: 15px;
+      background: linear-gradient(45deg, #e67e22, #d35400);
+      border-radius: 12px;
+      transform: rotateX(10deg) rotateY(25deg) translateZ(-4px);
+      box-shadow: 0 0 11px rgba(230, 126, 34, 0.4);
+    }
+
+    .monitor-3d {
+      top: 10%;
+      left: 30%;
+      animation: monitorFloat 4.5s ease-in-out infinite;
+    }
+
+    .monitor-screen {
+      font-size: 2.4em;
+      transform: rotateX(-5deg) rotateY(10deg);
+    }
+
+    .monitor-stand {
+      width: 45px;
+      height: 10px;
+      background: linear-gradient(45deg, #8e44ad, #9b59b6);
+      border-radius: 5px;
+      transform: rotateX(-5deg) rotateY(10deg) translateZ(-12px);
+      box-shadow: 0 0 17px rgba(142, 68, 173, 0.4);
+    }
+
+    /* Nuevos elementos dinámicos - Simplificados */
+    .drone-3d {
+      top: 35%;
+      left: 20%;
+      animation: droneFloat 3s ease-in-out infinite;
+    }
+
+    .drone-icon {
+      font-size: 2.5em;
+      transform: rotateX(10deg) rotateY(-15deg);
+    }
+
+    .drone-propellers {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .propeller {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: radial-gradient(circle, #ffc107, #ff8f00);
+      border-radius: 50%;
+      animation: propellerSpin 0.2s linear infinite;
+    }
+
+    .prop-1 { top: -5px; left: -15px; }
+    .prop-2 { top: -5px; right: -15px; }
+    .prop-3 { bottom: -5px; left: -15px; }
+    .prop-4 { bottom: -5px; right: -15px; }
+
+    .robot-3d {
+      bottom: 40%;
+      right: 30%;
+      animation: robotFloat 3.5s ease-in-out infinite;
+    }
+
+    .robot-icon {
+      font-size: 2.2em;
+      transform: rotateX(15deg) rotateY(20deg);
+    }
+
+    .robot-antenna {
+      width: 3px;
+      height: 20px;
+      background: linear-gradient(45deg, #009688, #4db6ac);
+      border-radius: 2px;
+      transform: rotateX(15deg) rotateY(20deg) translateZ(5px);
+      animation: antennaWave 3s ease-in-out infinite;
+    }
+
+    .vr-3d {
+      top: 45%;
+      right: 8%;
+      animation: vrFloat 3.5s ease-in-out infinite;
+    }
+
+    .vr-icon {
+      font-size: 2.3em;
+      transform: rotateX(-20deg) rotateY(25deg);
+    }
+
+    .vr-strap {
+      width: 30px;
+      height: 6px;
+      background: linear-gradient(45deg, #9c27b0, #ba68c8);
+      border-radius: 3px;
+      transform: rotateX(-20deg) rotateY(25deg) translateZ(-8px);
+      box-shadow: 0 0 19px rgba(156, 39, 176, 0.4);
+    }
+
+    .gamepad-3d {
+      bottom: 25%;
+      left: 35%;
+      animation: gamepadFloat 4s ease-in-out infinite;
+    }
+
+    .gamepad-icon {
+      font-size: 2.1em;
+      transform: rotateX(25deg) rotateY(-30deg);
+    }
+
+    .gamepad-buttons {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .button {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: linear-gradient(45deg, #ff5722, #ff7043);
+      border-radius: 50%;
+      animation: buttonBlink 2s ease-in-out infinite;
+    }
+
+    .btn-1 { top: -8px; left: -8px; }
+    .btn-2 { top: -8px; right: -8px; }
+
+    /* Partículas flotantes - Optimizadas */
+    .particle {
+      position: absolute;
+      font-size: 1.5em;
+      pointer-events: none;
+      animation: particleFloat 4s ease-in-out infinite;
+      will-change: transform;
+    }
+
+    .particle-1 {
+      top: 10%;
+      left: 15%;
+      animation-delay: 0s;
+      animation: particleFloat 4s ease-in-out infinite;
+    }
+
+    .particle-2 {
+      top: 20%;
+      right: 20%;
+      animation-delay: 0.5s;
+      animation: particleFloat 4.5s ease-in-out infinite;
+    }
+
+    .particle-3 {
+      top: 60%;
+      left: 25%;
+      animation-delay: 1s;
+      animation: particleFloat 3.5s ease-in-out infinite;
+    }
+
+    .particle-4 {
+      top: 70%;
+      right: 15%;
+      animation-delay: 1.5s;
+      animation: particleFloat 5s ease-in-out infinite;
+    }
+
+    .particle-5 {
+      top: 40%;
+      left: 5%;
+      animation-delay: 2s;
+      animation: particleFloat 3s ease-in-out infinite;
+    }
+
+    .particle-6 {
+      top: 80%;
+      right: 35%;
+      animation-delay: 2.5s;
+      animation: particleFloat 4.5s ease-in-out infinite;
+    }
+
+    /* Animaciones de flotación - Simplificadas y optimizadas */
+    @keyframes laptopFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-15px); }
+    }
+
+    @keyframes phoneFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-12px); }
+    }
+
+    @keyframes tabletFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-18px); }
+    }
+
+    @keyframes smartwatchFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+
+    @keyframes headphonesFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-14px); }
+    }
+
+    @keyframes cameraFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-16px); }
+    }
+
+    @keyframes keyboardFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-12px); }
+    }
+
+    @keyframes mouseFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+
+    @keyframes monitorFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-20px); }
+    }
+
+    @keyframes droneFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-22px); }
+    }
+
+    @keyframes robotFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-16px); }
+    }
+
+    @keyframes vrFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-18px); }
+    }
+
+    @keyframes gamepadFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-14px); }
+    }
+
+    @keyframes particleFloat {
+      0%, 100% { transform: translateY(0px) translateX(0px); }
+      25% { transform: translateY(-8px) translateX(5px); }
+      50% { transform: translateY(-12px) translateX(-3px); }
+      75% { transform: translateY(-8px) translateX(-5px); }
+    }
+
+    /* Animaciones de rotación 3D - Eliminadas para mejor rendimiento */
+
+    /* Animaciones especiales */
+    @keyframes propellerSpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes antennaWave {
+      0%, 100% { transform: rotateX(15deg) rotateY(20deg) translateZ(5px) rotateZ(0deg); }
+      50% { transform: rotateX(15deg) rotateY(20deg) translateZ(5px) rotateZ(15deg); }
+    }
+
+    @keyframes buttonBlink {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(0.8); }
+    }
+
+    /* Efectos de brillo - Eliminados para mejor rendimiento */
+
+    /* Header y Footer */
+    .header {
+      position: relative;
+      z-index: 100;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .header .logo {
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+      color: white;
+      font-weight: bold;
+      font-size: 24px;
+      margin-left: 0;
+    }
+
+    .header .logo img {
+      height: 40px;
+      margin-right: 10px;
+      filter: brightness(1.2) contrast(1.1);
+    }
+
+    .header .acciones-usuario {
+      display: flex;
+      gap: 15px;
+    }
+
+    .header .account {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      text-decoration: none;
+      font-weight: 500;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    .header .account:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    footer {
+      position: relative;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+      text-align: center;
+      padding: 20px;
+      color: white;
+    }
+
+    /* Responsive para animaciones 3D */
+    @media (max-width: 768px) {
+      .device-animations {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <a href="{% url 'index_public' %}" class="logo">
+      <img src="{% static 'frontend/imagenes/logo technova.png' %}" alt="Logo" style="cursor:pointer;">
+      <span>TECHNOVA</span>
+    </a>
+
+    <div class="acciones-usuario">
+      <a href="{% url 'web_login' %}" class="account">
+        <span>Iniciar Sesión</span>
+      </a>
+      <a href="{% url 'web_registro' %}" class="account">
+        <span>Crear Cuenta</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="auth-container">
+    <!-- Decoraciones flotantes -->
+    <div class="floating-shape shape-1"></div>
+    <div class="floating-shape shape-2"></div>
+    <div class="floating-shape shape-3"></div>
+    <div class="floating-shape shape-4"></div>
+    <div class="floating-shape shape-5"></div>
+    <div class="floating-shape shape-6"></div>
+
+    <!-- Animaciones 3D con dispositivos -->
+    <div class="device-animations">
+      <!-- Laptop principal -->
+      <div class="device-3d laptop-3d">
+        <div class="laptop-screen">💻</div>
+        <div class="laptop-base"></div>
+      </div>
+      
+      <!-- Teléfono principal -->
+      <div class="device-3d phone-3d">
+        <div class="phone-screen">📱</div>
+        <div class="phone-body"></div>
+      </div>
+      
+      <!-- Tablet principal -->
+      <div class="device-3d tablet-3d">
+        <div class="tablet-screen">📱</div>
+        <div class="tablet-body"></div>
+      </div>
+
+      <!-- Dispositivos adicionales -->
+      <div class="device-3d smartwatch-3d">
+        <div class="smartwatch-screen">⌚</div>
+        <div class="smartwatch-band"></div>
+      </div>
+
+      <div class="device-3d headphones-3d">
+        <div class="headphones-icon">🎧</div>
+        <div class="headphones-band"></div>
+      </div>
+
+      <div class="device-3d camera-3d">
+        <div class="camera-icon">📷</div>
+        <div class="camera-body"></div>
+      </div>
+
+      <div class="device-3d keyboard-3d">
+        <div class="keyboard-icon">⌨️</div>
+        <div class="keyboard-base"></div>
+      </div>
+
+      <div class="device-3d mouse-3d">
+        <div class="mouse-icon">🖱️</div>
+        <div class="mouse-body"></div>
+      </div>
+
+      <div class="device-3d monitor-3d">
+        <div class="monitor-screen">🖥️</div>
+        <div class="monitor-stand"></div>
+      </div>
+
+      <!-- Elementos adicionales con más dinamismo -->
+      <div class="device-3d drone-3d">
+        <div class="drone-icon">🚁</div>
+        <div class="drone-propellers">
+          <div class="propeller prop-1"></div>
+          <div class="propeller prop-2"></div>
+          <div class="propeller prop-3"></div>
+          <div class="propeller prop-4"></div>
+        </div>
+      </div>
+
+      <div class="device-3d robot-3d">
+        <div class="robot-icon">🤖</div>
+        <div class="robot-antenna"></div>
+      </div>
+
+      <div class="device-3d vr-3d">
+        <div class="vr-icon">🥽</div>
+        <div class="vr-strap"></div>
+      </div>
+
+      <div class="device-3d gamepad-3d">
+        <div class="gamepad-icon">🎮</div>
+        <div class="gamepad-buttons">
+          <div class="button btn-1"></div>
+          <div class="button btn-2"></div>
+        </div>
+      </div>
+
+      <!-- Partículas flotantes -->
+      <div class="particle particle-1">✨</div>
+      <div class="particle particle-2">⭐</div>
+      <div class="particle particle-3">💫</div>
+      <div class="particle particle-4">🌟</div>
+      <div class="particle particle-5">✨</div>
+      <div class="particle particle-6">⭐</div>
+    </div>
+
+    <div class="form-wrapper">
+      <div class="form-header">
+        <div class="logo">
+          <img src="{% static 'frontend/imagenes/logo technova.png' %}" alt="Logo Technova" style="width: 100%; height: 100%; object-fit: contain;">
+        </div>
+        <h1 class="form-title">Iniciar Sesión</h1>
+        <p class="form-subtitle">Bienvenido de vuelta a TechNova</p>
+      </div>
+
+      <div class="error-message" id="loginError">
+        {% for message in messages %}
+          {% if message.tags == 'error' %}
+        <i class='bx bx-error-circle'></i>
+        <span>{{ message }}</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      {% if account_activated %}
+      <div class="success-message" id="successMessage" style="display: block; background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #c3e6cb;">
+        <i class='bx bx-check-circle'></i>
+        <span>Cuenta activada correctamente. Ya puedes iniciar sesión.</span>
+      </div>
+      {% endif %}
+      {% for message in messages %}
+      {% if message.tags == 'success' %}
+      <div class="success-message" id="successMessageServer" style="display: block; background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #c3e6cb;">
+        <i class='bx bx-check-circle'></i>
+        <span>{{ message }}</span>
+      </div>
+      {% endif %}
+      {% endfor %}
+
+      <div class="account-deactivated-message" id="accountDeactivatedMessage" style="display: none; background: #fff3cd; color: #856404; padding: 16px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffeeba;">
+        <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 15px;">
+          <i class='bx bx-info-circle' style="font-size: 24px; margin-top: 2px;"></i>
+          <div style="flex: 1;">
+            <strong style="display: block; margin-bottom: 8px;">Cuenta Desactivada</strong>
+            <p style="margin: 0; line-height: 1.5;">Esta cuenta ha sido desactivada. Para continuar, necesitas reactivarla primero.</p>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
+          <button type="button" id="cancelReactivateBtn" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.3s;">
+            Cancelar
+          </button>
+          <button type="button" id="reactivateAccountBtn" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.3s;">
+            <i class='bx bx-check-circle' style="margin-right: 5px;"></i>
+            Reactivar Cuenta
+          </button>
+        </div>
+      </div>
+
+      <form id="loginForm" action="{% url 'web_login' %}" method="POST" novalidate style="display: block !important; width: 100% !important; visibility: visible !important; opacity: 1 !important;">
+        {% csrf_token %}
+        
+        <div class="form-group" style="display: block !important; width: 100% !important; margin-bottom: 20px !important; visibility: visible !important; opacity: 1 !important; height: auto !important;">
+          <label for="email" style="display: block !important; margin-bottom: 6px !important; color: #4a5568 !important; font-weight: 600 !important; font-size: 13px !important; visibility: visible !important;">Correo electrónico</label>
+          <div class="input-wrapper" style="position: relative !important; display: block !important; width: 100% !important; visibility: visible !important; opacity: 1 !important;">
+            <input type="email" id="email" name="email" required placeholder="tu@email.com" style="width: 100% !important; padding: 12px 45px 12px 16px !important; border: 2px solid #e2e8f0 !important; border-radius: 10px !important; font-size: 14px !important; background: #f8fafc !important; box-sizing: border-box !important; min-height: 44px !important; display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important;" />
+            <i class='bx bx-envelope input-icon' style="position: absolute !important; right: 16px !important; top: 50% !important; transform: translateY(-50%) !important; color: #a0aec0 !important; font-size: 20px !important; pointer-events: none !important;"></i>
+          </div>
+          <div class="error-message d-none" id="emailError"></div>
+        </div>
+
+        <div class="form-group" style="display: block !important; width: 100% !important; margin-bottom: 20px !important; visibility: visible !important; opacity: 1 !important; height: auto !important;">
+          <label for="password" style="display: block !important; margin-bottom: 6px !important; color: #4a5568 !important; font-weight: 600 !important; font-size: 13px !important; visibility: visible !important;">Contraseña</label>
+          <div class="input-wrapper" style="position: relative !important; display: block !important; width: 100% !important; visibility: visible !important; opacity: 1 !important;">
+            <input type="password" id="password" name="password" required placeholder="Ingresa tu contraseña" style="width: 100% !important; padding: 12px 45px 12px 16px !important; border: 2px solid #e2e8f0 !important; border-radius: 10px !important; font-size: 14px !important; background: #f8fafc !important; box-sizing: border-box !important; min-height: 44px !important; display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important;" />
+            <i class='bx bx-lock-alt input-icon' style="position: absolute !important; right: 16px !important; top: 50% !important; transform: translateY(-50%) !important; color: #a0aec0 !important; font-size: 20px !important; pointer-events: none !important;"></i>
+          </div>
+          <div class="error-message d-none" id="passwordError"></div>
+        </div>
+
+        <div style="text-align: right !important; margin-bottom: 15px !important; display: flex !important; justify-content: flex-end !important; align-items: center !important;">
+          <a href="#" id="forgotPasswordLink" style="color: #667eea !important; text-decoration: none !important; font-size: 13px !important; font-weight: 500 !important; white-space: nowrap !important;">
+            <i class='bx bx-help-circle' style="margin-right: 4px;"></i>
+            ¿Olvidaste tu contraseña?
+          </a>
+        </div>
+
+        <button type="submit" class="login-btn" style="width: 100% !important; padding: 12px !important; background: linear-gradient(135deg, #667eea, #764ba2) !important; color: white !important; border: none !important; border-radius: 10px !important; font-size: 14px !important; font-weight: 600 !important; cursor: pointer !important; margin-top: 8px !important; display: block !important; visibility: visible !important; opacity: 1 !important;">
+          <i class='bx bx-log-in' style="margin-right: 8px;"></i>
+          Iniciar Sesión
+        </button>
+      </form>
+
+      <div class="divider">
+        <span>¿No tienes cuenta?</span>
+      </div>
+
+      <div class="register-link">
+        <a href="{% url 'web_registro' %}">
+          <i class='bx bx-user-plus' style="margin-right: 6px;"></i>
+          Crear Cuenta
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Reactivar Cuenta -->
+  <div id="reactivateAccountModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 20px; padding: 30px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; color: #333; font-size: 24px;">
+          <i class='bx bx-check-circle' style="color: #28a745; margin-right: 8px;"></i>
+          Reactivar Cuenta
+        </h2>
+        <button id="closeReactivateAccountModal" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
+      </div>
+
+      <div id="reactivateAccountError" style="display: none; background: #fee; color: #c33; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #fcc;">
+        <i class='bx bx-error-circle'></i>
+        <span id="reactivateAccountErrorMessage"></span>
+      </div>
+
+      <div id="reactivateAccountSuccess" style="display: none; background: #efe; color: #3c3; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #cfc;">
+        <i class='bx bx-check-circle'></i>
+        <span>Cuenta reactivada correctamente. Ahora puedes iniciar sesión.</span>
+      </div>
+
+      <!-- Paso 1: Verificación de Identidad -->
+      <div id="verificationStepReactivate">
+        <p style="color: #666; margin-bottom: 20px;">Por seguridad, verifica tu identidad con los siguientes datos para reactivar tu cuenta:</p>
+        
+        <form id="reactivateAccountForm">
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 6px; color: #4a5568; font-weight: 600; font-size: 13px;">
+              <i class='bx bx-envelope'></i> Correo Electrónico *
+            </label>
+            <input type="email" id="verifyEmailReactivate" name="verifyEmail" required placeholder="tu@email.com" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box;" />
+            <div class="error-message d-none" id="verifyEmailErrorReactivate" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px;"></div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div>
+              <label style="display: block; margin-bottom: 6px; color: #4a5568; font-weight: 600; font-size: 13px;">
+                <i class='bx bx-id-card'></i> Tipo de Documento *
+              </label>
+              <select id="verifyDocumentTypeReactivate" name="verifyDocumentType" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box;">
+                <option value="">Selecciona</option>
+                <option value="CC">Cédula de Ciudadanía</option>
+                <option value="CE">Cédula de Extranjería</option>
+                <option value="PA">Pasaporte</option>
+                <option value="TI">Tarjeta de Identidad</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="display: block; margin-bottom: 6px; color: #4a5568; font-weight: 600; font-size: 13px;">
+                <i class='bx bx-id-card'></i> Número de Documento *
+              </label>
+              <input type="text" id="verifyDocumentNumberReactivate" name="verifyDocumentNumber" required placeholder="Número de documento" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box;" />
+              <div class="error-message d-none" id="verifyDocumentErrorReactivate" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px;"></div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 6px; color: #4a5568; font-weight: 600; font-size: 13px;">
+              <i class='bx bx-phone'></i> Número de Teléfono *
+            </label>
+            <input type="tel" id="verifyPhoneReactivate" name="verifyPhone" required placeholder="Número de teléfono registrado" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box;" />
+            <div class="error-message d-none" id="verifyPhoneErrorReactivate" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px;"></div>
+          </div>
+
+          <button type="button" id="verifyIdentityBtnReactivate" style="width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 15px;">
+            <i class='bx bx-check-circle'></i> Verificar y Reactivar Cuenta
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Recuperar Contraseña -->
+  <div id="forgotPasswordModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 20px; padding: 30px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; color: #333; font-size: 24px;">
+          <i class='bx bx-lock-alt' style="color: #667eea; margin-right: 8px;"></i>
+          Recuperar Contraseña
+        </h2>
+        <button id="closeForgotPasswordModal" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
+      </div>
+
+      <div id="forgotPasswordError" style="display: none; background: #fee; color: #c33; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #fcc;">
+        <i class='bx bx-error-circle'></i>
+        <span id="forgotPasswordErrorMessage"></span>
+      </div>
+
+      <div id="forgotPasswordSuccess" style="display: none; background: #efe; color: #3c3; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #cfc;">
+        <i class='bx bx-check-circle'></i>
+        <span>Contraseña actualizada correctamente. Ahora puedes iniciar sesión.</span>
+      </div>
+
+      <!-- Paso 1: Verificación de Identidad -->
+      <div id="verificationStep">
+        <p style="color: #666; margin-bottom: 20px;">Por seguridad, verifica tu identidad con los siguientes datos:</p>
+        
+        <form id="forgotPasswordForm">
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 6px; color: #4a5568; font-weight: 600; font-size: 13px;">
+              <i class='bx bx-envelope'></i> Correo Electrónico *
+            </label>
+            <input type="email" id="verifyEmailForgot" name="verifyEmail" required placeholder="tu@email.com" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box;" />
+            <div class="error-message d-none" id="verifyEmailErrorForgot" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px;"></div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div>
+              <label style="display: block; margin-bottom: 6px; color: #4a5568; font-weight: 600; font-size: 13px;">
+                <i class='bx bx-id-card'></i> Tipo de Documento *
+              </label>
+              <select id="verifyDocumentTypeForgot" name="verifyDocumentType" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box;">
+                <option value="">Selecciona</option>
+                <option value="CC">Cédula de Ciudadanía</option>
+                <option value="CE">Cédula de Extranjería</option>
+                <option value="PA">Pasaporte</option>
+                <option value="TI">Tarjeta de Identidad</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="display: block; margin-bottom: 6px; color: #4a5568; font-weight: 600; font-size: 13px;">
+                <i class='bx bx-id-card'></i> Número de Documento *
+              </label>
+              <input type="text" id="verifyDocumentNumberForgot" name="verifyDocumentNumber" required placeholder="Número de documento" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box;" />
+              <div class="error-message d-none" id="verifyDocumentErrorForgot" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px;"></div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 6px; color: #4a5568; font-weight: 600; font-size: 13px;">
+              <i class='bx bx-phone'></i> Número de Teléfono *
+            </label>
+            <input type="tel" id="verifyPhoneForgot" name="verifyPhone" required placeholder="Número de teléfono registrado" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box;" />
+            <div class="error-message d-none" id="verifyPhoneErrorForgot" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px;"></div>
+          </div>
+
+          <button type="button" id="verifyIdentityBtnForgot" style="width: 100%; padding: 12px; background: #ffc107; color: #000; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 15px;">
+            <i class='bx bx-check-circle'></i> Verificar Identidad
+          </button>
+        </form>
+      </div>
+
+      <!-- Paso 2: Nueva Contraseña (se muestra después de verificación) -->
+      <div id="newPasswordStep" style="display: none;">
+        <div style="background: #d4edda; border-left: 4px solid #28a745; padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+          <p style="margin: 0; color: #155724;">
+            <i class='bx bx-check-circle'></i> Identidad verificada. Ahora puedes crear una nueva contraseña.
+          </p>
+        </div>
+
+        <form id="resetPasswordForm">
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 6px; color: #4a5568; font-weight: 600; font-size: 13px;">
+              <i class='bx bx-lock-alt'></i> Nueva Contraseña *
+            </label>
+            <input type="password" id="newPasswordForgot" name="newPassword" required placeholder="Mínimo 8 caracteres, mayúscula, minúscula, número y carácter especial" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box;" />
+            <div class="password-requisitos" id="password-requisitos-forgot" style="margin-top: 10px; font-size: 12px; color: #666; display: none;">
+              <p class="requisito" data-req="length" style="margin: 2px 0;">✗ Mínimo 8 caracteres</p>
+              <p class="requisito" data-req="upper" style="margin: 2px 0;">✗ Mayúscula</p>
+              <p class="requisito" data-req="lower" style="margin: 2px 0;">✗ Minúscula</p>
+              <p class="requisito" data-req="digit" style="margin: 2px 0;">✗ Número</p>
+              <p class="requisito" data-req="special" style="margin: 2px 0;">✗ Carácter especial</p>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 6px; color: #4a5568; font-weight: 600; font-size: 13px;">
+              <i class='bx bx-lock-alt'></i> Confirmar Nueva Contraseña *
+            </label>
+            <input type="password" id="confirmPasswordForgot" name="confirmPassword" required placeholder="Repite la nueva contraseña" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box;" />
+            <div class="error-message d-none" id="confirmPasswordErrorForgot" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px;"></div>
+          </div>
+
+          <button type="button" id="resetPasswordBtn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;">
+            <i class='bx bx-save'></i> Actualizar Contraseña
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <p>© {% now "Y" %} TECHNOVA. Todos los derechos reservados.</p>
+  </footer>
+
+  {{ api_usuario|json_script:"api-usuario-config" }}
+  <script>
+    const Config = JSON.parse(document.getElementById('api-usuario-config').textContent);
+
+    function unwrapApi(json) {
+      if (json && typeof json.ok === 'boolean' && json.data !== undefined) {
+        return json.data;
+      }
+      return json;
+    }
+
+    const loginForm = document.getElementById('loginForm');
+    const loginError = document.getElementById('loginError');
+    const emailError = document.getElementById('emailError');
+    const passwordError = document.getElementById('passwordError');
+
+    function showError(element, message) {
+      if (element && message) {
+        element.textContent = message;
+        element.classList.remove('d-none');
+      }
+    }
+
+    function hideError(element) {
+      if (element) {
+        element.classList.add('d-none');
+      }
+    }
+
+    let currentEmailForVerification = '';
+
+    async function checkAccountStatus(email) {
+      try {
+        const sep = Config.verificar_estado.includes('?') ? '&' : '?';
+        const response = await fetch(
+          `${Config.verificar_estado}${sep}email=${encodeURIComponent(email)}`,
+          {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+          }
+        );
+        if (response.ok) {
+          const raw = await response.json();
+          const data = unwrapApi(raw);
+          return data.exists && !data.active;
+        }
+      } catch (error) {
+        console.log('No se pudo verificar el estado de la cuenta');
+      }
+      return false;
+    }
+
+    loginForm?.addEventListener('submit', async function(event) {
+      hideError(loginError);
+      hideError(emailError);
+      hideError(passwordError);
+      
+      // Ocultar mensaje de cuenta desactivada al intentar iniciar sesión nuevamente
+      const deactivatedMsg = document.getElementById('accountDeactivatedMessage');
+      if (deactivatedMsg) {
+        deactivatedMsg.style.display = 'none';
+      }
+
+      if (!loginForm.checkValidity()) {
+        event.preventDefault();
+        loginForm.classList.add('was-validated');
+        return;
+      }
+
+      const email = loginForm.email.value.trim().toLowerCase();
+      const password = loginForm.password.value.trim();
+
+      // Normalizar email antes de enviar
+      loginForm.email.value = email;
+
+      if (password.length < 8) {
+        event.preventDefault();
+        showError(passwordError, 'La contraseña debe tener al menos 8 caracteres.');
+        return;
+      }
+
+      // Verificar si la cuenta está desactivada ANTES de enviar el formulario
+      event.preventDefault();
+      const isDeactivated = await checkAccountStatus(email);
+      
+      if (isDeactivated) {
+        // Guardar email para el modal de reactivación
+        currentEmailForVerification = email;
+        // Mostrar mensaje con botones
+        if (deactivatedMsg) {
+          deactivatedMsg.style.display = 'block';
+        }
+      } else {
+        // Si no está desactivada, enviar el formulario normalmente
+        loginForm.submit();
+      }
+    });
+
+    // Funcionalidad de reactivar cuenta
+    const reactivateAccountBtn = document.getElementById('reactivateAccountBtn');
+    const cancelReactivateBtn = document.getElementById('cancelReactivateBtn');
+    const reactivateAccountModal = document.getElementById('reactivateAccountModal');
+    const closeReactivateAccountModal = document.getElementById('closeReactivateAccountModal');
+    const verifyIdentityBtnReactivate = document.getElementById('verifyIdentityBtnReactivate');
+    const reactivateAccountError = document.getElementById('reactivateAccountError');
+    const reactivateAccountSuccess = document.getElementById('reactivateAccountSuccess');
+    const verificationStepReactivate = document.getElementById('verificationStepReactivate');
+
+    // Botón Reactivar Cuenta
+    if (reactivateAccountBtn) {
+      reactivateAccountBtn.addEventListener('click', function() {
+        if (currentEmailForVerification) {
+          document.getElementById('verifyEmailReactivate').value = currentEmailForVerification;
+        }
+        reactivateAccountModal.style.display = 'flex';
+        resetReactivateModal();
+      });
+    }
+
+    // Botón Cancelar
+    if (cancelReactivateBtn) {
+      cancelReactivateBtn.addEventListener('click', function() {
+        const deactivatedMsg = document.getElementById('accountDeactivatedMessage');
+        if (deactivatedMsg) {
+          deactivatedMsg.style.display = 'none';
+        }
+        // Limpiar el email guardado
+        currentEmailForVerification = '';
+        // Opcional: limpiar el formulario de login
+        const emailInput = document.getElementById('email');
+        if (emailInput) {
+          emailInput.value = '';
+        }
+      });
+    }
+
+    // Cerrar modal
+    if (closeReactivateAccountModal) {
+      closeReactivateAccountModal.addEventListener('click', function() {
+        reactivateAccountModal.style.display = 'none';
+        resetReactivateModal();
+      });
+    }
+
+    // Cerrar al hacer clic fuera del modal
+    if (reactivateAccountModal) {
+      reactivateAccountModal.addEventListener('click', function(e) {
+        if (e.target === reactivateAccountModal) {
+          reactivateAccountModal.style.display = 'none';
+          resetReactivateModal();
+        }
+      });
+    }
+
+    function resetReactivateModal() {
+      if (reactivateAccountError) reactivateAccountError.style.display = 'none';
+      if (reactivateAccountSuccess) reactivateAccountSuccess.style.display = 'none';
+      if (verificationStepReactivate) verificationStepReactivate.style.display = 'block';
+      const form = document.getElementById('reactivateAccountForm');
+      if (form) form.reset();
+    }
+
+    // Verificar identidad y reactivar cuenta
+    if (verifyIdentityBtnReactivate) {
+      verifyIdentityBtnReactivate.addEventListener('click', async function() {
+        const email = document.getElementById('verifyEmailReactivate').value.trim();
+        const documentType = document.getElementById('verifyDocumentTypeReactivate').value;
+        const documentNumber = document.getElementById('verifyDocumentNumberReactivate').value.trim();
+        const phone = document.getElementById('verifyPhoneReactivate').value.trim();
+
+        // Validar campos
+        if (!email || !documentType || !documentNumber || !phone) {
+          reactivateAccountError.style.display = 'block';
+          document.getElementById('reactivateAccountErrorMessage').textContent = 'Por favor completa todos los campos';
+          return;
+        }
+
+        // Deshabilitar botón mientras se verifica
+        this.disabled = true;
+        this.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Verificando y reactivando...';
+
+        try {
+          // Primero verificar identidad
+          const verifyResponse = await fetch(Config.verificar_identidad, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              email: email,
+              documentType: documentType,
+              documentNumber: documentNumber,
+              phone: phone
+            })
+          });
+
+          const verifyData = unwrapApi(await verifyResponse.json());
+
+          if (verifyResponse.ok && verifyData.valid) {
+            // Si la identidad es válida, activar la cuenta
+            const activateResponse = await fetch(Config.activar_cuenta, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                email: email
+              })
+            });
+
+            const activateData = unwrapApi(await activateResponse.json());
+
+            if (activateResponse.ok && activateData.success) {
+              reactivateAccountError.style.display = 'none';
+              reactivateAccountSuccess.style.display = 'block';
+              verificationStepReactivate.style.display = 'none';
+              
+              // Ocultar mensaje de cuenta desactivada
+              const deactivatedMsg = document.getElementById('accountDeactivatedMessage');
+              if (deactivatedMsg) {
+                deactivatedMsg.style.display = 'none';
+              }
+              
+              // Redirigir al login después de 2 segundos
+              setTimeout(() => {
+                window.location.href = Config.web_login + '?accountActivated=true';
+              }, 2000);
+            } else {
+              reactivateAccountError.style.display = 'block';
+              document.getElementById('reactivateAccountErrorMessage').textContent = activateData.message || 'Error al reactivar la cuenta';
+            }
+          } else {
+            reactivateAccountError.style.display = 'block';
+            document.getElementById('reactivateAccountErrorMessage').textContent = verifyData.message || 'Los datos no coinciden con nuestros registros';
+          }
+        } catch (error) {
+          reactivateAccountError.style.display = 'block';
+          document.getElementById('reactivateAccountErrorMessage').textContent = 'Error al reactivar la cuenta. Intenta nuevamente.';
+        } finally {
+          this.disabled = false;
+          this.innerHTML = '<i class=\'bx bx-check-circle\'></i> Verificar y Reactivar Cuenta';
+        }
+      });
+    }
+
+    // Funcionalidad de recuperar contraseña
+    const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+    const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+    const closeForgotPasswordModal = document.getElementById('closeForgotPasswordModal');
+    const verifyIdentityBtnForgot = document.getElementById('verifyIdentityBtnForgot');
+    const resetPasswordBtn = document.getElementById('resetPasswordBtn');
+    const verificationStep = document.getElementById('verificationStep');
+    const newPasswordStep = document.getElementById('newPasswordStep');
+    const forgotPasswordError = document.getElementById('forgotPasswordError');
+    const forgotPasswordSuccess = document.getElementById('forgotPasswordSuccess');
+    let identityVerified = false;
+    let verifiedEmail = '';
+
+    // Abrir modal
+    if (forgotPasswordLink) {
+      forgotPasswordLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        forgotPasswordModal.style.display = 'flex';
+        resetModal();
+      });
+    }
+
+    // Cerrar modal
+    if (closeForgotPasswordModal) {
+      closeForgotPasswordModal.addEventListener('click', function() {
+        forgotPasswordModal.style.display = 'none';
+        resetModal();
+      });
+    }
+
+    // Cerrar al hacer clic fuera del modal
+    forgotPasswordModal.addEventListener('click', function(e) {
+      if (e.target === forgotPasswordModal) {
+        forgotPasswordModal.style.display = 'none';
+        resetModal();
+      }
+    });
+
+    function resetModal() {
+      verificationStep.style.display = 'block';
+      newPasswordStep.style.display = 'none';
+      forgotPasswordError.style.display = 'none';
+      forgotPasswordSuccess.style.display = 'none';
+      identityVerified = false;
+      verifiedEmail = '';
+      document.getElementById('forgotPasswordForm').reset();
+      document.getElementById('resetPasswordForm').reset();
+    }
+
+    // Función para validar la contraseña (igual que en registro)
+    function validarPassword(password) {
+      return {
+        length: password.length >= 8,
+        upper: /[A-Z]/.test(password),
+        lower: /[a-z]/.test(password),
+        digit: /\d/.test(password),
+        special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+      };
+    }
+
+    // Función para actualizar la visualización de requisitos
+    function actualizarRequisitos(validaciones, requisitosDiv) {
+      const requisitoElements = requisitosDiv.querySelectorAll('.requisito');
+      let todosCompletos = true;
+
+      requisitoElements.forEach(element => {
+        const tipo = element.getAttribute('data-req');
+        const esValido = validaciones[tipo];
+
+        if (esValido) {
+          element.innerHTML = '✓ ' + element.textContent.substring(2);
+          element.style.color = '#10b981';
+          element.style.fontWeight = '600';
+        } else {
+          element.innerHTML = '✗ ' + element.textContent.substring(2);
+          element.style.color = '#ef4444';
+          element.style.fontWeight = '400';
+          todosCompletos = false;
+        }
+      });
+
+      return todosCompletos;
+    }
+
+    // Validar nueva contraseña mientras se escribe
+    const newPasswordForgot = document.getElementById('newPasswordForgot');
+    const confirmPasswordForgot = document.getElementById('confirmPasswordForgot');
+    const passwordRequisitosForgot = document.getElementById('password-requisitos-forgot');
+
+    if (newPasswordForgot && passwordRequisitosForgot) {
+      newPasswordForgot.addEventListener('input', function() {
+        const password = this.value;
+        
+        if (password.length > 0) {
+          passwordRequisitosForgot.style.display = 'block';
+          const validaciones = validarPassword(password);
+          const esValida = actualizarRequisitos(validaciones, passwordRequisitosForgot);
+          
+          if (esValida) {
+            this.style.borderColor = '#10b981';
+            this.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+          } else {
+            this.style.borderColor = '#e2e8f0';
+            this.style.boxShadow = 'none';
+          }
+        } else {
+          passwordRequisitosForgot.style.display = 'none';
+          this.style.borderColor = '#e2e8f0';
+          this.style.boxShadow = 'none';
+        }
+        
+        // Validar confirmación si ya hay texto
+        if (confirmPasswordForgot && confirmPasswordForgot.value.length > 0) {
+          validarConfirmacionPasswordForgot();
+        }
+      });
+    }
+
+    // Validar confirmación de contraseña
+    function validarConfirmacionPasswordForgot() {
+      const newPassword = newPasswordForgot.value;
+      const confirmPassword = confirmPasswordForgot.value;
+      const errorDiv = document.getElementById('confirmPasswordErrorForgot');
+
+      if (confirmPassword.length === 0) {
+        confirmPasswordForgot.style.borderColor = '#e2e8f0';
+        confirmPasswordForgot.style.boxShadow = 'none';
+        if (errorDiv) {
+          errorDiv.style.display = 'none';
+          errorDiv.classList.add('d-none');
+        }
+        return;
+      }
+
+      if (newPassword.length > 0 && confirmPassword.length > 0) {
+        if (newPassword === confirmPassword) {
+          confirmPasswordForgot.style.borderColor = '#10b981';
+          confirmPasswordForgot.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+          if (errorDiv) {
+            errorDiv.style.display = 'none';
+            errorDiv.classList.add('d-none');
+          }
+        } else {
+          confirmPasswordForgot.style.borderColor = '#ef4444';
+          confirmPasswordForgot.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+          if (errorDiv) {
+            errorDiv.textContent = 'Las contraseñas no coinciden.';
+            errorDiv.style.display = 'block';
+            errorDiv.classList.remove('d-none');
+          }
+        }
+      }
+    }
+
+    if (confirmPasswordForgot) {
+      confirmPasswordForgot.addEventListener('input', validarConfirmacionPasswordForgot);
+    }
+
+    // Verificar identidad
+    if (verifyIdentityBtnForgot) {
+      verifyIdentityBtnForgot.addEventListener('click', async function() {
+        const email = document.getElementById('verifyEmailForgot').value.trim();
+        const documentType = document.getElementById('verifyDocumentTypeForgot').value;
+        const documentNumber = document.getElementById('verifyDocumentNumberForgot').value.trim();
+        const phone = document.getElementById('verifyPhoneForgot').value.trim();
+
+        // Validar campos
+        if (!email || !documentType || !documentNumber || !phone) {
+          forgotPasswordError.style.display = 'block';
+          document.getElementById('forgotPasswordErrorMessage').textContent = 'Por favor completa todos los campos';
+          return;
+        }
+
+        // Deshabilitar botón mientras se verifica
+        this.disabled = true;
+        this.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Verificando...';
+
+        try {
+          const response = await fetch(Config.verificar_identidad, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              email: email,
+              documentType: documentType,
+              documentNumber: documentNumber,
+              phone: phone
+            })
+          });
+
+          const data = unwrapApi(await response.json());
+
+          if (response.ok && data.valid) {
+            identityVerified = true;
+            verifiedEmail = email;
+            forgotPasswordError.style.display = 'none';
+            verificationStep.style.display = 'none';
+            newPasswordStep.style.display = 'block';
+          } else {
+            identityVerified = false;
+            forgotPasswordError.style.display = 'block';
+            document.getElementById('forgotPasswordErrorMessage').textContent = data.message || 'Los datos no coinciden con nuestros registros';
+          }
+        } catch (error) {
+          identityVerified = false;
+          forgotPasswordError.style.display = 'block';
+          document.getElementById('forgotPasswordErrorMessage').textContent = 'Error al verificar. Intenta nuevamente.';
+        } finally {
+          this.disabled = false;
+          this.innerHTML = '<i class="bx bx-check-circle"></i> Verificar Identidad';
+        }
+      });
+    }
+
+    // Actualizar contraseña
+    if (resetPasswordBtn) {
+      resetPasswordBtn.addEventListener('click', async function() {
+        if (!identityVerified) {
+          forgotPasswordError.style.display = 'block';
+          document.getElementById('forgotPasswordErrorMessage').textContent = 'Debes verificar tu identidad primero';
+          return;
+        }
+
+        const newPassword = newPasswordForgot.value;
+        const confirmPassword = confirmPasswordForgot.value;
+
+        // Validar contraseña
+        if (!newPassword || newPassword.trim() === '') {
+          forgotPasswordError.style.display = 'block';
+          document.getElementById('forgotPasswordErrorMessage').textContent = 'Debes ingresar una nueva contraseña';
+          return;
+        }
+
+        const validaciones = validarPassword(newPassword);
+        const esValida = Object.values(validaciones).every(v => v);
+
+        if (!esValida) {
+          forgotPasswordError.style.display = 'block';
+          document.getElementById('forgotPasswordErrorMessage').textContent = 'La contraseña no cumple con los requisitos de seguridad';
+          return;
+        }
+
+        if (newPassword !== confirmPassword) {
+          forgotPasswordError.style.display = 'block';
+          document.getElementById('forgotPasswordErrorMessage').textContent = 'Las contraseñas no coinciden';
+          return;
+        }
+
+        // Deshabilitar botón mientras se actualiza
+        this.disabled = true;
+        this.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Actualizando...';
+
+        try {
+          const response = await fetch(Config.recuperar_contrasena, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              email: verifiedEmail,
+              newPassword: newPassword
+            })
+          });
+
+          const data = unwrapApi(await response.json());
+
+          if (response.ok && data.success) {
+            forgotPasswordError.style.display = 'none';
+            forgotPasswordSuccess.style.display = 'block';
+            newPasswordStep.style.display = 'none';
+            
+            // Redirigir al login después de 2 segundos
+            setTimeout(() => {
+              window.location.href = Config.web_login;
+            }, 2000);
+          } else {
+            forgotPasswordError.style.display = 'block';
+            document.getElementById('forgotPasswordErrorMessage').textContent = data.message || 'Error al actualizar la contraseña';
+          }
+        } catch (error) {
+          forgotPasswordError.style.display = 'block';
+          document.getElementById('forgotPasswordErrorMessage').textContent = 'Error al actualizar. Intenta nuevamente.';
+        } finally {
+          this.disabled = false;
+          this.innerHTML = '<i class="bx bx-save"></i> Actualizar Contraseña';
+        }
+      });
+    }
+
+  </script>
+</body>
+</html>

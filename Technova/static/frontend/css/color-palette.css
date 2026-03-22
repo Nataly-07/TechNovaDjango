@@ -1,0 +1,193 @@
+/* Paleta de colores Technova */
+:root {
+  /* Colores principales */
+  --bondi-blue: #0799b6;
+  --san-marino: #4a6eb0;
+  --eden: #114c5f;
+  --sinbad: #9cd2d3;
+  --janna: #f2e6cf;
+  
+  /* Nuevo gradiente cian-púrpura */
+  --gradient-primary: linear-gradient(135deg, #00d4ff 0%, #8b5cf6 100%);
+  --gradient-primary-hover: linear-gradient(135deg, #00b8e6 0%, #7c3aed 100%);
+  --gradient-secondary: linear-gradient(135deg, #06b6d4 0%, #a855f7 100%);
+  --gradient-light: linear-gradient(135deg, #67e8f9 0%, #c4b5fd 100%);
+  
+  /* Colores derivados */
+  --bondi-blue-light: #0bb3d4;
+  --bondi-blue-dark: #067a91;
+  --san-marino-light: #5d7bc4;
+  --san-marino-dark: #3a5a9c;
+  --eden-light: #1a6b85;
+  --eden-dark: #0d3a4a;
+  --sinbad-light: #b8e0e1;
+  --sinbad-dark: #7bc4c5;
+  --janna-light: #f8f0e0;
+  --janna-dark: #e6d4b8;
+  
+  /* Colores de estado */
+  --success: #28a745;
+  --warning: #ffc107;
+  --danger: #dc3545;
+  --info: var(--bondi-blue);
+  
+  /* Colores de texto */
+  --text-primary: var(--eden);
+  --text-secondary: var(--san-marino);
+  --text-light: var(--janna);
+  --text-white: #ffffff;
+  
+  /* Colores de fondo */
+  --bg-primary: var(--janna);
+  --bg-secondary: var(--sinbad);
+  --bg-dark: var(--eden);
+  --bg-light: var(--janna-light);
+  
+  /* Colores de botones */
+  --btn-primary: var(--bondi-blue);
+  --btn-primary-hover: var(--bondi-blue-dark);
+  --btn-secondary: var(--san-marino);
+  --btn-secondary-hover: var(--san-marino-dark);
+  --btn-success: var(--success);
+  --btn-danger: var(--danger);
+  
+  /* Colores de bordes */
+  --border-primary: var(--bondi-blue);
+  --border-secondary: var(--sinbad);
+  --border-light: var(--janna-dark);
+}
+
+/* Clases de utilidad para colores */
+.text-bondi-blue { color: var(--bondi-blue) !important; }
+.text-san-marino { color: var(--san-marino) !important; }
+.text-eden { color: var(--eden) !important; }
+.text-sinbad { color: var(--sinbad) !important; }
+.text-janna { color: var(--janna) !important; }
+
+.bg-bondi-blue { background-color: var(--bondi-blue) !important; }
+.bg-san-marino { background-color: var(--san-marino) !important; }
+.bg-eden { background-color: var(--eden) !important; }
+.bg-sinbad { background-color: var(--sinbad) !important; }
+.bg-janna { background-color: var(--janna) !important; }
+
+.border-bondi-blue { border-color: var(--bondi-blue) !important; }
+.border-san-marino { border-color: var(--san-marino) !important; }
+.border-eden { border-color: var(--eden) !important; }
+.border-sinbad { border-color: var(--sinbad) !important; }
+.border-janna { border-color: var(--janna) !important; }
+
+/* Botones con nueva paleta */
+.btn-bondi-blue {
+  background-color: var(--bondi-blue);
+  border-color: var(--bondi-blue);
+  color: white;
+}
+
+.btn-bondi-blue:hover {
+  background-color: var(--bondi-blue-dark);
+  border-color: var(--bondi-blue-dark);
+  color: white;
+}
+
+.btn-san-marino {
+  background-color: var(--san-marino);
+  border-color: var(--san-marino);
+  color: white;
+}
+
+.btn-san-marino:hover {
+  background-color: var(--san-marino-dark);
+  border-color: var(--san-marino-dark);
+  color: white;
+}
+
+.btn-eden {
+  background-color: var(--eden);
+  border-color: var(--eden);
+  color: white;
+}
+
+.btn-eden:hover {
+  background-color: var(--eden-dark);
+  border-color: var(--eden-dark);
+  color: white;
+}
+
+/* Cards y contenedores */
+.card-bondi-blue {
+  border: 2px solid var(--bondi-blue);
+  background-color: var(--janna-light);
+}
+
+.card-san-marino {
+  border: 2px solid var(--san-marino);
+  background-color: var(--sinbad-light);
+}
+
+.card-eden {
+  border: 2px solid var(--eden);
+  background-color: var(--janna);
+}
+
+/* Formularios */
+.form-control:focus {
+  border-color: var(--bondi-blue);
+  box-shadow: 0 0 0 0.2rem rgba(7, 153, 182, 0.25);
+}
+
+.form-select:focus {
+  border-color: var(--bondi-blue);
+  box-shadow: 0 0 0 0.2rem rgba(7, 153, 182, 0.25);
+}
+
+/* Enlaces */
+a {
+  color: var(--bondi-blue);
+}
+
+a:hover {
+  color: var(--bondi-blue-dark);
+}
+
+/* Headers y títulos */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--eden);
+}
+
+/* Navegación */
+.navbar-brand {
+  color: var(--eden) !important;
+}
+
+.nav-link {
+  color: var(--san-marino) !important;
+}
+
+.nav-link:hover {
+  color: var(--bondi-blue) !important;
+}
+
+/* Alertas */
+.alert-info {
+  background-color: var(--sinbad-light);
+  border-color: var(--bondi-blue);
+  color: var(--eden);
+}
+
+.alert-success {
+  background-color: #d4edda;
+  border-color: var(--success);
+  color: #155724;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  border-color: var(--warning);
+  color: #856404;
+}
+
+.alert-danger {
+  background-color: #f8d7da;
+  border-color: var(--danger);
+  color: #721c24;
+}

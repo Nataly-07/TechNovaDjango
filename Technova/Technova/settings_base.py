@@ -2,6 +2,9 @@
 Shared settings for all environments.
 """
 
+from dotenv import load_dotenv
+load_dotenv()  # carga variables de .env
+
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -76,7 +79,7 @@ ROOT_URLCONF = "Technova.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -115,6 +118,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {

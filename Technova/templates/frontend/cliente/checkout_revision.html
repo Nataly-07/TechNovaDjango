@@ -1,0 +1,82 @@
+{% extends "frontend/base_cliente.html" %}
+{% load static %}
+{% block title %}Checkout — Revisión — Technova{% endblock %}
+{% block extra_css %}
+{{ block.super }}
+<style>
+  .checkout-wrap { max-width: 640px; margin: 0 auto; padding: 8px 10px 32px; }
+  .checkout-step { font-size: 0.85rem; color: #64748b; margin-bottom: 8px; }
+  .checkout-card {
+    background: white; border-radius: 16px; padding: 24px 22px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e8edf7;
+  }
+  .checkout-card h1 { font-size: 1.4rem; margin: 0 0 16px; color: #1e293b; font-weight: 800; }
+  .box { background: #f8fafc; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; font-size: 0.92rem; color: #334155; }
+  .box h3 { margin: 0 0 10px; font-size: 0.95rem; color: #0f172a; }
+  .resumen-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e8edf7; font-size: 0.9rem; }
+  .total-final {
+    display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 14px;
+    border-top: 2px solid #667eea; font-size: 1.25rem; font-weight: 800; color: #0f172a;
+  }
+  .total-final span:last-child { color: #16a34a; }
+  .btn-confirm {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; margin-top: 22px; padding: 14px 20px; border: none; border-radius: 999px;
+    background: linear-gradient(135deg, #00cc44 0%, #00a638 100%);
+    color: #fff; font-weight: 800; font-size: 1rem; cursor: pointer;
+  }
+  .back-link { display: inline-block; margin-top: 16px; color: #0ea5e9; font-weight: 600; text-decoration: none; }
+</style>
+{% endblock %}
+{% block cliente_content %}
+<div class="checkout-wrap">
+  <p class="checkout-step">Paso 4 de 4 — Revisión</p>
+  <div class="checkout-card">
+    <h1>Revisión final</h1>
+
+    <div class="box">
+      <h3><i class="bx bx-user"></i> Cliente</h3>
+      <div>{{ usuario.nombres }} {{ usuario.apellidos }}</div>
+      <div>{{ usuario.correo_electronico }} · {{ usuario.telefono }}</div>
+    </div>
+
+    <div class="box">
+      <h3><i class="bx bx-truck"></i> Envío</h3>
+      {% if transportadora_nombre %}<div><strong>{{ transportadora_nombre }}</strong></div>{% endif %}
+      <div>Guía: {{ ses.numero_guia }}</div>
+      <div>Costo envío: ${{ costo_envio|floatformat:0 }}</div>
+    </div>
+
+    <div class="box">
+      <h3><i class="bx bx-credit-card"></i> Pago</h3>
+      <div>{{ metodo_label }}</div>
+    </div>
+
+    <h2 style="font-size:1rem;margin:18px 0 10px;color:#334155;">Productos</h2>
+    {% for it in items %}
+    <div class="resumen-line">
+      <span>{{ it.nombre_producto }} × {{ it.cantidad }}</span>
+      <span>${{ it.subtotal_linea }}</span>
+    </div>
+    {% endfor %}
+    <div class="resumen-line">
+      <span>Subtotal</span>
+      <span>${{ subtotal|floatformat:0 }}</span>
+    </div>
+    <div class="resumen-line">
+      <span>Envío</span>
+      <span>${{ costo_envio|floatformat:0 }}</span>
+    </div>
+    <div class="total-final">
+      <span>Total a pagar</span>
+      <span>${{ total|floatformat:0 }}</span>
+    </div>
+
+    <form method="post" action="{% url 'web_cliente_checkout_finalizar' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn-confirm"><i class="bx bx-check-circle"></i> Confirmar pedido</button>
+    </form>
+    <a href="{% url 'web_cliente_checkout_pago' %}" class="back-link"><i class="bx bx-arrow-back"></i> Anterior</a>
+  </div>
+</div>
+{% endblock %}

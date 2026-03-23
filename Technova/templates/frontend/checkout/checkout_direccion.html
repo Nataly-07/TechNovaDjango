@@ -1,0 +1,19 @@
+{% extends "frontend/checkout/checkout_base.html" %}
+{% block checkout_content %}
+<h2 class="section-title">Direccion de envío</h2>
+<form method="post" action="{% url 'web_cliente_checkout_direccion' %}">
+  {% csrf_token %}
+  <div class="form-group">
+    <input type="text" name="departamento" value="{{ direccion.departamento|default:'' }}" placeholder="Departamento" required />
+    <input type="text" name="ciudad" value="{{ direccion.ciudad|default:'' }}" placeholder="Ciudad" required />
+  </div>
+  <div class="form-group full">
+    <input type="text" name="direccion" value="{{ direccion.direccion|default:'' }}" placeholder="Direccion" required />
+  </div>
+  <div class="form-group">
+    <input type="text" name="localidad" value="{{ direccion.localidad|default:'' }}" placeholder="Localidad" />
+    <input type="text" name="barrio" value="{{ direccion.barrio|default:'' }}" placeholder="Barrio" />
+  </div>
+  <button type="submit" class="account cta">Continuar</button>
+</form>
+{% endblock %}

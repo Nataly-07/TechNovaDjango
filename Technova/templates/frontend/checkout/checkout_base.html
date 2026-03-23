@@ -1,0 +1,181 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Technova | Checkout</title>
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/technova-cliente-area.css' %}">
+  <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; }
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--gradient-primary); padding: 10px 20px; border-radius: 0 0 30px 30px;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; font-size: 24px; font-weight: bold; color: #0f172a; text-decoration: none; }
+    .logo img { height: 50px; width: auto; }
+    .acciones-usuario { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .account, .cart {
+      display: flex; align-items: center; background: var(--gradient-secondary);
+      padding: 5px 15px; border-radius: 50px; color: white; font-weight: bold; gap: 10px; text-decoration: none;
+      border: none; cursor: pointer; font: inherit;
+    }
+    .container {
+      max-width: 1200px; margin: 20px auto; border: 2px solid var(--bondi-blue);
+      border-radius: 15px; background: var(--janna-light); padding-bottom: 0;
+    }
+    .steps {
+      display: flex; justify-content: space-around; flex-wrap: wrap; gap: 6px;
+      padding: 10px; background: #f5f5f5; border-radius: 15px 15px 0 0;
+    }
+    .step { padding: 8px 12px; color: #666; border-radius: 10px; font-size: 0.88rem; }
+    .step.active { background: var(--gradient-primary); color: white; }
+    .content {
+      display: grid; grid-template-columns: 2fr 1fr; gap: 20px; padding: 20px;
+    }
+    @media (max-width: 968px) { .content { grid-template-columns: 1fr; } }
+    .dashboard-wrapper { display: flex; min-height: calc(100vh - 100px); }
+    .main-content { flex: 1; padding: 20px; margin-left: 0; width: 100%; box-sizing: border-box; }
+    .form-section {
+      flex: 1; background: white; border-radius: 15px; padding: 15px;
+      border: 2px solid var(--bondi-blue);
+    }
+    .section-title {
+      background: var(--gradient-primary); color: white; padding: 8px;
+      border-radius: 10px; margin-bottom: 15px; text-align: center; font-size: 1.1rem;
+    }
+    .form-group { margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .form-group.full { flex-direction: column; }
+    .form-group input, .form-group select {
+      flex: 1; min-width: 140px; padding: 12px 16px; border: 2px solid var(--sinbad);
+      border-radius: 12px; font-size: 14px; box-sizing: border-box;
+    }
+    .cart-section {
+      flex: 1; background: var(--sinbad-light); border-radius: 15px; padding: 15px;
+    }
+    .cart-title {
+      background: var(--gradient-primary); color: white; padding: 8px;
+      border-radius: 10px; margin-bottom: 10px; text-align: center; font-size: 1.1rem;
+    }
+    .cart-product {
+      display: flex; margin-top: 10px; background: white; border-radius: 10px;
+      padding: 10px; align-items: center; gap: 10px;
+    }
+    .cart-product img {
+      width: 80px; height: 80px; object-fit: cover; border-radius: 10px; flex-shrink: 0;
+      background: #f1f5f9;
+    }
+    .product-details { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+    .product-details p { margin: 0; font-size: 0.9em; }
+    .footer-msg {
+      background: var(--gradient-primary); color: white; text-align: center;
+      padding: 12px; border-radius: 0 0 15px 15px; font-weight: bold;
+    }
+    .info-box { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+    .info-box h3 { margin-top: 0; color: var(--bondi-blue); }
+    button.account.cta {
+      background: var(--gradient-primary); color: white; padding: 12px 24px;
+      border: none; border-radius: 12px; width: 100%; cursor: pointer; font-size: 16px; font-weight: 600;
+    }
+    .welcome-section {
+      text-align: center; margin-bottom: 16px; padding: 12px;
+    }
+    .welcome-section h1 { font-size: 1.35rem; color: #1e293b; margin: 0 0 6px; }
+    .welcome-section p { color: #64748b; margin: 0; font-size: 0.95rem; }
+  </style>
+  {% block checkout_extra_css %}{% endblock %}
+</head>
+<body>
+  <header class="header">
+    <a href="{% url 'inicio_autenticado' %}" class="logo">
+      <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Technova">
+      <span>TECHNOVA</span>
+    </a>
+    <div class="acciones-usuario">
+      <a href="{% url 'web_cliente_perfil' %}" class="account"><i class="bx bx-user-circle"></i> <span>Perfil</span></a>
+      <form method="post" action="{% url 'web_logout' %}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="account" style="background:var(--gradient-secondary);">
+          <i class="bx bx-log-out"></i> <span>Cerrar Sesión</span>
+        </button>
+      </form>
+      <a href="{% url 'web_carrito' %}" class="cart"><i class="bx bx-cart"></i> <span>Carrito</span></a>
+    </div>
+  </header>
+
+  <div class="dashboard-wrapper">
+    {% include "frontend/checkout/sidebar_cliente_checkout.html" %}
+
+    <main class="main-content">
+      <div class="welcome-section">
+        <h1><i class="bx bx-shopping-bag"></i> Proceso de Compra</h1>
+        <p>Completa los siguientes pasos para finalizar tu compra</p>
+      </div>
+
+      <div class="container">
+        <div class="steps">
+          <div class="step {% if step == 'informacion' %}active{% endif %}">Informacion</div>
+          <div class="step {% if step == 'direccion' %}active{% endif %}">Direccion</div>
+          <div class="step {% if step == 'envio' %}active{% endif %}">Metodo de envio</div>
+          <div class="step {% if step == 'pago' %}active{% endif %}">Forma de pago</div>
+          <div class="step {% if step == 'revision' %}active{% endif %}">Revision</div>
+        </div>
+
+        <div class="content">
+          <div class="form-section">
+            {% block checkout_content %}{% endblock %}
+          </div>
+
+          {% if productos %}
+          <div class="cart-section">
+            <h2 class="cart-title">Mi Carrito</h2>
+            <div class="cart-products">
+              {% for detalle in productos %}
+              <div class="cart-product">
+                <img src="{% if detalle.imagen %}{{ detalle.imagen }}{% else %}{% static 'frontend/imagenes/placeholder.svg' %}{% endif %}"
+                     alt="{{ detalle.nombreProducto }}">
+                <div class="product-details">
+                  <p><strong>{{ detalle.nombreProducto }}</strong></p>
+                  <p>Cantidad: <span>{{ detalle.cantidad }}</span></p>
+                  <p style="color: #27ae60; font-weight: bold; font-size: 1rem; margin: 4px 0;">
+                    Valor: $<span>{{ detalle.precioVenta|floatformat:0 }}</span>
+                  </p>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="cart-summary" style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #ddd;">
+              <p style="font-size: 1.2em; font-weight: bold; color: #333; text-align: center;">
+                <strong>Total:</strong> $<span>{{ total_carrito|floatformat:0 }}</span>
+              </p>
+            </div>
+            <div style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); border: 2px solid #00d4ff; border-radius: 10px; padding: 15px; margin-top: 15px; text-align: center;">
+              <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;">
+                <i class="bx bx-info-circle" style="color: #00d4ff; font-size: 20px;"></i>
+                <strong style="color: #333; font-size: 14px;">Información Importante</strong>
+              </div>
+              <p style="color: #555; font-size: 13px; margin: 0; line-height: 1.4;">
+                Completa todos los datos requeridos en cada paso para continuar con tu compra de forma segura.
+              </p>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="footer-msg">
+          ¡ No te preocupes ! Tu compra es 100% segura
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <footer style="text-align:center;padding:16px;color:#64748b;">
+    <p style="margin:0;">&copy; 2025 Technova</p>
+  </footer>
+  {% block checkout_extra_js %}{% endblock %}
+</body>
+</html>

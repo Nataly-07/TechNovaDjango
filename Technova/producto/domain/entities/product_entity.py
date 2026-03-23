@@ -14,5 +14,6 @@ class ProductoEntidad:
     imagen_url: str = ""
     categoria: str = ""
     marca: str = ""
+    color: str = ""
     descripcion: str = ""
     precio_venta: Decimal | None = None

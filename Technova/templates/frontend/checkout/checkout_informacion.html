@@ -1,0 +1,24 @@
+{% extends "frontend/checkout/checkout_base.html" %}
+{% block checkout_content %}
+<h2 class="section-title">Información personal</h2>
+<form method="post" action="{% url 'web_cliente_checkout_info' %}">
+  {% csrf_token %}
+  <div class="form-group">
+    <input type="text" name="firstName" value="{{ info.firstName|default:usuario.nombres }}" placeholder="Nombres" required />
+    <input type="text" name="lastName" value="{{ info.lastName|default:usuario.apellidos }}" placeholder="Apellidos" required />
+  </div>
+  <div class="form-group">
+    <input type="email" name="email" value="{{ info.email|default:usuario.correo_electronico }}" placeholder="Correo" required />
+    <input type="text" name="phone" value="{{ info.phone|default:usuario.telefono }}" placeholder="Telefono" required />
+  </div>
+  <div class="form-group">
+    <select name="documentType" required>
+      <option value="CC" {% if doc_type == 'CC' %}selected{% endif %}>CC</option>
+      <option value="CE" {% if doc_type == 'CE' %}selected{% endif %}>CE</option>
+      <option value="PAS" {% if doc_type == 'PAS' %}selected{% endif %}>Pasaporte</option>
+    </select>
+    <input type="text" name="documentNumber" value="{{ info.documentNumber|default:usuario.numero_documento }}" placeholder="Numero de identidad" required />
+  </div>
+  <button type="submit" class="account cta">Continuar</button>
+</form>
+{% endblock %}

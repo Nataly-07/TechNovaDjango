@@ -34,6 +34,7 @@ def _serialize_producto(entidad: ProductoEntidad) -> dict:
         "caracteristica": {
             "categoria": entidad.categoria,
             "marca": entidad.marca,
+            "color": entidad.color,
             "descripcion": entidad.descripcion,
             "precio_compra": str(entidad.costo_unitario),
             "precio_venta": str(precio),
@@ -57,6 +58,7 @@ def _entidad_desde_payload(payload: dict, *, producto_id: int | None = None) -> 
         imagen_url=str(payload.get("imagen_url", "") or payload.get("imagen", "") or ""),
         categoria=str(payload.get("categoria", "") or ""),
         marca=str(payload.get("marca", "") or ""),
+        color=str(payload.get("color", "") or ""),
         descripcion=str(payload.get("descripcion", "") or ""),
         precio_venta=precio_venta,
     )

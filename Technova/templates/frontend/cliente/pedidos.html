@@ -1,13 +1,172 @@
 {% extends "frontend/base_cliente.html" %}
 {% load static %}
-{% block title %}Pedidos — Technova{% endblock %}
-{% block cliente_content %}
-<h1>Mis pedidos (ventas)</h1>
-<p style="color:#666;">Equivalente a la vista Java <em>cliente/pedidos</em> — datos de <code>/api/v1/venta/mias/</code></p>
-<div id="page-data">Cargando…</div>
-{% endblock %}
-{% block extra_js %}
+{% block title %}Mis pedidos — Technova{% endblock %}
+{% block extra_css %}
 {{ block.super }}
-<script src="{% static 'frontend/js/technova-pages.js' %}"></script>
-<script>document.addEventListener('DOMContentLoaded', function () { TechnovaPages.pedidos(); });</script>
+<style>
+  .welcome-section-pedidos {
+    text-align: center;
+    padding: 28px 20px;
+    margin-bottom: 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    color: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  .welcome-section-pedidos h1 {
+    color: white;
+    font-size: 2rem;
+    margin-bottom: 8px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .welcome-section-pedidos p {
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 1.05rem;
+    margin: 0;
+  }
+  .compras-container {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-top: 12px;
+  }
+  .compra-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+  }
+  .compra-header {
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  .compra-info h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .compra-fecha {
+    margin: 6px 0 0 0;
+    opacity: 0.95;
+    font-size: 0.9rem;
+  }
+  .compra-details { padding: 18px 20px; }
+  .compra-items h4 {
+    margin: 0 0 12px 0;
+    color: #334155;
+    font-size: 1rem;
+  }
+  .items-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .item:last-child { border-bottom: none; }
+  .item-name { flex: 1; color: #334155; min-width: 120px; }
+  .item-quantity { color: #64748b; margin: 0 8px; }
+  .item-price { color: #16a34a; font-weight: 700; }
+  .compra-summary {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 12px;
+    margin-top: 8px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    align-items: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1e293b;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    max-width: 520px;
+    margin: 24px auto;
+  }
+  .empty-state .empty-icon {
+    font-size: 3rem;
+    color: #cbd5e1;
+    margin-bottom: 12px;
+  }
+  .empty-state h3 { color: #475569; margin-bottom: 8px; }
+  .empty-state p { color: #64748b; margin-bottom: 20px; }
+  .btn-primary-store {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--gradient-primary);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 700;
+  }
+</style>
+{% endblock %}
+
+{% block cliente_content %}
+<div class="welcome-section-pedidos">
+  <h1><i class="bx bx-package"></i> Mis pedidos</h1>
+  <p>Historial de tus pedidos realizados</p>
+</div>
+
+{% if pedidos %}
+<div class="compras-container">
+  {% for pedido in pedidos %}
+  <div class="compra-card">
+    <div class="compra-header">
+      <div class="compra-info">
+        <h3><i class="bx bx-receipt"></i> Pedido #{{ pedido.venta_id }}</h3>
+        <p class="compra-fecha"><i class="bx bx-calendar"></i> {{ pedido.fecha_venta }}</p>
+        <p class="compra-fecha" style="margin-top:4px;">Estado: {{ pedido.estado }}</p>
+      </div>
+    </div>
+    <div class="compra-details">
+      <div class="compra-items">
+        <h4><i class="bx bx-package"></i> Productos ({{ pedido.items|length }})</h4>
+        {% if pedido.items %}
+        <div class="items-list">
+          {% for item in pedido.items %}
+          <div class="item">
+            <span class="item-name">{{ item.nombre_producto }}</span>
+            <span class="item-quantity">x{{ item.cantidad }}</span>
+            <span class="item-price">${{ item.precio_linea }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:#94a3b8;font-style:italic;">No hay líneas en este pedido.</p>
+        {% endif %}
+      </div>
+      <div class="compra-summary">
+        <span><i class="bx bx-money"></i> Total:</span>
+        <span>${{ pedido.total }}</span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon"><i class="bx bx-package"></i></div>
+  <h3>No tienes pedidos realizados</h3>
+  <p>Aún no hay pedidos registrados. Explora la tienda y haz tu primera compra.</p>
+  <a href="{% url 'inicio_autenticado' %}" class="btn-primary-store"><i class="bx bx-store"></i> Ver productos</a>
+</div>
+{% endif %}
 {% endblock %}

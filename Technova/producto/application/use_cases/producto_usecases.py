@@ -39,6 +39,7 @@ class ProductoService:
             imagen_url=producto.imagen_url,
             categoria=producto.categoria,
             marca=producto.marca,
+            color=producto.color,
             descripcion=producto.descripcion,
             precio_venta=producto.precio_venta,
         )

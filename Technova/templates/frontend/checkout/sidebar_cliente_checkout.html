@@ -1,0 +1,20 @@
+{# Alineado a frontend/layouts/sidebar-cliente.html del proyecto Spring #}
+<div class="menu-dashboard">
+  <div class="menu">
+    <div class="enlace"><a href="{% url 'web_cliente_perfil' %}"><i class="bx bx-user-circle"></i> Mi Perfil</a></div>
+    <div class="enlace"><a href="{% url 'web_favoritos' %}"><i class="bx bx-heart"></i> Favoritos</a></div>
+    <div class="enlace"><a href="{% url 'web_cliente_notificaciones' %}"><i class="bx bx-bell"></i> Notificaciones</a></div>
+    <div class="enlace"><a href="{% url 'web_carrito' %}"><i class="bx bx-cart"></i> Carrito</a></div>
+    <div class="enlace"><a href="{% url 'web_cliente_pedidos' %}"><i class="bx bx-package"></i> Pedidos</a></div>
+    <div class="enlace"><a href="{% url 'web_cliente_mis_compras' %}"><i class="bx bx-shopping-bag"></i> Mis Compras</a></div>
+    <div class="enlace"><a href="{% url 'web_cliente_atencion' %}"><i class="bx bx-headphone"></i> Atención Al Cliente</a></div>
+    <div class="enlace">
+      <form method="post" action="{% url 'web_logout' %}" style="margin:0;padding:0;">
+        {% csrf_token %}
+        <button type="submit" style="background:none;border:none;color:inherit;cursor:pointer;padding:0;width:100%;text-align:left;display:flex;align-items:center;gap:10px;">
+          <i class="bx bx-log-out"></i> Cerrar Sesión
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

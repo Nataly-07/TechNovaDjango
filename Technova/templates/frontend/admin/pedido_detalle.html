@@ -1,0 +1,104 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Pedido #{{ venta.id }} — Technova</title>
+  <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <style>
+    .dashboard-wrapper .main-content { flex: 1; width: 100%; max-width: none; margin: 0; padding: 24px 24px 24px 0; }
+    .wrap { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); max-width: 960px; margin: 0 auto; }
+    .hdr { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e8e8e8; }
+    .hdr h2 { margin: 0; color: #2c3e50; }
+    .btn-back { padding: 10px 18px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; }
+    .card { background: #f8f9fa; border-radius: 12px; padding: 20px; margin-bottom: 18px; border: 1px solid #e8e8e8; }
+    .card h3 { margin: 0 0 14px 0; font-size: 1.1rem; color: #334155; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.95rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #e5e5e5; text-align: left; }
+    thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+    .btn-link { padding: 10px 18px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-pago { background: linear-gradient(135deg, #00cc44 0%, #00a638 100%); color: white; }
+  </style>
+</head>
+<body>
+  {% include "frontend/includes/admin_header_compact.html" %}
+  <div class="dashboard-wrapper">
+    {% include "frontend/layouts/sidebar_admin.html" %}
+    <main class="main-content">
+      <div class="wrap">
+        <div class="hdr">
+          <h2><i class="bx bx-package"></i> Pedido #{{ venta.id }}</h2>
+          <a href="{% url 'web_admin_pedidos' %}" class="btn-back"><i class="bx bx-arrow-back"></i> Volver</a>
+        </div>
+
+        <div class="card">
+          <h3>Venta</h3>
+          <div class="grid">
+            <div><strong>Fecha:</strong> {{ venta.fecha_venta }}</div>
+            <div><strong>Estado:</strong> {{ venta.get_estado_display }}</div>
+            <div><strong>Total:</strong> <span style="color:#00cc44;font-weight:800;">${{ venta.total|floatformat:0 }}</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Cliente</h3>
+          <div class="grid">
+            <div><strong>Nombre:</strong> {{ cliente.nombres }} {{ cliente.apellidos }}</div>
+            <div><strong>Email:</strong> {{ cliente.correo_electronico }}</div>
+            <div><strong>Teléfono:</strong> {{ cliente.telefono }}</div>
+          </div>
+        </div>
+
+        {% if envio %}
+        <div class="card">
+          <h3>Envío</h3>
+          <div class="grid">
+            <div><strong>Transportadora:</strong> {{ envio.transportadora.nombre }}</div>
+            <div><strong>N.º guía:</strong> {{ envio.numero_guia }}</div>
+            <div><strong>Costo envío:</strong> ${{ envio.costo_envio|floatformat:0 }}</div>
+            <div><strong>Estado envío:</strong> {{ envio.get_estado_display }}</div>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+          <h3>Productos</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>P. unitario</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for linea in lineas %}
+              <tr>
+                <td>{{ linea.nombre }}</td>
+                <td>{{ linea.cantidad }}</td>
+                <td>${{ linea.precio_unitario|floatformat:0 }}</td>
+                <td style="color:#16a34a;font-weight:700;">${{ linea.subtotal|floatformat:0 }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="links">
+          {% if pago %}
+          <a href="{% url 'web_admin_pago_detalle' pago.id %}" class="btn-link btn-pago"><i class="bx bx-credit-card"></i> Ver pago #{{ pago.id }}</a>
+          {% endif %}
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer style="text-align:center;padding:16px;color:#64748b;"><p style="margin:0;">&copy; 2025 Technova</p></footer>
+</body>
+</html>

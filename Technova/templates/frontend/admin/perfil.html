@@ -106,7 +106,7 @@
 <body>
   <header class="header">
     <div class="logo" style="cursor: default;">
-      <img src="{% static 'frontend/imagenes/logo-technova.svg' %}" alt="Logo Technova" width="50" height="50" loading="eager" decoding="async">
+      <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Logo Technova" width="50" height="50" loading="eager" decoding="async">
       <span>TECHNOVA</span>
     </div>
     <div class="header-welcome">
@@ -192,7 +192,7 @@
               <span class="stat-number">{{ proveedores_count }}</span>
               <span class="stat-label">proveedores activos</span>
             </div>
-            <a href="#" class="card-button"><i class="bx bx-right-arrow-alt"></i> Gestionar Proveedores</a>
+            <a href="{% url 'web_admin_proveedores' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Gestionar Proveedores</a>
           </div>
         </div>
         <div class="card">
@@ -216,7 +216,7 @@
               <span class="stat-number">{{ pedidos_procesados }}</span>
               <span class="stat-label">pedidos procesados</span>
             </div>
-            <a href="#" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Pedidos</a>
+            <a href="{% url 'web_admin_pedidos' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Pedidos</a>
           </div>
         </div>
         <div class="card">
@@ -228,7 +228,7 @@
               <span class="stat-number">{{ transacciones_procesadas }}</span>
               <span class="stat-label">transacciones procesadas</span>
             </div>
-            <a href="#" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Pagos</a>
+            <a href="{% url 'web_admin_pagos' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Pagos</a>
           </div>
         </div>
       </div>

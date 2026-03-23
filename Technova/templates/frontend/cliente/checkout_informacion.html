@@ -1,0 +1,63 @@
+{% extends "frontend/base_cliente.html" %}
+{% load static %}
+{% block title %}Checkout — Datos — Technova{% endblock %}
+{% block extra_css %}
+{{ block.super }}
+<style>
+  .checkout-wrap { max-width: 640px; margin: 0 auto; padding: 8px 10px 32px; }
+  .checkout-step { font-size: 0.85rem; color: #64748b; margin-bottom: 8px; }
+  .checkout-card {
+    background: white; border-radius: 16px; padding: 24px 22px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e8edf7;
+  }
+  .checkout-card h1 { font-size: 1.45rem; margin: 0 0 8px; color: #1e293b; font-weight: 800; }
+  .checkout-card p.lead { color: #64748b; margin: 0 0 20px; line-height: 1.55; }
+  .resumen-line { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+  .resumen-line strong { color: #334155; }
+  .total-row { font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-top: 12px; padding-top: 12px; border-top: 2px solid #e2e8f0; display: flex; justify-content: space-between; }
+  .btn-next {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; margin-top: 22px; padding: 14px 20px; border: none; border-radius: 999px;
+    background: var(--gradient-primary); color: #fff; font-weight: 800; font-size: 1rem; cursor: pointer;
+  }
+  .back-link { display: inline-block; margin-top: 16px; color: #0ea5e9; font-weight: 600; text-decoration: none; }
+  .datos-box { background: #f8fafc; border-radius: 12px; padding: 14px 16px; margin-top: 16px; font-size: 0.92rem; color: #475569; }
+</style>
+{% endblock %}
+{% block cliente_content %}
+<div class="checkout-wrap">
+  <p class="checkout-step">Paso 1 de 4 — Información</p>
+  <div class="checkout-card">
+    <h1>Confirmar datos</h1>
+    <p class="lead">Revisa tu información de contacto. El pedido se asociará a tu cuenta.</p>
+
+    <div class="datos-box">
+      <div><strong>{{ usuario.nombres }} {{ usuario.apellidos }}</strong></div>
+      <div>{{ usuario.correo_electronico }}</div>
+      <div>{{ usuario.telefono }}</div>
+      <div>{{ usuario.tipo_documento }} {{ usuario.numero_documento }}</div>
+      <div style="margin-top:8px;">Envío: {{ usuario.direccion }}</div>
+    </div>
+
+    <h2 style="font-size:1rem;margin:22px 0 10px;color:#334155;">Resumen del carrito</h2>
+    {% for it in items %}
+    <div class="resumen-line">
+      <span>{{ it.nombre_producto }} × {{ it.cantidad }}</span>
+      <span>${{ it.subtotal_linea }}</span>
+    </div>
+    {% empty %}
+    <p style="color:#b91c1c;">No hay ítems.</p>
+    {% endfor %}
+    <div class="total-row">
+      <span>Total productos</span>
+      <span>${{ carrito_total|floatformat:0 }}</span>
+    </div>
+
+    <form method="post" action="{% url 'web_cliente_checkout_info' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn-next">Continuar al envío <i class="bx bx-right-arrow-alt"></i></button>
+    </form>
+    <a href="{% url 'web_carrito' %}" class="back-link"><i class="bx bx-arrow-back"></i> Volver al carrito</a>
+  </div>
+</div>
+{% endblock %}

@@ -71,8 +71,7 @@
       border: 1px solid rgba(255, 255, 255, 0.2);
       position: relative;
       z-index: 10;
-      max-height: 90vh;
-      overflow-y: auto;
+      overflow: visible;
     }
 
     .form-header {
@@ -80,16 +79,19 @@
       margin-bottom: 20px;
     }
 
-    .logo {
-      width: 50px;
-      height: 50px;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      border-radius: 12px;
+    .form-header .logo {
+      width: 72px;
+      height: 88px;
+      background: #fff;
+      border-radius: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 0 auto 15px;
-      box-shadow: 0 6px 24px rgba(102, 126, 234, 0.3);
+      padding: 6px;
+      box-sizing: border-box;
+      box-shadow: 0 6px 22px rgba(30, 80, 140, 0.14);
+      border: 1px solid rgba(102, 180, 220, 0.2);
     }
 
     .logo i {
@@ -796,12 +798,13 @@
 
     /* Efectos de brillo - Eliminados para mejor rendimiento */
 
-    /* Header y Footer */
+    /* Header y Footer (mismo criterio que TechNovaJavaSpringBoot login) */
     .header {
       position: relative;
       z-index: 100;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      padding: 15px 30px;
+      padding: 24px 48px;
+      min-height: 78px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -814,13 +817,13 @@
       text-decoration: none;
       color: white;
       font-weight: bold;
-      font-size: 24px;
+      font-size: 26px;
       margin-left: 0;
     }
 
     .header .logo img {
-      height: 40px;
-      margin-right: 10px;
+      height: 46px;
+      margin-right: 12px;
       filter: brightness(1.2) contrast(1.1);
     }
 
@@ -869,8 +872,8 @@
   <!-- Plantilla completa: formulario email/contrasena + modales. Si solo ves un aviso de API, reinicia runserver desde la carpeta Technova (donde esta manage.py). -->
   <!-- Header -->
   <header class="header">
-    <a href="{% url 'root' %}" class="logo">
-      <img src="{% static 'frontend/imagenes/logo-technova.svg' %}" alt="Logo" style="cursor:pointer;">
+    <a href="{% url 'root' %}" class="logo" aria-label="Technova inicio">
+      <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Logo Technova" decoding="async">
       <span>TECHNOVA</span>
     </a>
 
@@ -985,7 +988,7 @@
     <div class="form-wrapper">
       <div class="form-header">
         <div class="logo">
-          <img src="{% static 'frontend/imagenes/logo-technova.svg' %}" alt="Logo Technova" style="width: 100%; height: 100%; object-fit: contain;">
+          <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Technova" style="width: 100%; height: 100%; object-fit: contain;">
         </div>
         <h1 class="form-title">Iniciar Sesión</h1>
         <p class="form-subtitle">Bienvenido de vuelta a TechNova</p>

@@ -8,7 +8,7 @@
 <div class="tecn-header-shell">
 <header class="header header--tecn">
   <a href="{% url 'inicio_autenticado' %}" class="logo">
-    <img src="{% static 'frontend/imagenes/logo-technova.svg' %}" alt="Technova" class="logo-marca" width="48" height="48">
+    <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Technova" class="logo-marca" width="48" height="48">
     <span>TECHNOVA</span>
   </a>
   <div class="busqueda-header-wrapper">
@@ -73,8 +73,14 @@
 </div>
 {% endblock %}
 {% block extra_js %}
+<script>
+  window.TECHNOVA_SESION_SERVIDOR = true;
+  window.TECHNOVA_USUARIO_ID = {% if usuario_id is not None %}{{ usuario_id }}{% else %}null{% endif %};
+  window.TECHNOVA_URL_CATALOGO_CARRITO = "{% url 'web_catalogo_agregar_carrito' %}";
+  window.TECHNOVA_URL_CATALOGO_FAVORITO = "{% url 'web_catalogo_toggle_favorito' %}";
+</script>
 <script src="{% static 'frontend/js/carrusel.js' %}"></script>
-<script src="{% static 'frontend/js/technova-cliente-home.js' %}"></script>
+<script src="{% static 'frontend/js/technova-cliente-home.js' %}?v=3"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     var lOut = document.getElementById('linkCerrarSesionHeader');

@@ -1,12 +1,234 @@
 {% extends "frontend/base_cliente.html" %}
 {% load static %}
-{% block title %}Favoritos — Technova{% endblock %}
-{% block cliente_content %}
-<h1>Favoritos</h1>
-<div id="page-data">Cargando…</div>
+{% block title %}Mis favoritos — Technova{% endblock %}
+{% block extra_css %}
+{{ block.super }}
+<style>
+  .welcome-section {
+    text-align: center;
+    padding: 28px 16px 20px;
+    margin-bottom: 24px;
+  }
+  .welcome-section h1 {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 2.2em;
+    margin-bottom: 8px;
+    font-weight: 800;
+  }
+  .welcome-section p { color: #64748b; font-size: 1.05rem; }
+  .favoritos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 22px;
+    padding: 8px 0 24px;
+  }
+  .favorito-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    padding: 18px;
+    text-align: center;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+  .favorito-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: var(--gradient-primary);
+  }
+  .favorito-card img {
+    width: 100%;
+    height: 180px;
+    object-fit: contain;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 12px;
+  }
+  .favorito-card h3 {
+    color: #1e293b;
+    margin-bottom: 8px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    min-height: 2.4em;
+    line-height: 1.3;
+  }
+  .favorito-card .precio {
+    color: #00d4ff;
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+  }
+  .favorito-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: auto;
+    padding-top: 12px;
+  }
+  .btn-favorito {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    border: none;
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    cursor: pointer;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-carrito {
+    background: var(--gradient-primary);
+    border: none;
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    cursor: pointer;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .empty-favoritos {
+    text-align: center;
+    padding: 48px 20px;
+    color: #64748b;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    margin: 20px auto;
+    max-width: 560px;
+  }
+  .empty-favoritos a {
+    display: inline-block;
+    background: var(--gradient-primary);
+    color: white;
+    padding: 12px 28px;
+    text-decoration: none;
+    border-radius: 25px;
+    font-weight: 700;
+    margin-top: 12px;
+  }
+</style>
 {% endblock %}
+
+{% block cliente_content %}
+<div class="welcome-section">
+  <h1><i class="bx bx-heart" style="color:#ff6b9d;margin-right:8px;"></i> Mis favoritos</h1>
+  <p>Productos que has marcado como favoritos</p>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+    <p style="padding:10px 14px;border-radius:10px;margin-bottom:10px;background:{% if message.tags == 'error' %}#fee{% else %}#ecfdf5{% endif %};color:{% if message.tags == 'error' %}#b91c1c{% else %}#065f46{% endif %};">{{ message }}</p>
+  {% endfor %}
+{% endif %}
+
+{% if productos %}
+<div class="favoritos-grid">
+  {% for p in productos %}
+  <div class="favorito-card">
+    {% if p.imagen %}
+      <img src="{{ p.imagen }}" alt="{{ p.nombre }}" onerror="this.src='{% static 'frontend/imagenes/placeholder.svg' %}'">
+    {% else %}
+      <img src="{% static 'frontend/imagenes/placeholder.svg' %}" alt="{{ p.nombre }}">
+    {% endif %}
+    <h3>{{ p.nombre }}</h3>
+    {% if p.precio %}
+      <div class="precio">${{ p.precio }}</div>
+    {% else %}
+      <div class="precio" style="color:#94a3b8;font-size:0.95rem;font-weight:400;">Precio no disponible</div>
+    {% endif %}
+    <div class="favorito-actions">
+      <form method="post" action="{% url 'web_favorito_quitar' %}" data-technova-confirm='{"title":"¿Quitar de favoritos?","text":"Ya no aparecerá en tu lista.","confirmText":"Quitar","cancelText":"Cancelar","icon":"warning"}'>
+        {% csrf_token %}
+        <input type="hidden" name="producto_id" value="{{ p.id }}">
+        <button type="submit" class="btn-favorito" title="Quitar de favoritos"><i class="bx bx-heart"></i></button>
+      </form>
+      <button type="button" class="btn-carrito js-agregar-carrito-favorito" data-producto-id="{{ p.id }}" title="Agregar al carrito"><i class="bx bx-cart"></i></button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-favoritos">
+  <h2>No tienes productos favoritos aún</h2>
+  <p>Explora el catálogo y marca tus productos favoritos.</p>
+  <a href="{% url 'inicio_autenticado' %}">Ver catálogo</a>
+</div>
+{% endif %}
+{% endblock %}
+
 {% block extra_js %}
 {{ block.super }}
-<script src="{% static 'frontend/js/technova-pages.js' %}"></script>
-<script>document.addEventListener('DOMContentLoaded', function () { TechnovaPages.favoritos(); });</script>
+<script>
+(function () {
+  function csrfToken() {
+    var el = document.querySelector("input[name=csrfmiddlewaretoken]");
+    if (el && el.value) return el.value;
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : "";
+  }
+  var urlAgregar = "{% url 'web_favorito_al_carrito' %}";
+  var urlCarrito = "{% url 'web_carrito' %}";
+  document.querySelectorAll(".js-agregar-carrito-favorito").forEach(function (btn) {
+    btn.addEventListener("click", async function () {
+      var id = btn.getAttribute("data-producto-id");
+      if (!id) return;
+      btn.disabled = true;
+      try {
+        var r = await fetch(urlAgregar, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "X-CSRFToken": csrfToken(),
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          body: JSON.stringify({ producto_id: parseInt(id, 10) }),
+        });
+        var data = await r.json().catch(function () {
+          return {};
+        });
+        if (!r.ok || data.ok === false) {
+          if (window.TechnovaUi) {
+            await window.TechnovaUi.error(data.message || "No se pudo agregar al carrito.");
+          } else {
+            window.alert(data.message || "No se pudo agregar al carrito.");
+          }
+          return;
+        }
+        if (window.TechnovaUi && window.TechnovaUi.successChooseCart) {
+          await window.TechnovaUi.successChooseCart(
+            data.message || "Tu producto ya está en el carrito.",
+            urlCarrito
+          );
+        } else {
+          window.alert(data.message || "Producto agregado al carrito.");
+          if (window.confirm("¿Ir al carrito?")) window.location.href = urlCarrito;
+        }
+      } catch (e) {
+        if (window.TechnovaUi) {
+          await window.TechnovaUi.error(e.message || "Error de conexión.");
+        } else {
+          window.alert(e.message || "Error de conexión.");
+        }
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+})();
+</script>
 {% endblock %}

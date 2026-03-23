@@ -1,0 +1,83 @@
+{% extends "frontend/checkout/checkout_base.html" %}
+{% block checkout_content %}
+<h2 class="section-title">Revisión Final</h2>
+
+{% if messages %}
+  {% for message in messages %}
+  <div class="info-box" style="background:{% if message.tags == 'error' %}#ffecec{% else %}#ecfdf5{% endif %};color:{% if message.tags == 'error' %}#b00020{% else %}#065f46{% endif %};margin-bottom:12px;border-radius:8px;padding:12px;">
+    {{ message }}
+  </div>
+  {% endfor %}
+{% endif %}
+
+<div class="info-box">
+  <h3><i class="bx bx-user" style="margin-right: 8px;"></i>Datos Personales</h3>
+  <div style="margin-bottom: 8px;">
+    <strong>Nombre completo:</strong>
+    <span>{{ info.firstName|default:usuario.nombres }} {{ info.lastName|default:usuario.apellidos }}</span>
+  </div>
+  <div style="margin-bottom: 8px;">
+    <strong>Email:</strong> <span>{{ info.email|default:usuario.correo_electronico }}</span>
+  </div>
+  <div style="margin-bottom: 8px;">
+    <strong>Teléfono:</strong> <span>{{ info.phone|default:usuario.telefono }}</span>
+  </div>
+  <div>
+    <strong>Documento:</strong>
+    <span>{{ info.documentType|default:usuario.tipo_documento }}: {{ info.documentNumber|default:usuario.numero_documento }}</span>
+  </div>
+</div>
+
+{% if direccion %}
+<div class="info-box">
+  <h3><i class="bx bx-map" style="margin-right: 8px;"></i>Dirección de Entrega</h3>
+  {% if direccion.direccion %}
+  <div style="margin-bottom: 8px;">
+    <strong>Dirección:</strong> {{ direccion.direccion }}{% if direccion.barrio %} — {{ direccion.barrio }}{% endif %}
+  </div>
+  {% endif %}
+  {% if direccion.localidad %}
+  <div style="margin-bottom: 8px;"><strong>Localidad:</strong> {{ direccion.localidad }}</div>
+  {% endif %}
+  <div>
+    <strong>Ciudad:</strong> {{ direccion.ciudad|default:'' }}
+    {% if direccion.departamento %} ({{ direccion.departamento }}){% endif %}
+  </div>
+</div>
+{% else %}
+<div class="info-box" style="background:#fff3cd;border:1px solid #ffc107;">
+  <span style="color: #856404;">No se ha especificado una dirección de entrega.</span>
+</div>
+{% endif %}
+
+{% if envio %}
+<div class="info-box">
+  <h3><i class="bx bx-truck" style="margin-right: 8px;"></i>Información de Envío</h3>
+  {% if envio.transportadora %}
+  <div style="margin-bottom: 8px;"><strong>Transportadora:</strong> {{ envio.transportadora }}</div>
+  {% endif %}
+  {% if envio.fechaEnvio %}
+  <div><strong>Fecha estimada de envío:</strong> {{ envio.fechaEnvio }}</div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if pago %}
+<div class="info-box">
+  <h3><i class="bx bx-credit-card" style="margin-right: 8px;"></i>Información de Pago</h3>
+  <div><strong>Método de pago:</strong> {{ metodo_label }}</div>
+</div>
+{% endif %}
+
+<div style="margin-top: 20px;">
+  <form method="post" action="{% url 'web_cliente_checkout_finalizar' %}" id="finalizarCompraForm">
+    {% csrf_token %}
+    <button type="submit" class="account cta" id="btnFinalizarCompra" style="width: 100%; padding: 15px; font-size: 18px;">
+      <i class="bx bx-check-circle" style="margin-right: 8px;"></i>
+      Finalizar Compra
+    </button>
+  </form>
+</div>
+
+<a href="{% url 'web_cliente_checkout_pago' %}" style="display:inline-block;margin-top:14px;color:#0ea5e9;font-weight:600;">← Anterior</a>
+{% endblock %}

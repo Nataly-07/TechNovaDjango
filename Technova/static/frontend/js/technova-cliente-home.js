@@ -2,6 +2,41 @@
  * Inicio: catálogo y búsqueda avanzada contra /api/v1/producto/ (proyecto Java adaptado).
  */
 (function () {
+  function csrfToken() {
+    var el = document.querySelector("input[name=csrfmiddlewaretoken]");
+    if (el && el.value) return el.value;
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : "";
+  }
+
+  /** True si esta pagina incluyo endpoints web de catalogo (sesion Django + CSRF). */
+  function catalogoTieneEndpointsSesion() {
+    return (
+      typeof window.TECHNOVA_URL_CATALOGO_CARRITO === "string" &&
+      window.TECHNOVA_URL_CATALOGO_CARRITO.length > 0
+    );
+  }
+
+  async function postJsonSesion(url, body) {
+    var t = csrfToken();
+    var r = await fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": t,
+      },
+      body: JSON.stringify(body),
+    });
+    var j = await r.json().catch(function () {
+      return {};
+    });
+    if (!r.ok || j.ok === false) {
+      throw new Error(j.message || r.statusText || "Error");
+    }
+    return j;
+  }
+
   function imgUrl(p) {
     const im = p.imagen || "";
     if (im.startsWith("http")) return im;
@@ -166,9 +201,28 @@
   });
 
   async function importarCarrito(productoId) {
+    /* /inicio/ solo es accesible con sesion Django: priorizar POST con CSRF (no JWT). */
+    if (catalogoTieneEndpointsSesion()) {
+      try {
+        await postJsonSesion(window.TECHNOVA_URL_CATALOGO_CARRITO, {
+          producto_id: parseInt(productoId, 10),
+        });
+        if (window.TechnovaUi) {
+          await window.TechnovaUi.toastOk("Producto agregado al carrito");
+        }
+      } catch (e) {
+        if (window.TechnovaUi) {
+          await window.TechnovaUi.error(e.message || "No se pudo agregar al carrito.");
+        }
+      }
+      return;
+    }
     if (!window.TechnovaAuth.isLoggedIn()) {
-      alert("Inicia sesión para usar el carrito.");
-      window.location.href = "/login/";
+      if (window.TechnovaUi) {
+        await window.TechnovaUi.needLogin("Inicia sesión para usar el carrito.");
+      } else {
+        window.location.href = "/login/";
+      }
       return;
     }
     const uid = window.TechnovaAuth.getUsuarioId();
@@ -177,16 +231,41 @@
         producto_id: parseInt(productoId, 10),
         cantidad: 1,
       });
-      alert("Producto agregado al carrito.");
+      if (window.TechnovaUi) {
+        await window.TechnovaUi.toastOk("Producto agregado al carrito");
+      }
     } catch (e) {
-      alert(e.message || "No se pudo agregar.");
+      if (window.TechnovaUi) {
+        await window.TechnovaUi.error(e.message || "No se pudo agregar.");
+      }
     }
   }
 
   async function toggleFavorito(productoId) {
+    if (
+      typeof window.TECHNOVA_URL_CATALOGO_FAVORITO === "string" &&
+      window.TECHNOVA_URL_CATALOGO_FAVORITO.length > 0
+    ) {
+      try {
+        await postJsonSesion(window.TECHNOVA_URL_CATALOGO_FAVORITO, {
+          producto_id: parseInt(productoId, 10),
+        });
+        if (window.TechnovaUi) {
+          await window.TechnovaUi.toastOk("Favoritos actualizados");
+        }
+      } catch (e) {
+        if (window.TechnovaUi) {
+          await window.TechnovaUi.error(e.message || "No se pudo actualizar favoritos.");
+        }
+      }
+      return;
+    }
     if (!window.TechnovaAuth.isLoggedIn()) {
-      alert("Inicia sesión para favoritos.");
-      window.location.href = "/login/";
+      if (window.TechnovaUi) {
+        await window.TechnovaUi.needLogin("Inicia sesión para usar favoritos.");
+      } else {
+        window.location.href = "/login/";
+      }
       return;
     }
     const uid = window.TechnovaAuth.getUsuarioId();
@@ -195,9 +274,13 @@
         "/favoritos/usuario/" + uid + "/producto/" + productoId + "/toggle/",
         {}
       );
-      alert("Favorito actualizado.");
+      if (window.TechnovaUi) {
+        await window.TechnovaUi.toastOk("Favoritos actualizados");
+      }
     } catch (e) {
-      alert(e.message || "Error en favoritos.");
+      if (window.TechnovaUi) {
+        await window.TechnovaUi.error(e.message || "Error en favoritos.");
+      }
     }
   }
 

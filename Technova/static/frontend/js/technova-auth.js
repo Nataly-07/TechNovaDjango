@@ -15,9 +15,15 @@
 
   window.TechnovaAuth = {
     isLoggedIn() {
+      if (typeof window !== "undefined" && window.TECHNOVA_USUARIO_ID) {
+        return true;
+      }
       return !!localStorage.getItem("technova_access");
     },
     getUsuarioId() {
+      if (typeof window !== "undefined" && window.TECHNOVA_USUARIO_ID) {
+        return String(window.TECHNOVA_USUARIO_ID);
+      }
       return localStorage.getItem("technova_usuario_id");
     },
     getRol() {

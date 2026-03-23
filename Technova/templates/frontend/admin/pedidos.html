@@ -1,0 +1,97 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Pedidos (ventas) — Technova</title>
+  <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <style>
+    .dashboard-wrapper .main-content { flex: 1; width: 100%; max-width: none; margin: 0; padding: 24px 24px 24px 0; overflow-x: auto; }
+    .wrap { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); min-height: calc(100vh - 140px); }
+    .hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; flex-wrap: wrap; gap: 12px; }
+    .hdr h2 { margin: 0; color: #2c3e50; font-size: 1.75rem; }
+    .filtros { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: end; }
+    .filtros input[type="text"] { padding: 10px 14px; border: 2px solid #e0e0e0; border-radius: 10px; min-width: 240px; }
+    .btn-buscar { padding: 10px 22px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; min-width: 880px; }
+    thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e8e8e8; font-size: 0.92rem; }
+    tbody tr:hover { background: #f8f9fa; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+    .badge-fact { background: #e0e7ff; color: #4338ca; }
+    .badge-abierta { background: #fff3cd; color: #856404; }
+    .badge-anulada { background: #f8d7da; color: #721c24; }
+    .btn-ver { padding: 6px 12px; background: var(--gradient-primary, linear-gradient(135deg,#667eea,#764ba2)); color: white; text-decoration: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; }
+    .empty { text-align: center; padding: 48px 20px; color: #64748b; }
+  </style>
+</head>
+<body>
+  {% include "frontend/includes/admin_header_compact.html" %}
+  <div class="dashboard-wrapper">
+    {% include "frontend/layouts/sidebar_admin.html" %}
+    <main class="main-content">
+      <div class="wrap">
+        <div class="hdr">
+          <h2><i class="bx bx-cart"></i> Pedidos (ventas)</h2>
+        </div>
+        <form class="filtros" method="get" action="{% url 'web_admin_pedidos' %}">
+          <div>
+            <label for="busqueda" style="display:block;font-weight:600;margin-bottom:6px;color:#334155;">Buscar</label>
+            <input type="text" id="busqueda" name="busqueda" placeholder="ID, nombre o email del cliente" value="{{ busqueda }}">
+          </div>
+          <button type="submit" class="btn-buscar"><i class="bx bx-search"></i> Buscar</button>
+        </form>
+
+        {% if ventas %}
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Cliente</th>
+                <th>Email</th>
+                <th>Fecha</th>
+                <th>Total</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for v in ventas %}
+              <tr>
+                <td><strong>#{{ v.id }}</strong></td>
+                <td>{{ v.usuario.nombres }} {{ v.usuario.apellidos }}</td>
+                <td style="color:#667eea;font-size:0.9em;">{{ v.usuario.correo_electronico }}</td>
+                <td>{{ v.fecha_venta }}</td>
+                <td style="color:#00cc44;font-weight:700;">${{ v.total|floatformat:0 }}</td>
+                <td>
+                  {% if v.estado == 'facturada' %}
+                  <span class="badge badge-fact">{{ v.get_estado_display }}</span>
+                  {% elif v.estado == 'anulada' %}
+                  <span class="badge badge-anulada">{{ v.get_estado_display }}</span>
+                  {% else %}
+                  <span class="badge badge-abierta">{{ v.get_estado_display }}</span>
+                  {% endif %}
+                </td>
+                <td><a class="btn-ver" href="{% url 'web_admin_pedido_detalle' v.id %}"><i class="bx bx-show"></i> Ver</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty">
+          <i class="bx bx-package" style="font-size:3rem;opacity:0.4;"></i>
+          <p>No hay ventas que coincidan con la búsqueda.</p>
+        </div>
+        {% endif %}
+      </div>
+    </main>
+  </div>
+  <footer style="text-align:center;padding:16px;color:#64748b;"><p style="margin:0;">&copy; 2025 Technova</p></footer>
+</body>
+</html>

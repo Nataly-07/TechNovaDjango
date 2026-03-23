@@ -1,0 +1,130 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Factura — Technova</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    @media print { body { margin: 0; } .acciones { display: none; } }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .factura-container { background: white; padding: 50px 60px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 550px; max-width: 100%; margin: 0 auto; box-sizing: border-box; }
+    .factura-header { text-align: center; border-bottom: 3px solid #667eea; padding-bottom: 20px; margin-bottom: 30px; width: 100%; }
+    .factura-header h1 { color: #667eea; margin: 0; font-size: 2em; }
+    .factura-header p { color: #666; margin: 5px 0; }
+    .factura-info { display: flex; flex-direction: column; align-items: center; gap: 30px; margin-bottom: 30px; width: 100%; }
+    .info-section { width: 100%; max-width: 400px; text-align: center; }
+    .info-section h3 { color: #2c3e50; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; margin-bottom: 15px; }
+    .info-item { margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .info-label { font-weight: 600; color: #666; }
+    .info-value { color: #2c3e50; }
+    .productos-table { width: 100%; border-collapse: collapse; margin: 30px auto; }
+    .productos-table th, .productos-table td { padding: 12px; border-bottom: 1px solid #e0e0e0; text-align: left; }
+    .productos-table th.text-right, .productos-table td.text-right { text-align: right; }
+    .productos-table thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .total-section { margin-top: 30px; padding-top: 20px; border-top: 3px solid #667eea; display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .total-label { font-size: 1.3em; font-weight: 700; color: #2c3e50; }
+    .total-amount { font-size: 1.8em; font-weight: 700; color: #00cc44; }
+    .acciones { text-align: center; margin-top: 30px; }
+    .btn { padding: 12px 30px; border-radius: 8px; text-decoration: none; display: inline-block; margin: 0 10px; font-weight: 600; cursor: pointer; border: none; font-size: 1rem; }
+    .btn-print { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .btn-back { background: #6c757d; color: white; }
+    .btn-download { background: linear-gradient(135deg, #00cc44 0%, #00a638 100%); color: white; }
+  </style>
+  <script>
+    function descargarPDF() {
+      var elemento = document.querySelector('.factura-container');
+      var numeroFactura = document.querySelector('.factura-header p:last-child')?.textContent?.trim() || 'factura';
+      var acciones = document.querySelector('.acciones');
+      var displayOriginal = acciones ? acciones.style.display : '';
+      if (acciones) acciones.style.display = 'none';
+      window.scrollTo(0, 0);
+      setTimeout(function () {
+        var opciones = {
+          margin: [0.5, 0.5, 0.5, 0.5],
+          filename: 'factura-' + numeroFactura.replace(/[^a-zA-Z0-9-_]/g, '_') + '.pdf',
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+          jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opciones).from(elemento).save().then(function () {
+          if (acciones) acciones.style.display = displayOriginal || 'block';
+        }).catch(function () {
+          if (acciones) acciones.style.display = displayOriginal || 'block';
+          window.alert('No se pudo generar el PDF. Prueba con Imprimir o recarga la página.');
+        });
+      }, 200);
+    }
+  </script>
+</head>
+<body>
+  <div class="factura-container">
+    <div class="factura-header">
+      <h1>TECHNOVA</h1>
+      <p>FACTURA</p>
+      <p>{{ pago.numero_factura|default:"N/A" }}</p>
+    </div>
+
+    <div class="factura-info">
+      <div class="info-section">
+        <h3>Información de la empresa</h3>
+        <div class="info-item"><span class="info-label">Empresa:</span><span class="info-value">TECHNOVA</span></div>
+        <div class="info-item"><span class="info-label">Fecha:</span><span class="info-value">{{ pago.fecha_factura }}</span></div>
+        <div class="info-item"><span class="info-label">Estado:</span><span class="info-value">{{ pago.get_estado_pago_display|upper }}</span></div>
+      </div>
+
+      {% if cliente %}
+      <div class="info-section">
+        <h3>Cliente</h3>
+        <div class="info-item"><span class="info-label">Nombre:</span><span class="info-value">{{ cliente.nombres }} {{ cliente.apellidos }}</span></div>
+        <div class="info-item"><span class="info-label">Email:</span><span class="info-value">{{ cliente.correo_electronico }}</span></div>
+        <div class="info-item"><span class="info-label">Teléfono:</span><span class="info-value">{{ cliente.telefono }}</span></div>
+        <div class="info-item"><span class="info-label">Dirección:</span><span class="info-value">{{ cliente.direccion }}</span></div>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if lineas %}
+    <h3 style="color: #2c3e50; margin-bottom: 15px; text-align: center;">Productos</h3>
+    <table class="productos-table">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th class="text-right">Cantidad</th>
+          <th class="text-right">Precio unitario</th>
+          <th class="text-right">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for linea in lineas %}
+        <tr>
+          <td>{{ linea.nombre }}</td>
+          <td class="text-right">{{ linea.cantidad }}</td>
+          <td class="text-right">${{ linea.precio_unitario|floatformat:0 }}</td>
+          <td class="text-right" style="color: #00cc44; font-weight: 600;">${{ linea.subtotal|floatformat:0 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <div class="total-section">
+      <span class="total-label">Total:</span>
+      <span class="total-amount">${{ pago.monto|floatformat:0 }}</span>
+    </div>
+
+    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 0.9em; width: 100%;">
+      <p>Gracias por su compra</p>
+      <p>TECHNOVA — Tecnología de vanguardia</p>
+    </div>
+  </div>
+
+  <div class="acciones">
+    <button type="button" onclick="descargarPDF()" class="btn btn-download">Descargar PDF</button>
+    <button type="button" onclick="window.print()" class="btn btn-print">Imprimir</button>
+    <a href="{% url 'web_admin_pagos' %}" class="btn btn-back">Volver a pagos</a>
+  </div>
+</body>
+</html>

@@ -1,0 +1,61 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compra exitosa — Technova</title>
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
+  <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #f0f9ff 0%, #f3e8ff 100%); padding: 24px; box-sizing: border-box; }
+    .card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      border-radius: 24px; padding: 40px 32px; max-width: 520px; width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.12); text-align: center;
+      border: 3px solid rgba(16, 185, 129, 0.25);
+    }
+    .icon-wrap {
+      width: 100px; height: 100px; margin: 0 auto 24px; border-radius: 50%;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 12px 40px rgba(16, 185, 129, 0.35);
+    }
+    .icon-wrap i { font-size: 56px; color: white; }
+    h1 { font-size: 1.6rem; color: #1f2937; margin: 0 0 12px; }
+    p.lead { color: #6b7280; line-height: 1.6; margin-bottom: 24px; }
+    .detail {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border-radius: 16px; padding: 20px; margin-bottom: 24px; text-align: left;
+      border: 2px solid rgba(16, 185, 129, 0.2);
+    }
+    .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(16,185,129,0.15); font-size: 0.95rem; }
+    .row:last-child { border-bottom: none; }
+    .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      padding: 14px 24px; border-radius: 12px; font-weight: 600; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 8px; font-size: 0.95rem;
+    }
+    .btn-secondary { background: #e2e8f0; color: #4a5568; }
+    .btn-primary { background: var(--gradient-primary); color: white; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-wrap"><i class="bx bx-check-circle"></i></div>
+    <h1>¡Compra realizada exitosamente!</h1>
+    <p class="lead">Tu pedido ha sido registrado. Puedes seguir el estado en «Mis pedidos».</p>
+    <div class="detail">
+      <div class="row"><span style="color:#059669;font-weight:600;"><i class="bx bx-receipt"></i> Número de pedido</span><strong>#{{ venta_id }}</strong></div>
+      <div class="row"><span style="color:#059669;font-weight:600;"><i class="bx bx-money"></i> Total</span><strong style="color:#059669;">${{ total|floatformat:0 }}</strong></div>
+      {% if idempotente %}<p style="margin:12px 0 0;font-size:0.85rem;color:#64748b;">Este pedido ya estaba registrado anteriormente.</p>{% endif %}
+    </div>
+    <div class="actions">
+      <a href="{% url 'inicio_autenticado' %}" class="btn btn-secondary"><i class="bx bx-store"></i> Continuar comprando</a>
+      <a href="{% url 'web_cliente_pedidos' %}" class="btn btn-primary"><i class="bx bx-list-ul"></i> Ver mis pedidos</a>
+    </div>
+  </div>
+</body>
+</html>

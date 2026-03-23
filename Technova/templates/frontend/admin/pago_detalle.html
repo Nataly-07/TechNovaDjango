@@ -1,0 +1,162 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Detalle de pago — Technova</title>
+  <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <style>
+    .dashboard-wrapper .main-content { flex: 1; width: 100%; max-width: none; margin: 0; padding: 24px 24px 24px 0; }
+    .detalle-pago-container { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); max-width: 1000px; margin: 0 auto; }
+    .detalle-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #e0e0e0; flex-wrap: wrap; gap: 12px; }
+    .detalle-header h2 { color: #2c3e50; display: flex; align-items: center; gap: 10px; font-size: 1.6rem; margin: 0; }
+    .btn-volver { padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+    .detalle-card { background: #f8f9fa; border-radius: 12px; padding: 25px; margin-bottom: 20px; border: 1px solid #e0e0e0; }
+    .detalle-card h3 { color: #2c3e50; margin: 0 0 20px 0; padding-bottom: 15px; border-bottom: 2px solid #667eea; display: flex; align-items: center; gap: 10px; font-size: 1.2rem; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .info-item { display: flex; flex-direction: column; background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea; }
+    .info-label { font-size: 0.85em; color: #666; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .info-value { font-size: 1.05em; color: #2c3e50; font-weight: 600; }
+    .info-value.amount { color: #00cc44; font-size: 1.35em; font-weight: 700; }
+    .productos-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; border-radius: 8px; overflow: hidden; }
+    .productos-table thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .productos-table th, .productos-table td { padding: 14px; text-align: left; border-bottom: 1px solid #e0e0e0; }
+    .total-section { margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; border: 2px solid #667eea; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .total-label { font-size: 1.3em; font-weight: 700; color: #2c3e50; }
+    .total-amount { font-size: 1.9em; font-weight: 700; color: #00cc44; }
+    .acciones-section { display: flex; gap: 15px; margin-top: 28px; justify-content: center; flex-wrap: wrap; }
+    .btn-accion { padding: 14px 28px; border-radius: 10px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; border: none; cursor: pointer; font-size: 1em; }
+    .btn-factura { background: linear-gradient(135deg, #00cc44 0%, #00a638 100%); color: white; }
+    .status-badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600; text-transform: uppercase; }
+    .status-badge.confirmado { background: #d4edda; color: #155724; }
+    .status-badge.pendiente { background: #fff3cd; color: #856404; }
+    .status-badge.cancelado { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+  {% include "frontend/includes/admin_header_compact.html" %}
+  <div class="dashboard-wrapper">
+    {% include "frontend/layouts/sidebar_admin.html" %}
+    <main class="main-content">
+      <div class="detalle-pago-container">
+        <div class="detalle-header">
+          <h2><i class="bx bx-receipt"></i> Detalle de pago</h2>
+          <a href="{% url 'web_admin_pagos' %}" class="btn-volver"><i class="bx bx-arrow-back"></i> Volver a pagos</a>
+        </div>
+
+        <div class="detalle-card">
+          <h3><i class="bx bx-credit-card"></i> Información del pago</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">ID de pago</span>
+              <span class="info-value">{{ pago.id }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Número de factura</span>
+              <span class="info-value">{{ pago.numero_factura|default:"N/A" }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Fecha de pago</span>
+              <span class="info-value">{{ pago.fecha_pago }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Fecha de factura</span>
+              <span class="info-value">{{ pago.fecha_factura }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Estado</span>
+              <span class="status-badge {{ badge }}">{{ pago.get_estado_pago_display|upper }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Monto total</span>
+              <span class="info-value amount">${{ pago.monto|floatformat:0 }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detalle-card">
+          <h3><i class="bx bx-package"></i> Pedido #{{ venta.id }}</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Fecha de venta</span>
+              <span class="info-value">{{ venta.fecha_venta }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Total venta</span>
+              <span class="info-value amount">${{ venta.total|floatformat:0 }}</span>
+            </div>
+          </div>
+
+          {% if lineas %}
+          <h4 style="margin: 24px 0 12px; color: #2c3e50;">Productos ({{ lineas|length }})</h4>
+          <table class="productos-table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Precio unitario</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for linea in lineas %}
+              <tr>
+                <td>{{ linea.nombre }}</td>
+                <td>{{ linea.cantidad }}</td>
+                <td>${{ linea.precio_unitario|floatformat:0 }}</td>
+                <td style="color:#00cc44;font-weight:600;">${{ linea.subtotal|floatformat:0 }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </div>
+
+        {% if cliente %}
+        <div class="detalle-card">
+          <h3><i class="bx bx-user"></i> Cliente</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Nombre</span>
+              <span class="info-value">{{ cliente.nombres }} {{ cliente.apellidos }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Email</span>
+              <span class="info-value">{{ cliente.correo_electronico }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Teléfono</span>
+              <span class="info-value">{{ cliente.telefono }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Dirección</span>
+              <span class="info-value">{{ cliente.direccion }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Documento</span>
+              <span class="info-value">{{ cliente.tipo_documento }} {{ cliente.numero_documento }}</span>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="total-section">
+          <span class="total-label">Total del pedido:</span>
+          <span class="total-amount">${{ venta.total|floatformat:0 }}</span>
+        </div>
+
+        <div class="acciones-section">
+          <a href="{% url 'web_admin_pago_factura' pago.id %}" class="btn-accion btn-factura" target="_blank" rel="noopener">
+            <i class="bx bx-file-blank"></i> Ver factura / PDF
+          </a>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer style="text-align:center;padding:16px;color:#64748b;"><p style="margin:0;">&copy; 2025 Technova</p></footer>
+</body>
+</html>

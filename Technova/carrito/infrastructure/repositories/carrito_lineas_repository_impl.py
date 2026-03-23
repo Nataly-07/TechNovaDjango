@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import transaction
 
 from carrito.domain.repositories import CarritoLineasPort
@@ -25,17 +27,24 @@ class CarritoLineasRepository(CarritoLineasPort):
             .select_related("producto")
             .order_by("-id")
         )
-        return [
-            {
-                "detalle_id": d.id,
-                "producto_id": d.producto_id,
-                "nombre_producto": d.producto.nombre,
-                "imagen": d.producto.imagen_url or "",
-                "cantidad": d.cantidad,
-                "stock": d.producto.stock,
-            }
-            for d in detalles
-        ]
+        rows = []
+        for d in detalles:
+            precio = d.producto.precio_venta
+            precio_dec = Decimal("0") if precio is None else precio
+            subtotal = precio_dec * d.cantidad
+            rows.append(
+                {
+                    "detalle_id": d.id,
+                    "producto_id": d.producto_id,
+                    "nombre_producto": d.producto.nombre,
+                    "imagen": d.producto.imagen_url or "",
+                    "cantidad": d.cantidad,
+                    "stock": d.producto.stock,
+                    "precio_unitario": str(precio_dec),
+                    "subtotal_linea": str(subtotal),
+                }
+            )
+        return rows
 
     def listar_items(self, usuario_id: int) -> list[dict]:
         carrito = self._carrito_activo(usuario_id)

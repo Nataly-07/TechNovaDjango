@@ -1,0 +1,30 @@
+/* Ajustes visuales SweetAlert2 — Technova */
+.technova-swal-popup {
+  border-radius: 18px !important;
+  padding: 1.35rem 1.1rem 1.5rem !important;
+  box-shadow: 0 22px 55px rgba(55, 40, 120, 0.22) !important;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif !important;
+}
+
+.technova-swal-popup .swal2-title {
+  font-weight: 700 !important;
+  color: #1e293b !important;
+}
+
+.technova-swal-popup .swal2-html-container {
+  color: #475569 !important;
+  font-size: 0.98rem !important;
+}
+
+.technova-swal-confirm,
+.technova-swal-cancel {
+  border-radius: 999px !important;
+  padding: 0.55rem 1.35rem !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+}
+
+.technova-swal-confirm:focus,
+.technova-swal-cancel:focus {
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.35) !important;
+}

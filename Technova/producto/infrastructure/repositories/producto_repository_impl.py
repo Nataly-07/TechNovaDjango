@@ -21,6 +21,7 @@ class ProductoOrmRepository(ProductoRepositoryPort):
             imagen_url=model.imagen_url or "",
             categoria=model.categoria or "",
             marca=model.marca or "",
+            color=model.color or "",
             descripcion=model.descripcion or "",
             precio_venta=Decimal(model.precio_venta) if model.precio_venta is not None else None,
         )
@@ -59,6 +60,7 @@ class ProductoOrmRepository(ProductoRepositoryPort):
             imagen_url=producto.imagen_url or "",
             categoria=producto.categoria or "",
             marca=producto.marca or "",
+            color=producto.color or "",
             descripcion=producto.descripcion or "",
             precio_venta=producto.precio_venta,
         )
@@ -80,6 +82,7 @@ class ProductoOrmRepository(ProductoRepositoryPort):
         model.imagen_url = producto.imagen_url or ""
         model.categoria = producto.categoria or ""
         model.marca = producto.marca or ""
+        model.color = producto.color or ""
         model.descripcion = producto.descripcion or ""
         model.precio_venta = producto.precio_venta
         model.save()

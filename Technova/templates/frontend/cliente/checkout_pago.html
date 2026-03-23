@@ -1,0 +1,55 @@
+{% extends "frontend/base_cliente.html" %}
+{% load static %}
+{% block title %}Checkout — Pago — Technova{% endblock %}
+{% block extra_css %}
+{{ block.super }}
+<style>
+  .checkout-wrap { max-width: 560px; margin: 0 auto; padding: 8px 10px 32px; }
+  .checkout-step { font-size: 0.85rem; color: #64748b; margin-bottom: 8px; }
+  .checkout-card {
+    background: white; border-radius: 16px; padding: 24px 22px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e8edf7;
+  }
+  .checkout-card h1 { font-size: 1.4rem; margin: 0 0 16px; color: #1e293b; font-weight: 800; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-weight: 600; color: #334155; margin-bottom: 6px; font-size: 0.9rem; }
+  .form-group select {
+    width: 100%; padding: 12px 14px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; box-sizing: border-box;
+  }
+  .info-pago {
+    background: #f8fafc; border-radius: 12px; padding: 16px; margin-bottom: 18px; font-size: 0.92rem; color: #475569; line-height: 1.5;
+    border: 1px solid #e8edf7;
+  }
+  .btn-next {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 14px 20px; border: none; border-radius: 999px;
+    background: var(--gradient-primary); color: #fff; font-weight: 800; font-size: 1rem; cursor: pointer;
+  }
+  .back-link { display: inline-block; margin-top: 16px; color: #0ea5e9; font-weight: 600; text-decoration: none; }
+</style>
+{% endblock %}
+{% block cliente_content %}
+<div class="checkout-wrap">
+  <p class="checkout-step">Paso 3 de 4 — Pago</p>
+  <div class="checkout-card">
+    <h1>Forma de pago</h1>
+    <div class="info-pago">
+      Elige el método registrado en el sistema. El cobro se registra como <strong>aprobado</strong> al confirmar el pedido (flujo alineado al checkout del backend).
+    </div>
+    <form method="post" action="{% url 'web_cliente_checkout_pago' %}">
+      {% csrf_token %}
+      <div class="form-group">
+        <label for="metodo_pago">Método de pago</label>
+        <select name="metodo_pago" id="metodo_pago" required>
+          <option value="">Seleccione…</option>
+          {% for value, label in metodos %}
+          <option value="{{ value }}" {% if ses.metodo_pago == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn-next">Revisar pedido <i class="bx bx-right-arrow-alt"></i></button>
+    </form>
+    <a href="{% url 'web_cliente_checkout_envio' %}" class="back-link"><i class="bx bx-arrow-back"></i> Anterior</a>
+  </div>
+</div>
+{% endblock %}

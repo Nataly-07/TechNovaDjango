@@ -167,6 +167,7 @@
                   <th>Nombre</th>
                   <th>Precio venta</th>
                   <th>Marca</th>
+                  <th>Color</th>
                   <th>Stock</th>
                   <th>Estado</th>
                   <th>Acciones</th>
@@ -180,6 +181,7 @@
                   <td>{{ p.nombre }}</td>
                   <td>{% if p.precio_venta %}{{ p.precio_venta }}{% else %}{{ p.costo_unitario }}{% endif %}</td>
                   <td>{{ p.marca|default:"—" }}</td>
+                  <td>{{ p.color|default:"—" }}</td>
                   <td>
                     {{ p.stock }}
                     {% if p.activo %}
@@ -314,7 +316,7 @@
             <table class="table-inventario">
               <thead>
                 <tr>
-                  <th>ID</th><th>Código</th><th>Nombre</th><th>Precio</th><th>Marca</th><th>Stock</th><th>Estado</th>
+                  <th>ID</th><th>Código</th><th>Nombre</th><th>Precio</th><th>Marca</th><th>Color</th><th>Stock</th><th>Estado</th>
                 </tr>
               </thead>
               <tbody id="tbodyRecientes"></tbody>
@@ -359,14 +361,41 @@
         <div class="form-row">
           <div class="form-group field-neutral" data-field-wrap="categoria">
             <label for="categoria"><i class="bx bx-category"></i> Categoría *</label>
-            <input type="text" name="categoria" id="categoria" required maxlength="120" placeholder="Ej. Periféricos" aria-describedby="feed-categoria">
+            <select name="categoria" id="categoria" required aria-describedby="feed-categoria">
+              <option value="">Selecciona una categoría</option>
+              <option value="Celulares">Celulares</option>
+              <option value="Portátiles">Portátiles</option>
+            </select>
             <p class="field-feedback" id="feed-categoria" role="status"></p>
           </div>
           <div class="form-group field-neutral" data-field-wrap="marca">
             <label for="marca"><i class="bx bx-badge"></i> Marca *</label>
-            <input type="text" name="marca" id="marca" required maxlength="120" placeholder="Marca" aria-describedby="feed-marca">
+            <select name="marca" id="marca" required aria-describedby="feed-marca">
+              <option value="">Selecciona una marca</option>
+              <option value="Apple">Apple</option>
+              <option value="Lenovo">Lenovo</option>
+              <option value="Motorola">Motorola</option>
+              <option value="Xiaomi">Xiaomi</option>
+            </select>
             <p class="field-feedback" id="feed-marca" role="status"></p>
           </div>
+        </div>
+        <div class="form-group field-neutral" data-field-wrap="color">
+          <label for="color"><i class="bx bx-palette"></i> Color *</label>
+          <select name="color" id="color" required aria-describedby="feed-color">
+            <option value="">Selecciona un color</option>
+            <option value="Negro">Negro</option>
+            <option value="Blanco">Blanco</option>
+            <option value="Gris">Gris</option>
+            <option value="Azul">Azul</option>
+            <option value="Rojo">Rojo</option>
+            <option value="Dorado">Dorado</option>
+            <option value="Plateado">Plateado</option>
+            <option value="Verde">Verde</option>
+            <option value="Morado">Morado</option>
+            <option value="Rosa">Rosa</option>
+          </select>
+          <p class="field-feedback" id="feed-color" role="status"></p>
         </div>
         <div class="form-row">
           <div class="form-group field-neutral" data-field-wrap="stock">
@@ -492,28 +521,48 @@
     function validateCategoriaProd() {
       var v = document.getElementById('categoria').value.trim();
       if (!v) {
-        setFieldStateProd('categoria', 'muted', 'Campo obligatorio.');
+        setFieldStateProd('categoria', 'muted', 'Selecciona Celulares o Portátiles.');
         return false;
       }
-      if (v.length > 120) {
-        setFieldStateProd('categoria', 'err', 'Máximo 120 caracteres.');
+      if (v !== 'Celulares' && v !== 'Portátiles') {
+        setFieldStateProd('categoria', 'err', 'Categoría no válida.');
         return false;
       }
-      setFieldStateProd('categoria', 'ok', 'Válido.');
+      setFieldStateProd('categoria', 'ok', 'Categoría seleccionada.');
       return true;
     }
+
+    var _MARCAS_OK = { Apple: true, Lenovo: true, Motorola: true, Xiaomi: true };
+    var _COLORES_OK = {
+      Negro: true, Blanco: true, Gris: true, Azul: true, Rojo: true, Dorado: true,
+      Plateado: true, Verde: true, Morado: true, Rosa: true
+    };
 
     function validateMarcaProd() {
       var v = document.getElementById('marca').value.trim();
       if (!v) {
-        setFieldStateProd('marca', 'muted', 'Campo obligatorio.');
+        setFieldStateProd('marca', 'muted', 'Selecciona Apple, Lenovo, Motorola o Xiaomi.');
         return false;
       }
-      if (v.length > 120) {
-        setFieldStateProd('marca', 'err', 'Máximo 120 caracteres.');
+      if (!_MARCAS_OK[v]) {
+        setFieldStateProd('marca', 'err', 'Marca no válida.');
         return false;
       }
-      setFieldStateProd('marca', 'ok', 'Válido.');
+      setFieldStateProd('marca', 'ok', 'Marca seleccionada.');
+      return true;
+    }
+
+    function validateColorProd() {
+      var v = document.getElementById('color').value.trim();
+      if (!v) {
+        setFieldStateProd('color', 'muted', 'Selecciona un color.');
+        return false;
+      }
+      if (!_COLORES_OK[v]) {
+        setFieldStateProd('color', 'err', 'Color no válido.');
+        return false;
+      }
+      setFieldStateProd('color', 'ok', 'Color seleccionado.');
       return true;
     }
 
@@ -615,6 +664,7 @@
       if (!validateProveedorProd()) ok = false;
       if (!validateCategoriaProd()) ok = false;
       if (!validateMarcaProd()) ok = false;
+      if (!validateColorProd()) ok = false;
       if (!validateStockProd()) ok = false;
       if (!validateCostoProd()) ok = false;
       if (!validateMargenOpcional()) ok = false;
@@ -625,7 +675,7 @@
     }
 
     function resetValidacionProducto() {
-      ['codigo', 'nombre', 'proveedor_id', 'categoria', 'marca', 'stock', 'costo_unitario', 'margen_pct', 'precio_venta', 'descripcion', 'imagen_url'].forEach(function (id) {
+      ['codigo', 'nombre', 'proveedor_id', 'categoria', 'marca', 'color', 'stock', 'costo_unitario', 'margen_pct', 'precio_venta', 'descripcion', 'imagen_url'].forEach(function (id) {
         setFieldStateProd(id, 'neutral', '');
       });
     }
@@ -679,7 +729,7 @@
     });
 
     (function bindFormProducto() {
-      var ids = ['codigo', 'nombre', 'proveedor_id', 'categoria', 'marca', 'stock', 'descripcion', 'imagen_url'];
+      var ids = ['codigo', 'nombre', 'proveedor_id', 'categoria', 'marca', 'color', 'stock', 'descripcion', 'imagen_url'];
       ids.forEach(function (id) {
         var el = document.getElementById(id);
         if (!el) return;
@@ -689,6 +739,7 @@
           proveedor_id: validateProveedorProd,
           categoria: validateCategoriaProd,
           marca: validateMarcaProd,
+          color: validateColorProd,
           stock: validateStockProd,
           descripcion: validateDescripcionProd,
           imagen_url: validateImagenProd
@@ -746,9 +797,9 @@
       rows.forEach(function (row) {
         var clone = row.cloneNode(true);
         var cells = clone.querySelectorAll('td');
-        if (cells.length > 7) {
+        if (cells.length > 8) {
           var tr = document.createElement('tr');
-          for (var i = 0; i < 7; i++) tr.appendChild(cells[i].cloneNode(true));
+          for (var i = 0; i < 8; i++) tr.appendChild(cells[i].cloneNode(true));
           body.appendChild(tr);
         }
       });
@@ -766,6 +817,7 @@
         '<div class="detail-item"><strong>Stock</strong><br>' + escapeHtml(String(p.stock)) + '</div>' +
         '<div class="detail-item"><strong>Categoría</strong><br>' + escapeHtml(c.categoria || '—') + '</div>' +
         '<div class="detail-item"><strong>Marca</strong><br>' + escapeHtml(c.marca || '—') + '</div>' +
+        '<div class="detail-item"><strong>Color</strong><br>' + escapeHtml(c.color || '—') + '</div>' +
         '<div class="detail-item"><strong>Proveedor</strong><br>' + escapeHtml(p.proveedor || '—') + '</div>' +
         '<div class="detail-item"><strong>Estado</strong><br>' + (p.estado ? 'Activo' : 'Inactivo') + '</div>' +
         '<div class="detail-item"><strong>Precio compra</strong><br>' + escapeHtml(String(c.precioCompra || '—')) + '</div>' +

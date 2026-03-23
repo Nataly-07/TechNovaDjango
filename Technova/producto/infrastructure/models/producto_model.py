@@ -7,6 +7,7 @@ class Producto(models.Model):
     imagen_url = models.URLField(blank=True)
     categoria = models.CharField(max_length=120, blank=True, default="")
     marca = models.CharField(max_length=120, blank=True, default="")
+    color = models.CharField(max_length=40, blank=True, default="")
     descripcion = models.TextField(blank=True, default="")
     precio_venta = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     stock = models.PositiveIntegerField(default=0)

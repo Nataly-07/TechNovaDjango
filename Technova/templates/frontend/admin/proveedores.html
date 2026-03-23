@@ -1,0 +1,443 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Proveedores — Technova</title>
+  <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    .dashboard-wrapper .main-content { flex: 1; width: 100%; max-width: none; margin: 0; padding: 24px 24px 24px 0; overflow-x: visible; }
+    .prov-container { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 12px 30px rgba(24, 39, 75, 0.08); border: 1px solid #e8edf7; min-height: calc(100vh - 140px); }
+    .prov-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 12px; }
+    .prov-header h2 { color: #2c3e50; margin: 0; font-size: 1.8rem; }
+    .btn-agregar {
+      background: linear-gradient(135deg, #00cc44 0%, #00a638 100%);
+      color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px; font-size: 1rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .btn-agregar:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 204, 68, 0.3); }
+    #modalAgregarProveedor .modal-content.modal-content--proveedor {
+      max-width: 520px; width: 94%;
+      padding: 26px 28px 24px;
+      border-radius: 16px;
+      box-shadow: 0 16px 48px rgba(24, 39, 75, 0.15), 0 4px 12px rgba(0, 0, 0, 0.06);
+      border: 1px solid #eef1f8;
+    }
+    #modalAgregarProveedor .modal-header {
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #eceff4;
+    }
+    #modalAgregarProveedor .modal-title-prov {
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #1a2744;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #modalAgregarProveedor .modal-title-prov i { color: #5a6fd8; font-size: 1.35rem; }
+    #modalAgregarProveedor .close-modal { color: #b0b8c4; font-size: 1.5rem; line-height: 1; padding: 4px 6px; border-radius: 8px; }
+    #modalAgregarProveedor .close-modal:hover { color: #6c757d; background: #f4f6f9; }
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; margin-bottom: 7px; font-weight: 600; color: #2c3e50; font-size: 0.92rem; }
+    .form-group label i { margin-right: 6px; color: #667eea; vertical-align: -2px; }
+    .form-group input {
+      width: 100%; padding: 12px 14px; border: 2px solid #e8eaef; border-radius: 10px; font-size: 0.98rem; box-sizing: border-box;
+      background: #fff;
+    }
+    .form-group input::placeholder { color: #9aa5b5; }
+    .form-group input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12); }
+    .form-row-prov { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+    @media (max-width: 520px) { .form-row-prov { grid-template-columns: 1fr; } }
+    .modal-actions--end {
+      display: flex; justify-content: flex-end; align-items: center; gap: 12px;
+      margin-top: 24px; padding-top: 18px; border-top: 1px solid #eceff4; flex-wrap: wrap;
+    }
+    .btn-modal { flex: 0 1 auto; min-width: 0; padding: 11px 22px; border: none; border-radius: 10px; font-size: 0.98rem; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-modal-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35); }
+    .btn-modal-primary:hover { filter: brightness(1.03); }
+    .btn-modal-secondary { background: #e9ecef; color: #3d4449; }
+    .btn-modal-secondary:hover { background: #dde1e5; }
+    .field-feedback { min-height: 1.15rem; margin-top: 6px; font-size: 0.82rem; line-height: 1.35; }
+    .field-feedback.is-ok { color: #0d9488; font-weight: 600; }
+    .field-feedback.is-err { color: #dc2626; font-weight: 500; }
+    .field-feedback.is-muted { color: #64748b; }
+    .field-feedback:empty { min-height: 0; margin-top: 0; }
+    #modalAgregarProveedor .form-group.field-ok input { border-color: #10b981 !important; box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25); }
+    #modalAgregarProveedor .form-group.field-err input { border-color: #ef4444 !important; box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2); }
+    #modalAgregarProveedor .form-group.field-neutral input { border-color: #e8eaef; box-shadow: none; }
+    .stats-bar { display: flex; gap: 20px; margin-bottom: 25px; flex-wrap: wrap; }
+    .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; border-radius: 12px; flex: 1; min-width: 140px; }
+    .stat-card.ok { background: linear-gradient(135deg, #00cc44 0%, #00a638 100%); }
+    .stat-card.muted { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); }
+    .stat-card h4 { margin: 0 0 5px 0; font-size: 0.9rem; opacity: 0.9; }
+    .stat-card .number { font-size: 1.8rem; font-weight: 700; margin: 0; }
+    .filtros-section { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; align-items: end; }
+    .filtro-group { flex: 1; min-width: 200px; }
+    .filtro-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50; }
+    .filtro-group input { width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 10px; }
+    .btn-filtrar { padding: 10px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
+    .table-container { overflow-x: auto; border: 1px solid #e8edf7; border-radius: 14px; background: #fff; }
+    .table-prov { width: 100%; min-width: 920px; border-collapse: collapse; }
+    .table-prov thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .table-prov th, .table-prov td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e0e0e0; font-size: 0.92rem; }
+    .estado-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+    .estado-activo { background: #d4edda; color: #155724; }
+    .estado-inactivo { background: #f8d7da; color: #721c24; }
+    .acciones-botones { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn-accion { padding: 6px 10px; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: #fff; }
+    .btn-ver { background: linear-gradient(135deg, #2f4b68 0%, #1f3552 100%); }
+    .btn-activar { background: #28a745; }
+    .btn-desactivar { background: #dc3545; }
+    .empty-state { text-align: center; padding: 48px 16px; color: #7f8c8d; }
+    .modal { display: none; position: fixed; z-index: 10050; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: #fff; border-radius: 16px; padding: 22px; max-width: 640px; width: 92%; max-height: 88vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .close-modal { background: none; border: none; font-size: 1.6rem; cursor: pointer; color: #999; }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; font-size: 0.9rem; }
+    .detail-item { background: #f8fbff; border: 1px solid #e5edf8; border-radius: 8px; padding: 8px 10px; }
+    .alert { padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+    .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+  </style>
+</head>
+<body>
+  {% include "frontend/includes/admin_header_compact.html" %}
+
+  <div class="dashboard-wrapper">
+    {% include "frontend/layouts/sidebar_admin.html" %}
+    <main class="main-content">
+      <div class="prov-container">
+        <div class="prov-header">
+          <h2><i class="bx bx-buildings"></i> Proveedores</h2>
+          <button type="button" class="btn-agregar" onclick="abrirModalAgregarProveedor()" aria-haspopup="dialog">
+            <i class="bx bx-plus-circle"></i> Agregar Proveedor
+          </button>
+        </div>
+
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+          <i class="bx {% if message.tags == 'error' %}bx-error-circle{% else %}bx-check-circle{% endif %}"></i>
+          <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+
+        <div class="stats-bar">
+          <div class="stat-card"><h4>Total</h4><p class="number">{{ total_proveedores }}</p></div>
+          <div class="stat-card ok"><h4>Activos</h4><p class="number">{{ total_activos }}</p></div>
+          <div class="stat-card muted"><h4>Inactivos</h4><p class="number">{{ total_inactivos }}</p></div>
+        </div>
+
+        <form class="filtros-section" method="get" action="{% url 'web_admin_proveedores' %}">
+          <div class="filtro-group">
+            <label for="filtroBusqueda">Buscar</label>
+            <input type="text" id="filtroBusqueda" name="busqueda" placeholder="Nombre, identificación, correo o empresa" value="{{ busqueda }}">
+          </div>
+          <div class="filtro-group">
+            <button type="submit" class="btn-filtrar"><i class="bx bx-search"></i> Buscar</button>
+          </div>
+        </form>
+
+        <div class="table-container">
+          {% if proveedores %}
+          <table class="table-prov">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Identificación</th>
+                <th>Nombre</th>
+                <th>Teléfono</th>
+                <th>Correo</th>
+                <th>Empresa</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in proveedores %}
+              <tr>
+                <td>{{ p.id }}</td>
+                <td>{{ p.identificacion }}</td>
+                <td>{{ p.nombre }}</td>
+                <td>{{ p.telefono }}</td>
+                <td>{{ p.correo_electronico }}</td>
+                <td>{{ p.empresa|default:"—" }}</td>
+                <td>
+                  {% if p.activo %}
+                  <span class="estado-badge estado-activo"><i class="bx bx-check-circle"></i> Activo</span>
+                  {% else %}
+                  <span class="estado-badge estado-inactivo"><i class="bx bx-x-circle"></i> Inactivo</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="acciones-botones">
+                    <button type="button" class="btn-accion btn-ver" data-id="{{ p.id }}" onclick="verProveedor(this.dataset.id)"><i class="bx bx-show"></i> Ver</button>
+                    <form method="post" action="{% url 'web_admin_proveedor_estado' p.id %}" style="display:inline;" onsubmit="return confirm('¿Cambiar estado del proveedor?');">
+                      {% csrf_token %}
+                      {% if p.activo %}
+                      <input type="hidden" name="activar" value="false">
+                      <button type="submit" class="btn-accion btn-desactivar"><i class="bx bx-x-circle"></i> Desactivar</button>
+                      {% else %}
+                      <input type="hidden" name="activar" value="true">
+                      <button type="submit" class="btn-accion btn-activar"><i class="bx bx-check-circle"></i> Activar</button>
+                      {% endif %}
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <div class="empty-state"><i class="bx bx-buildings" style="font-size:3rem;opacity:.5;"></i><h3>No hay proveedores</h3><p>Prueba otros términos o usa <strong>Agregar Proveedor</strong>.</p></div>
+          {% endif %}
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="modalAgregarProveedor" class="modal" role="dialog" aria-modal="true" aria-labelledby="tituloAgregarProveedor">
+    <div class="modal-content modal-content--proveedor">
+      <div class="modal-header">
+        <h3 id="tituloAgregarProveedor" class="modal-title-prov"><i class="bx bx-user-plus"></i> Agregar Nuevo Proveedor</h3>
+        <button type="button" class="close-modal" onclick="cerrarModalAgregarProveedor()" aria-label="Cerrar">&times;</button>
+      </div>
+      <form id="formAgregarProveedor" method="post" action="{% url 'web_admin_proveedor_crear' %}" novalidate>
+        {% csrf_token %}
+        <div class="form-group field-neutral" data-field-wrap="prov_identificacion">
+          <label for="prov_identificacion"><i class="bx bx-id-card"></i> Identificación *</label>
+          <input type="text" name="identificacion" id="prov_identificacion" required maxlength="50" placeholder="Número de identificación" autocomplete="off" aria-describedby="feed-prov_identificacion">
+          <p class="field-feedback" id="feed-prov_identificacion" role="status"></p>
+        </div>
+        <div class="form-group field-neutral" data-field-wrap="prov_nombre">
+          <label for="prov_nombre"><i class="bx bx-user"></i> Nombre *</label>
+          <input type="text" name="nombre" id="prov_nombre" required maxlength="120" placeholder="Nombre completo" aria-describedby="feed-prov_nombre">
+          <p class="field-feedback" id="feed-prov_nombre" role="status"></p>
+        </div>
+        <div class="form-row-prov">
+          <div class="form-group field-neutral" data-field-wrap="prov_empresa" style="margin-bottom:0;">
+            <label for="prov_empresa"><i class="bx bx-building"></i> Empresa</label>
+            <input type="text" name="empresa" id="prov_empresa" maxlength="150" placeholder="Nombre de la empresa (opcional)" aria-describedby="feed-prov_empresa">
+            <p class="field-feedback" id="feed-prov_empresa" role="status"></p>
+          </div>
+          <div class="form-group field-neutral" data-field-wrap="prov_telefono" style="margin-bottom:0;">
+            <label for="prov_telefono"><i class="bx bx-phone"></i> Teléfono *</label>
+            <input type="text" name="telefono" id="prov_telefono" inputmode="tel" required maxlength="20" placeholder="Número de teléfono" aria-describedby="feed-prov_telefono">
+            <p class="field-feedback" id="feed-prov_telefono" role="status"></p>
+          </div>
+        </div>
+        <div class="form-group field-neutral" data-field-wrap="prov_correo">
+          <label for="prov_correo"><i class="bx bx-envelope"></i> Correo Electrónico *</label>
+          <input type="email" name="correo_electronico" id="prov_correo" required maxlength="254" placeholder="correo@ejemplo.com" autocomplete="email" aria-describedby="feed-prov_correo">
+          <p class="field-feedback" id="feed-prov_correo" role="status"></p>
+        </div>
+        <div class="modal-actions modal-actions--end">
+          <button type="submit" class="btn-modal btn-modal-primary"><i class="bx bx-save"></i> Guardar Proveedor</button>
+          <button type="button" class="btn-modal btn-modal-secondary" onclick="cerrarModalAgregarProveedor()"><i class="bx bx-x"></i> Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalProveedor" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="margin:0;"><i class="bx bx-detail"></i> Detalle del proveedor</h3>
+        <button type="button" class="close-modal" onclick="cerrarModalProveedor()" aria-label="Cerrar">&times;</button>
+      </div>
+      <div id="modalProveedorBody"></div>
+    </div>
+  </div>
+
+  <footer><p>&copy; 2025 Technova</p></footer>
+
+  <script>
+    const PROVEEDORES = {{ proveedores_json }};
+    var _TEL_CHARS = /^[\d\s+\-().]{7,20}$/;
+
+    function setFieldStateProv(fieldId, state, text) {
+      var feed = document.getElementById('feed-' + fieldId);
+      if (!feed) return;
+      feed.textContent = text || '';
+      feed.className = 'field-feedback';
+      if (state === 'ok') feed.classList.add('is-ok');
+      else if (state === 'err') feed.classList.add('is-err');
+      else if (state === 'muted') feed.classList.add('is-muted');
+      var wrap = document.querySelector('#modalAgregarProveedor [data-field-wrap="' + fieldId + '"]');
+      if (wrap) {
+        wrap.classList.remove('field-ok', 'field-err', 'field-neutral');
+        if (state === 'ok') wrap.classList.add('field-ok');
+        else if (state === 'err') wrap.classList.add('field-err');
+        else wrap.classList.add('field-neutral');
+      }
+    }
+
+    function digitosEnTelefono(s) {
+      return (String(s || '').match(/\d/g) || []).length;
+    }
+
+    function validateProvIdentificacion() {
+      var v = document.getElementById('prov_identificacion').value.trim();
+      if (!v) {
+        setFieldStateProv('prov_identificacion', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (v.length > 50) {
+        setFieldStateProv('prov_identificacion', 'err', 'Máximo 50 caracteres.');
+        return false;
+      }
+      setFieldStateProv('prov_identificacion', 'ok', 'Válido.');
+      return true;
+    }
+
+    function validateProvNombre() {
+      var v = document.getElementById('prov_nombre').value.trim();
+      if (!v) {
+        setFieldStateProv('prov_nombre', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (v.length > 120) {
+        setFieldStateProv('prov_nombre', 'err', 'Máximo 120 caracteres.');
+        return false;
+      }
+      setFieldStateProv('prov_nombre', 'ok', 'Válido.');
+      return true;
+    }
+
+    function validateProvTelefono() {
+      var v = document.getElementById('prov_telefono').value.trim();
+      if (!v) {
+        setFieldStateProv('prov_telefono', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (v.length > 20 || !_TEL_CHARS.test(v) || digitosEnTelefono(v) < 7) {
+        setFieldStateProv('prov_telefono', 'err', 'Al menos 7 dígitos; máx. 20 caracteres (dígitos, espacios, +, -, paréntesis).');
+        return false;
+      }
+      setFieldStateProv('prov_telefono', 'ok', 'Teléfono válido.');
+      return true;
+    }
+
+    function validateProvCorreo() {
+      var v = document.getElementById('prov_correo').value.trim().toLowerCase();
+      if (!v) {
+        setFieldStateProv('prov_correo', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+        setFieldStateProv('prov_correo', 'err', 'Formato de correo no válido.');
+        return false;
+      }
+      setFieldStateProv('prov_correo', 'ok', 'Correo válido.');
+      return true;
+    }
+
+    function validateProvEmpresa() {
+      var v = document.getElementById('prov_empresa').value.trim();
+      if (!v) {
+        setFieldStateProv('prov_empresa', 'muted', 'Opcional.');
+        return true;
+      }
+      if (v.length > 150) {
+        setFieldStateProv('prov_empresa', 'err', 'Máximo 150 caracteres.');
+        return false;
+      }
+      setFieldStateProv('prov_empresa', 'ok', 'Registrado.');
+      return true;
+    }
+
+    function validarTodoProveedor() {
+      var ok = true;
+      if (!validateProvIdentificacion()) ok = false;
+      if (!validateProvNombre()) ok = false;
+      if (!validateProvEmpresa()) ok = false;
+      if (!validateProvTelefono()) ok = false;
+      if (!validateProvCorreo()) ok = false;
+      return ok;
+    }
+
+    function resetValidacionProveedor() {
+      ['prov_identificacion', 'prov_nombre', 'prov_telefono', 'prov_correo', 'prov_empresa'].forEach(function (id) {
+        setFieldStateProv(id, 'neutral', '');
+      });
+    }
+
+    function abrirModalAgregarProveedor() {
+      resetValidacionProveedor();
+      document.getElementById('modalAgregarProveedor').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function cerrarModalAgregarProveedor() {
+      document.getElementById('modalAgregarProveedor').classList.remove('show');
+      document.body.style.overflow = 'auto';
+      var f = document.getElementById('formAgregarProveedor');
+      if (f) f.reset();
+      resetValidacionProveedor();
+    }
+
+    document.getElementById('modalAgregarProveedor').addEventListener('click', function (e) {
+      if (e.target === this) cerrarModalAgregarProveedor();
+    });
+
+    document.getElementById('prov_identificacion').addEventListener('input', validateProvIdentificacion);
+    document.getElementById('prov_nombre').addEventListener('input', validateProvNombre);
+    document.getElementById('prov_telefono').addEventListener('input', validateProvTelefono);
+    document.getElementById('prov_correo').addEventListener('input', validateProvCorreo);
+    document.getElementById('prov_empresa').addEventListener('input', validateProvEmpresa);
+
+    document.getElementById('formAgregarProveedor').addEventListener('submit', function (e) {
+      if (!validarTodoProveedor()) {
+        e.preventDefault();
+        var firstErr = document.querySelector('#modalAgregarProveedor .form-group.field-err input');
+        if (firstErr) firstErr.focus();
+        else if (typeof Swal !== 'undefined') {
+          Swal.fire({ title: 'Revisa los campos', text: 'Corrige los mensajes en rojo antes de guardar.', icon: 'warning', confirmButtonText: 'Entendido' });
+        }
+      }
+    });
+
+    function verProveedor(id) {
+      var p = PROVEEDORES.find(function (x) { return String(x.id) === String(id); });
+      if (!p) return;
+      document.getElementById('modalProveedorBody').innerHTML =
+        '<div class="detail-grid">' +
+        '<div class="detail-item"><strong>ID</strong><br>' + escapeHtml(String(p.id)) + '</div>' +
+        '<div class="detail-item"><strong>Identificación</strong><br>' + escapeHtml(p.identificacion) + '</div>' +
+        '<div class="detail-item"><strong>Nombre</strong><br>' + escapeHtml(p.nombre) + '</div>' +
+        '<div class="detail-item"><strong>Teléfono</strong><br>' + escapeHtml(p.telefono) + '</div>' +
+        '<div class="detail-item"><strong>Correo</strong><br>' + escapeHtml(p.correo) + '</div>' +
+        '<div class="detail-item"><strong>Estado</strong><br>' + (p.estado ? 'Activo' : 'Inactivo') + '</div>' +
+        '</div>' +
+        '<p style="margin-top:12px;"><strong>Empresa:</strong><br>' + escapeHtml(p.empresa || '—') + '</p>';
+      document.getElementById('modalProveedor').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function escapeHtml(s) {
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function cerrarModalProveedor() {
+      document.getElementById('modalProveedor').classList.remove('show');
+      document.body.style.overflow = 'auto';
+    }
+
+    document.getElementById('modalProveedor').addEventListener('click', function (e) {
+      if (e.target === this) cerrarModalProveedor();
+    });
+  </script>
+</body>
+</html>

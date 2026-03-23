@@ -2,6 +2,8 @@
  * Inicio: catálogo y búsqueda avanzada contra /api/v1/producto/ (proyecto Java adaptado).
  */
 (function () {
+  var catalogoItemsCache = [];
+
   function csrfToken() {
     var el = document.querySelector("input[name=csrfmiddlewaretoken]");
     if (el && el.value) return el.value;
@@ -97,6 +99,8 @@
     try {
       const data = await window.TechnovaApi.get("/producto/");
       const items = data.items || [];
+      catalogoItemsCache = items;
+      poblarSelectsFiltros(items);
       track.innerHTML = items.map(cardHtml).join("") || "<p>No hay productos.</p>";
       document.dispatchEvent(new CustomEvent("technova:productos-cargados"));
     } catch (e) {
@@ -162,9 +166,237 @@
   }
 
   function limpiarFiltros() {
+    var marca = document.getElementById("filtroMarca");
+    var categoria = document.getElementById("filtroCategoria");
+    var min = document.getElementById("filtroPrecioMin");
+    var max = document.getElementById("filtroPrecioMax");
+    var disp = document.getElementById("filtroDisponibilidad");
+    if (marca) marca.value = "";
+    if (categoria) categoria.value = "";
+    if (min) min.value = "";
+    if (max) max.value = "";
+    if (disp) disp.value = "";
     document.getElementById("resultadosBusqueda")?.classList.remove("show");
     const o = document.getElementById("productosOriginales");
     if (o) o.style.display = "";
+  }
+
+  function uniqueSorted(values) {
+    return Array.from(new Set(values.filter(Boolean))).sort(function (a, b) {
+      return a.localeCompare(b, "es", { sensitivity: "base" });
+    });
+  }
+
+  function poblarSelect(selectId, values) {
+    var sel = document.getElementById(selectId);
+    if (!sel) return;
+    var current = sel.value || "";
+    sel.innerHTML = '<option value="">Todas</option>';
+    values.forEach(function (val) {
+      var opt = document.createElement("option");
+      opt.value = val;
+      opt.textContent = val;
+      sel.appendChild(opt);
+    });
+    sel.value = values.includes(current) ? current : "";
+  }
+
+  function poblarSelectsFiltros(items) {
+    var marcas = uniqueSorted(
+      items.map(function (p) {
+        return (p.marca || (p.caracteristica && p.caracteristica.marca) || "").trim();
+      })
+    );
+    var categorias = uniqueSorted(
+      items.map(function (p) {
+        return (p.categoria || (p.caracteristica && p.caracteristica.categoria) || "").trim();
+      })
+    );
+    poblarSelect("filtroMarca", marcas);
+    poblarSelect("filtroCategoria", categorias);
+  }
+
+  function getJsonScriptData(id) {
+    try {
+      var el = document.getElementById(id);
+      if (!el) return [];
+      return JSON.parse(el.textContent || "[]");
+    } catch (_err) {
+      return [];
+    }
+  }
+
+  function precioFormato(raw) {
+    var n = Number(String(raw || "0").replace(",", "."));
+    if (!Number.isFinite(n)) return "$0";
+    return "$" + n.toLocaleString("es-CO");
+  }
+
+  function escapeHtml(texto) {
+    return String(texto || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
+  async function postFormJson(url, body) {
+    var r = await fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+        "X-CSRFToken": csrfToken(),
+      },
+      body: new URLSearchParams(body),
+    });
+    var data = await r.json().catch(function () {
+      return {};
+    });
+    if (!r.ok || data.ok === false) {
+      throw new Error(data.message || "No se pudo completar la acción.");
+    }
+    return data;
+  }
+
+  function panelResumenInit() {
+    var panel = document.getElementById("panelResumenCliente");
+    var body = document.getElementById("panelResumenBody");
+    var title = document.getElementById("panelResumenTitulo");
+    var closeBtn = document.getElementById("panelResumenCerrar");
+    if (!panel || !body || !title) return;
+
+    var favoritosData = getJsonScriptData("favoritosPreviewData");
+    var carritoData = getJsonScriptData("carritoPreviewData");
+    var currentPanel = "favoritos";
+
+    function renderFavoritos() {
+      title.textContent = "Favoritos";
+      if (!favoritosData.length) {
+        body.innerHTML = '<p class="cliente-panel-item-sub">No tienes favoritos aún.</p><a href="' + window.TECHNOVA_URL_FAVORITOS + '" class="cliente-panel-link" style="display:inline-block;margin-top:8px;">Ir a favoritos</a>';
+        return;
+      }
+      body.innerHTML = favoritosData
+        .map(function (p) {
+          return (
+            '<div class="cliente-panel-row">' +
+            '<div><div class="cliente-panel-item-title">' + escapeHtml(p.nombre) + '</div><div class="cliente-panel-item-sub">' + precioFormato(p.precio) + "</div></div>" +
+            '<button type="button" class="cliente-panel-btn cliente-panel-btn--remove" data-act="quitar-favorito" data-id="' + p.id + '">Quitar</button>' +
+            '<a href="' + window.TECHNOVA_URL_FAVORITOS + '" class="cliente-panel-link">Ir a favoritos</a>' +
+            "</div>"
+          );
+        })
+        .join("");
+    }
+
+    function renderCarrito() {
+      title.textContent = "Carrito";
+      if (!carritoData.length) {
+        body.innerHTML = '<p class="cliente-panel-item-sub">Tu carrito está vacío.</p><a href="' + window.TECHNOVA_URL_CARRITO + '" class="cliente-panel-link" style="display:inline-block;margin-top:8px;">Ir a carrito</a>';
+        return;
+      }
+      body.innerHTML = carritoData
+        .map(function (it) {
+          var canDec = Number(it.cantidad || 1) > 1;
+          var disabledAttr = canDec ? "" : " disabled";
+          return (
+            '<div class="cliente-panel-row">' +
+            '<div><div class="cliente-panel-item-title">' + escapeHtml(it.nombre_producto) + '</div><div class="cliente-panel-item-sub">Cant: ' + it.cantidad + " - " + precioFormato(it.precio_unitario) + "</div></div>" +
+            '<div class="cliente-panel-qty-wrap">' +
+            '<button type="button" class="cliente-panel-btn cliente-panel-btn--qty" data-act="restar-carrito" data-detalle-id="' + it.detalle_id + '" data-cantidad="' + it.cantidad + '"' + disabledAttr + '>-</button>' +
+            '<span class="cliente-panel-qty">' + it.cantidad + "</span>" +
+            '<button type="button" class="cliente-panel-btn cliente-panel-btn--qty" data-act="sumar-carrito" data-detalle-id="' + it.detalle_id + '" data-cantidad="' + it.cantidad + '">+</button>' +
+            "</div>" +
+            '<button type="button" class="cliente-panel-btn cliente-panel-btn--remove" data-act="quitar-carrito" data-detalle-id="' + it.detalle_id + '">Quitar</button>' +
+            '<a href="' + window.TECHNOVA_URL_CARRITO + '" class="cliente-panel-link">Ir a carrito</a>' +
+            "</div>"
+          );
+        })
+        .join("");
+    }
+
+    function showPanel(which) {
+      currentPanel = which || currentPanel;
+      panel.style.display = "block";
+      if (currentPanel === "favoritos") renderFavoritos();
+      if (currentPanel === "carrito") renderCarrito();
+    }
+
+    document.querySelectorAll(".js-panel-toggle").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        showPanel(btn.getAttribute("data-panel"));
+      });
+    });
+    closeBtn?.addEventListener("click", function () {
+      panel.style.display = "none";
+    });
+
+    body.addEventListener("click", async function (ev) {
+      var el = ev.target.closest("button[data-act]");
+      if (!el) return;
+      el.disabled = true;
+      try {
+        var action = el.getAttribute("data-act");
+        var detalleId = parseInt(el.getAttribute("data-detalle-id") || "0", 10);
+        var productoId = parseInt(el.getAttribute("data-id") || "0", 10);
+        if (action === "quitar-favorito") {
+          await postFormJson(window.TECHNOVA_URL_FAVORITO_QUITAR, {
+            producto_id: el.getAttribute("data-id"),
+          });
+          favoritosData = favoritosData.filter(function (p) {
+            return Number(p.id) !== productoId;
+          });
+          showPanel("favoritos");
+        } else if (action === "sumar-carrito") {
+          var qty = parseInt(el.getAttribute("data-cantidad") || "1", 10) + 1;
+          await postFormJson(window.TECHNOVA_URL_CARRITO_ACTUALIZAR, {
+            detalle_id: el.getAttribute("data-detalle-id"),
+            cantidad: qty,
+          });
+          carritoData = carritoData.map(function (it) {
+            if (Number(it.detalle_id) === detalleId) {
+              it.cantidad = qty;
+            }
+            return it;
+          });
+          showPanel("carrito");
+        } else if (action === "restar-carrito") {
+          var qtyDec = parseInt(el.getAttribute("data-cantidad") || "1", 10) - 1;
+          if (qtyDec < 1) {
+            qtyDec = 1;
+          }
+          await postFormJson(window.TECHNOVA_URL_CARRITO_ACTUALIZAR, {
+            detalle_id: el.getAttribute("data-detalle-id"),
+            cantidad: qtyDec,
+          });
+          carritoData = carritoData.map(function (it) {
+            if (Number(it.detalle_id) === detalleId) {
+              it.cantidad = qtyDec;
+            }
+            return it;
+          });
+          showPanel("carrito");
+        } else if (action === "quitar-carrito") {
+          await postFormJson(window.TECHNOVA_URL_CARRITO_ELIMINAR, {
+            detalle_id: el.getAttribute("data-detalle-id"),
+          });
+          carritoData = carritoData.filter(function (it) {
+            return Number(it.detalle_id) !== detalleId;
+          });
+          showPanel("carrito");
+        }
+      } catch (e) {
+        if (window.TechnovaUi) {
+          await window.TechnovaUi.error(e.message || "No se pudo completar la acción.");
+        } else {
+          window.alert(e.message || "No se pudo completar la acción.");
+        }
+      } finally {
+        el.disabled = false;
+      }
+    });
   }
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -198,6 +430,10 @@
         toggleFavorito(f.getAttribute("data-producto-id"));
       }
     });
+    panelResumenInit();
+    if (Array.isArray(catalogoItemsCache) && catalogoItemsCache.length) {
+      poblarSelectsFiltros(catalogoItemsCache);
+    }
   });
 
   async function importarCarrito(productoId) {
@@ -288,6 +524,20 @@
   window.limpiarFiltros = limpiarFiltros;
   window.toggleFiltros = function () {
     const el = document.getElementById("filtrosContainer");
-    if (el) el.style.display = el.style.display === "none" ? "block" : "none";
+    const btn = document.getElementById("btnFiltrosToggle");
+    if (!el) return;
+    var shouldOpen = el.style.display === "none";
+    el.style.display = shouldOpen ? "block" : "none";
+    if (btn) btn.classList.toggle("active", shouldOpen);
   };
+  document.addEventListener("click", function (ev) {
+    var filtros = document.getElementById("filtrosContainer");
+    var btn = document.getElementById("btnFiltrosToggle");
+    if (!filtros || filtros.style.display === "none") return;
+    var clickedInside = filtros.contains(ev.target) || (btn && btn.contains(ev.target));
+    if (!clickedInside) {
+      filtros.style.display = "none";
+      btn?.classList.remove("active");
+    }
+  });
 })();

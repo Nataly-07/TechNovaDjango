@@ -1,12 +1,91 @@
 {% extends "frontend/base_cliente.html" %}
 {% load static %}
 {% block title %}Mis compras — Technova{% endblock %}
-{% block cliente_content %}
-<h1>Mis compras</h1>
-<div id="page-data">Cargando…</div>
-{% endblock %}
-{% block extra_js %}
+{% block extra_css %}
 {{ block.super }}
-<script src="{% static 'frontend/js/technova-pages.js' %}"></script>
-<script>document.addEventListener('DOMContentLoaded', function () { TechnovaPages.misCompras(); });</script>
+<style>
+  .compras-wrap { max-width: 1100px; margin: 0 auto; }
+  .compras-head h1 { margin: 0 0 6px; }
+  .compras-head p { color: #64748b; margin: 0 0 18px; }
+  .compras-grid { display: grid; gap: 14px; }
+  .compra-card {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+    padding: 14px 16px;
+  }
+  .compra-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: .78rem;
+    font-weight: 700;
+    background: #e2e8f0;
+    color: #334155;
+  }
+  .compra-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-top: 12px; }
+  .meta-k { color: #64748b; font-size: .82rem; }
+  .meta-v { font-weight: 700; color: #1e293b; }
+  .compra-actions { margin-top: 12px; display: flex; justify-content: flex-end; }
+  .btn-factura {
+    text-decoration: none;
+    background: var(--gradient-primary);
+    color: #fff;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: .85rem;
+    font-weight: 700;
+  }
+  .compras-empty {
+    background: #fff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 24px;
+    text-align: center;
+    color: #64748b;
+  }
+</style>
+{% endblock %}
+{% block cliente_content %}
+<section class="compras-wrap">
+  <div class="compras-head">
+    <h1>Mis compras</h1>
+    <p>Historial de compras con estado de pedido y pago.</p>
+  </div>
+
+  {% if rows %}
+  <div class="compras-grid">
+    {% for row in rows %}
+    <article class="compra-card">
+      <div class="compra-top">
+        <div>
+          <div style="font-size:.86rem;color:#64748b;">Compra #{{ row.venta.id }}</div>
+          <div style="font-size:1.05rem;font-weight:800;color:#0f172a;">
+            ${{ row.venta.total|floatformat:0 }}
+          </div>
+        </div>
+        <div class="badge">{{ row.venta.estado|title }}</div>
+      </div>
+      <div class="compra-meta">
+        <div><div class="meta-k">Fecha de compra</div><div class="meta-v">{{ row.venta.fecha_venta|date:"d/m/Y" }}</div></div>
+        <div><div class="meta-k">Productos</div><div class="meta-v">{{ row.items_count }}</div></div>
+        <div><div class="meta-k">Estado pago</div><div class="meta-v">{% if row.pago %}{{ row.pago.estado_pago|title }}{% else %}Sin registro{% endif %}</div></div>
+        <div><div class="meta-k">Estado pedido</div><div class="meta-v">{% if row.envio %}{{ row.envio.estado|title }}{% else %}Preparando{% endif %}</div></div>
+      </div>
+      {% if row.pago %}
+      <div class="compra-actions">
+        <a href="{% url 'web_cliente_factura_compra' row.venta.id %}" class="btn-factura">Ver factura PDF</a>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="compras-empty">
+    No tienes compras registradas todavía.
+  </div>
+  {% endif %}
+</section>
 {% endblock %}

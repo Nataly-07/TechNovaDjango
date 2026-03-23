@@ -1,11 +1,16 @@
 import json
 import re
 import uuid
+import base64
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from functools import wraps
+from urllib import error as urllib_error
+from urllib import parse as urllib_parse
+from urllib import request as urllib_request
 
 from django.contrib import messages
+from django.conf import settings
 from django.db import IntegrityError
 from django.db.models import Count, Prefetch, Q, Sum
 from django.http import JsonResponse
@@ -13,6 +18,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
 from django.utils.safestring import mark_safe
+from django.urls import reverse
 
 from carrito.models import Carrito, Favorito
 from common.container import (
@@ -26,7 +32,7 @@ from common.container import (
 from compra.models import Compra, DetalleCompra
 from envio.models import Envio, Transportadora
 from mensajeria.models import MensajeDirecto
-from pago.models import MedioPago, Pago
+from pago.models import MedioPago, MetodoPagoUsuario, Pago
 from producto.domain.entities import ProductoEntidad
 from producto.models import Producto
 from proveedor.domain.entities import ProveedorEntidad
@@ -44,6 +50,7 @@ SESSION_CK_DIR = "checkout_direccion"
 SESSION_CK_ENV = "checkout_envio"
 SESSION_CK_PAGO = "checkout_pago"
 SESSION_CK_RESULT = "checkout_resultado"
+SESSION_CK_PAYPAL = "checkout_paypal"
 
 
 def _carrito_activo_id(uid: int) -> int | None:
@@ -139,6 +146,204 @@ def _map_metodo_pago_spring(m: str | None) -> str:
     return MedioPago.Metodo.PSE.value
 
 
+def _paypal_client_id() -> str:
+    return (getattr(settings, "TECHNOVA_PAYPAL_CLIENT_ID", "") or "").strip()
+
+
+def _paypal_client_secret() -> str:
+    return (getattr(settings, "TECHNOVA_PAYPAL_CLIENT_SECRET", "") or "").strip()
+
+
+def _paypal_base_url() -> str:
+    return (
+        getattr(settings, "TECHNOVA_PAYPAL_BASE_URL", "")
+        or "https://api-m.sandbox.paypal.com"
+    ).rstrip("/")
+
+
+def _paypal_currency() -> str:
+    raw = (getattr(settings, "TECHNOVA_PAYPAL_CURRENCY", "") or "USD").strip().upper()
+    if raw == "COP":
+        return "USD"
+    return raw or "USD"
+
+
+def _paypal_is_configured() -> bool:
+    return bool(_paypal_client_id() and _paypal_client_secret())
+
+
+def _paypal_fetch_access_token() -> str:
+    basic_raw = f"{_paypal_client_id()}:{_paypal_client_secret()}".encode("utf-8")
+    basic = base64.b64encode(basic_raw).decode("ascii")
+    req = urllib_request.Request(
+        f"{_paypal_base_url()}/v1/oauth2/token",
+        data=b"grant_type=client_credentials",
+        method="POST",
+        headers={
+            "Authorization": f"Basic {basic}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=20) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+            token = (payload.get("access_token") or "").strip()
+            if not token:
+                raise ValueError("PayPal no devolvio access_token")
+            return token
+    except (urllib_error.URLError, urllib_error.HTTPError, ValueError) as exc:
+        raise ValueError(f"No se pudo obtener token de PayPal: {exc}") from exc
+
+
+def _paypal_create_order(
+    *,
+    amount: Decimal,
+    reference_code: str,
+    customer_email: str,
+    return_url: str,
+    cancel_url: str,
+) -> tuple[str, str]:
+    token = _paypal_fetch_access_token()
+    total = str(amount.quantize(Decimal("0.01")))
+    payload = {
+        "intent": "CAPTURE",
+        "purchase_units": [
+            {
+                "reference_id": reference_code,
+                "amount": {"currency_code": _paypal_currency(), "value": total},
+            }
+        ],
+        "payer": {"email_address": customer_email} if customer_email else {},
+        "application_context": {
+            "brand_name": "TechNova",
+            "user_action": "PAY_NOW",
+            "return_url": return_url,
+            "cancel_url": cancel_url,
+        },
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib_request.Request(
+        f"{_paypal_base_url()}/v2/checkout/orders",
+        data=data,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation",
+        },
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=30) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+            order_id = (body.get("id") or "").strip()
+            approval_url = ""
+            for link in body.get("links", []):
+                if (link.get("rel") or "").lower() == "approve":
+                    approval_url = (link.get("href") or "").strip()
+                    break
+            if not order_id or not approval_url:
+                raise ValueError("PayPal no devolvio orderId o approveUrl")
+            return order_id, approval_url
+    except (urllib_error.URLError, urllib_error.HTTPError, ValueError) as exc:
+        raise ValueError(f"No se pudo crear orden en PayPal: {exc}") from exc
+
+
+def _paypal_capture_order(order_id: str) -> tuple[bool, str]:
+    if not order_id:
+        return False, "INVALID_ORDER_ID"
+    token = _paypal_fetch_access_token()
+    encoded_order_id = urllib_parse.quote(order_id, safe="")
+    req = urllib_request.Request(
+        f"{_paypal_base_url()}/v2/checkout/orders/{encoded_order_id}/capture",
+        data=b"{}",
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=30) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+            status = (body.get("status") or "").strip().upper()
+            return status == "COMPLETED", (status or "UNKNOWN")
+    except urllib_error.HTTPError as exc:
+        return False, f"HTTP_{exc.code}"
+    except urllib_error.URLError:
+        return False, "NETWORK_ERROR"
+
+
+def _ejecutar_checkout_desde_sesion(request, uid: int):
+    info = request.session.get(SESSION_CK_INFO) or {}
+    dire = request.session.get(SESSION_CK_DIR) or {}
+    env = request.session.get(SESSION_CK_ENV) or {}
+    pago = request.session.get(SESSION_CK_PAGO) or {}
+    if not info or not dire or not env or not pago:
+        messages.error(request, "Datos de checkout incompletos. Vuelve a empezar.")
+        return redirect("web_cliente_checkout_info")
+    carrito_id = _carrito_activo_id(uid)
+    if not carrito_id:
+        messages.error(request, "No hay carrito activo.")
+        return redirect("web_carrito")
+    try:
+        u = Usuario.objects.get(pk=uid)
+        if info.get("firstName"):
+            u.nombres = info["firstName"][:120]
+        if info.get("lastName"):
+            u.apellidos = info["lastName"][:120]
+        if info.get("phone"):
+            u.telefono = info["phone"][:20]
+        partes_dir = [
+            dire.get("direccion"),
+            dire.get("barrio"),
+            dire.get("localidad"),
+            dire.get("ciudad"),
+            dire.get("departamento"),
+        ]
+        texto_dir = ", ".join(p for p in partes_dir if p)
+        if texto_dir:
+            u.direccion = texto_dir[:2000]
+        u.save(update_fields=["nombres", "apellidos", "telefono", "direccion", "actualizado_en"])
+    except Exception:  # noqa: BLE001
+        pass
+    t = _transportadora_por_nombre_spring(env.get("transportadora", ""))
+    if t is None:
+        t = _transportadoras_para_checkout().first()
+    if t is None:
+        messages.error(request, "No hay transportadora configurada. Contacta al administrador.")
+        return redirect("web_cliente_checkout_revision")
+    numero_guia = f"WEB-{uuid.uuid4().hex[:12].upper()}"
+    costo_envio = Decimal("0")
+    metodo_pago = _map_metodo_pago_spring(pago.get("metodoPago"))
+    numero_factura = f"FACT-{timezone.localdate().year}-{uid}-{uuid.uuid4().hex[:14].upper()}"
+    try:
+        resultado = get_checkout_service().ejecutar_checkout(
+            usuario_id=uid,
+            carrito_id=carrito_id,
+            metodo_pago=metodo_pago,
+            numero_factura=numero_factura,
+            fecha_factura=timezone.localdate(),
+            transportadora_id=t.id,
+            numero_guia=numero_guia,
+            costo_envio=costo_envio,
+        )
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("web_cliente_checkout_revision")
+    except IntegrityError:
+        messages.error(request, "No se pudo registrar el pedido. Intentalo de nuevo.")
+        return redirect("web_cliente_checkout_revision")
+    _limpiar_sesion_checkout(request)
+    request.session.pop(SESSION_CK_PAYPAL, None)
+    request.session[SESSION_CK_RESULT] = {
+        "venta_id": resultado.venta_id,
+        "total": str(resultado.total),
+        "idempotente": resultado.idempotente,
+    }
+    request.session.modified = True
+    return redirect("web_cliente_checkout_confirmacion")
+
+
 def _limpiar_sesion_checkout(request) -> None:
     for key in (SESSION_CK_INFO, SESSION_CK_DIR, SESSION_CK_ENV, SESSION_CK_PAGO):
         request.session.pop(key, None)
@@ -213,6 +418,14 @@ def _filtrar_queryset_pagos_por_estado_get(qs, estado_raw: str | None):
     return qs
 
 
+def _wants_json_response(request) -> bool:
+    return (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or (request.headers.get("Accept") or "").startswith("application/json")
+        or (request.content_type or "").startswith("application/json")
+    )
+
+
 def _cliente_login_required(view_func):
     """Solo usuarios con sesión Django (misma clave que login_web)."""
 
@@ -270,7 +483,42 @@ def home(request):
                 return redirect("web_admin_perfil")
         except Usuario.DoesNotExist:
             pass
-    return render(request, "frontend/cliente/home.html", {"usuario_id": uid})
+    favoritos_qs = (
+        Favorito.objects.select_related("producto")
+        .filter(usuario_id=uid)
+        .order_by("-id")[:8]
+    )
+    favoritos_preview = [
+        {
+            "id": f.producto.id,
+            "nombre": f.producto.nombre,
+            "imagen": f.producto.imagen_url or "",
+            "precio": str(f.producto.precio_venta or "0"),
+        }
+        for f in favoritos_qs
+    ]
+    carrito_preview = []
+    for it in get_carrito_lineas_service().listar_items(uid)[:8]:
+        carrito_preview.append(
+            {
+                "detalle_id": it.get("detalle_id"),
+                "producto_id": it.get("producto_id"),
+                "nombre_producto": it.get("nombre_producto", ""),
+                "imagen": it.get("imagen") or "",
+                "cantidad": int(it.get("cantidad", 1)),
+                "stock": int(it.get("stock", 0) or 0),
+                "precio_unitario": str(it.get("precio_unitario", "0")),
+            }
+        )
+    return render(
+        request,
+        "frontend/cliente/home.html",
+        {
+            "usuario_id": uid,
+            "favoritos_preview": favoritos_preview,
+            "carrito_preview": carrito_preview,
+        },
+    )
 
 
 @_cliente_login_required
@@ -1112,14 +1360,41 @@ def perfil_cliente(request):
             usuario = Usuario.objects.get(pk=uid)
         except Usuario.DoesNotExist:
             usuario = None
+    favoritos_count = Favorito.objects.filter(usuario_id=uid).count() if uid else 0
+    carrito_count = len(get_carrito_lineas_service().listar_items(uid)) if uid else 0
+    pedidos_count = Venta.objects.filter(usuario_id=uid).count() if uid else 0
+    compras_count = pedidos_count
+    medios_pago_count = MetodoPagoUsuario.objects.filter(usuario_id=uid).count() if uid else 0
+
+    notificaciones_count = 0
+    if uid:
+        ventas_ids = list(
+            Venta.objects.filter(usuario_id=uid).order_by("-fecha_venta", "-id").values_list("id", flat=True)[:40]
+        )
+        if ventas_ids:
+            notificaciones_count += len(ventas_ids)
+            notificaciones_count += (
+                Pago.objects.filter(medios_pago__detalle_venta__venta_id__in=ventas_ids)
+                .distinct()
+                .count()
+            )
+            notificaciones_count += (
+                Envio.objects.filter(venta_id__in=ventas_ids, activo=True)
+                .values("venta_id")
+                .distinct()
+                .count()
+            )
+        nuevos_productos_count = Producto.objects.filter(activo=True).count()
+        notificaciones_count += min(nuevos_productos_count, 12)
+
     ctx = {
         "usuario": usuario,
-        "favoritos_count": 0,
-        "carrito_count": 0,
-        "pedidos_count": 0,
-        "notificaciones_count": 0,
-        "medios_pago_count": 0,
-        "compras_count": 0,
+        "favoritos_count": favoritos_count,
+        "carrito_count": carrito_count,
+        "pedidos_count": pedidos_count,
+        "notificaciones_count": notificaciones_count,
+        "medios_pago_count": medios_pago_count,
+        "compras_count": compras_count,
     }
     return render(request, "frontend/cliente/perfil.html", ctx)
 
@@ -1190,14 +1465,21 @@ def favoritos_page(request):
 @require_POST
 def favorito_quitar(request):
     uid = request.session.get(SESSION_USUARIO_ID)
+    wants_json = _wants_json_response(request)
     try:
         producto_id = int(request.POST.get("producto_id", 0))
     except (TypeError, ValueError):
+        if wants_json:
+            return JsonResponse({"ok": False, "message": "Producto no válido."}, status=400)
         messages.error(request, "Producto no válido.")
         return redirect("web_favoritos")
     if get_carrito_query_service().eliminar_favorito(uid, producto_id):
+        if wants_json:
+            return JsonResponse({"ok": True, "message": "Producto quitado de favoritos."})
         messages.success(request, "Producto quitado de favoritos.")
     else:
+        if wants_json:
+            return JsonResponse({"ok": False, "message": "No se encontró ese favorito."}, status=404)
         messages.warning(request, "No se encontró ese favorito.")
     return redirect("web_favoritos")
 
@@ -1237,7 +1519,85 @@ def favorito_agregar_carrito(request):
 
 @_cliente_login_required
 def notificaciones_cliente(request):
-    return render(request, "frontend/cliente/notificaciones.html")
+    uid = request.session.get(SESSION_USUARIO_ID)
+    notificaciones: list[dict] = []
+
+    ventas = list(
+        Venta.objects.filter(usuario_id=uid)
+        .order_by("-fecha_venta", "-id")[:40]
+    )
+    for venta in ventas:
+        notificaciones.append(
+            {
+                "tipo": "compra",
+                "titulo": f"Compra registrada #{venta.id}",
+                "detalle": f"Tu compra fue creada el {venta.fecha_venta.strftime('%d/%m/%Y')}.",
+                "fecha": venta.fecha_venta,
+                "estado": (venta.estado or "").replace("_", " ").title(),
+            }
+        )
+
+        pago = (
+            Pago.objects.filter(medios_pago__detalle_venta__venta_id=venta.id)
+            .distinct()
+            .order_by("-fecha_pago", "-id")
+            .first()
+        )
+        if pago:
+            notificaciones.append(
+                {
+                    "tipo": "pago",
+                    "titulo": f"Estado de pago de compra #{venta.id}",
+                    "detalle": f"Factura: {pago.numero_factura}.",
+                    "fecha": pago.fecha_pago,
+                    "estado": (pago.estado_pago or "").replace("_", " ").title(),
+                }
+            )
+
+        envio = (
+            Envio.objects.filter(venta_id=venta.id, activo=True)
+            .select_related("transportadora")
+            .order_by("-fecha_envio", "-id")
+            .first()
+        )
+        if envio:
+            notificaciones.append(
+                {
+                    "tipo": "pedido",
+                    "titulo": f"Estado del pedido #{venta.id}",
+                    "detalle": f"Transportadora: {envio.transportadora.nombre}. Guía: {envio.numero_guia}.",
+                    "fecha": envio.fecha_envio.date(),
+                    "estado": (envio.estado or "").replace("_", " ").title(),
+                }
+            )
+
+    nuevos_productos = list(
+        Producto.objects.filter(activo=True).order_by("-creado_en", "-id")[:12]
+    )
+    for p in nuevos_productos:
+        notificaciones.append(
+            {
+                "tipo": "producto",
+                "titulo": "Nuevo producto en la tienda",
+                "detalle": p.nombre,
+                "fecha": p.creado_en.date(),
+                "estado": "Disponible" if p.stock > 0 else "Agotado",
+            }
+        )
+
+    notificaciones.sort(
+        key=lambda n: (
+            n.get("fecha") or date.min,
+            1 if n.get("tipo") == "producto" else 2,
+        ),
+        reverse=True,
+    )
+    notificaciones = notificaciones[:120]
+    return render(
+        request,
+        "frontend/cliente/notificaciones.html",
+        {"notificaciones": notificaciones},
+    )
 
 
 @_cliente_login_required
@@ -1263,16 +1623,23 @@ def carrito_page(request):
 @require_POST
 def carrito_actualizar(request):
     uid = request.session.get(SESSION_USUARIO_ID)
+    wants_json = _wants_json_response(request)
     try:
         detalle_id = int(request.POST.get("detalle_id", 0))
         cantidad = int(request.POST.get("cantidad", 1))
     except (TypeError, ValueError):
+        if wants_json:
+            return JsonResponse({"ok": False, "message": "Datos no válidos."}, status=400)
         messages.error(request, "Datos no válidos.")
         return redirect("web_carrito")
     try:
         get_carrito_lineas_service().actualizar_cantidad(uid, detalle_id, cantidad)
+        if wants_json:
+            return JsonResponse({"ok": True, "message": "Cantidad actualizada."})
         messages.success(request, "Cantidad actualizada.")
     except ValueError as exc:
+        if wants_json:
+            return JsonResponse({"ok": False, "message": str(exc)}, status=400)
         messages.error(request, str(exc))
     return redirect("web_carrito")
 
@@ -1281,15 +1648,22 @@ def carrito_actualizar(request):
 @require_POST
 def carrito_eliminar(request):
     uid = request.session.get(SESSION_USUARIO_ID)
+    wants_json = _wants_json_response(request)
     try:
         detalle_id = int(request.POST.get("detalle_id", 0))
     except (TypeError, ValueError):
+        if wants_json:
+            return JsonResponse({"ok": False, "message": "Ítem no válido."}, status=400)
         messages.error(request, "Ítem no válido.")
         return redirect("web_carrito")
     try:
         get_carrito_lineas_service().eliminar_detalle(uid, detalle_id)
+        if wants_json:
+            return JsonResponse({"ok": True, "message": "Producto eliminado del carrito."})
         messages.success(request, "Producto eliminado del carrito.")
     except ValueError as exc:
+        if wants_json:
+            return JsonResponse({"ok": False, "message": str(exc)}, status=400)
         messages.error(request, str(exc))
     return redirect("web_carrito")
 
@@ -1490,73 +1864,67 @@ def checkout_revision(request):
 def checkout_finalizar(request):
     """POST /checkout/finalizar — CheckoutService + limpieza de sesión (Spring)."""
     uid = request.session.get(SESSION_USUARIO_ID)
-    info = request.session.get(SESSION_CK_INFO) or {}
-    dire = request.session.get(SESSION_CK_DIR) or {}
-    env = request.session.get(SESSION_CK_ENV) or {}
     pago = request.session.get(SESSION_CK_PAGO) or {}
-    if not info or not dire or not env or not pago:
-        messages.error(request, "Datos de checkout incompletos. Vuelve a empezar.")
-        return redirect("web_cliente_checkout_info")
-    carrito_id = _carrito_activo_id(uid)
-    if not carrito_id:
-        messages.error(request, "No hay carrito activo.")
-        return redirect("web_carrito")
-    try:
-        u = Usuario.objects.get(pk=uid)
-        if info.get("firstName"):
-            u.nombres = info["firstName"][:120]
-        if info.get("lastName"):
-            u.apellidos = info["lastName"][:120]
-        if info.get("phone"):
-            u.telefono = info["phone"][:20]
-        partes_dir = [
-            dire.get("direccion"),
-            dire.get("barrio"),
-            dire.get("localidad"),
-            dire.get("ciudad"),
-            dire.get("departamento"),
-        ]
-        texto_dir = ", ".join(p for p in partes_dir if p)
-        if texto_dir:
-            u.direccion = texto_dir[:2000]
-        u.save(update_fields=["nombres", "apellidos", "telefono", "direccion", "actualizado_en"])
-    except Exception:  # noqa: BLE001
-        pass
-    t = _transportadora_por_nombre_spring(env.get("transportadora", ""))
-    if t is None:
-        t = _transportadoras_para_checkout().first()
-    if t is None:
-        messages.error(request, "No hay transportadora configurada. Contacta al administrador.")
+    if (pago.get("metodoPago") or "").strip() == "paypal_sandbox":
+        return redirect("web_cliente_checkout_paypal_iniciar")
+    return _ejecutar_checkout_desde_sesion(request, uid)
+
+
+@_cliente_login_required
+def checkout_paypal_iniciar(request):
+    uid = request.session.get(SESSION_USUARIO_ID)
+    pago = request.session.get(SESSION_CK_PAGO) or {}
+    if (pago.get("metodoPago") or "").strip() != "paypal_sandbox":
+        messages.error(request, "El metodo de pago seleccionado no es PayPal Sandbox.")
         return redirect("web_cliente_checkout_revision")
-    numero_guia = f"WEB-{uuid.uuid4().hex[:12].upper()}"
-    costo_envio = Decimal("0")
-    metodo_pago = _map_metodo_pago_spring(pago.get("metodoPago"))
-    numero_factura = f"FACT-{timezone.localdate().year}-{uid}-{uuid.uuid4().hex[:14].upper()}"
+    if not _paypal_is_configured():
+        messages.error(request, "PayPal no esta configurado. Define TECHNOVA_PAYPAL_CLIENT_ID y TECHNOVA_PAYPAL_CLIENT_SECRET.")
+        return redirect("web_cliente_checkout_revision")
+    _, total_carrito = _carrito_productos_total_spring(uid)
+    if total_carrito <= 0:
+        messages.error(request, "No hay total valido para procesar en PayPal.")
+        return redirect("web_cliente_checkout_revision")
+    user = get_object_or_404(Usuario, pk=uid)
+    reference = f"WEB-{uid}-{uuid.uuid4().hex[:10].upper()}"
+    return_url = request.build_absolute_uri(reverse("web_cliente_checkout_paypal_retorno"))
+    cancel_url = request.build_absolute_uri(reverse("web_cliente_checkout_paypal_retorno")) + "?cancel=true"
     try:
-        resultado = get_checkout_service().ejecutar_checkout(
-            usuario_id=uid,
-            carrito_id=carrito_id,
-            metodo_pago=metodo_pago,
-            numero_factura=numero_factura,
-            fecha_factura=timezone.localdate(),
-            transportadora_id=t.id,
-            numero_guia=numero_guia,
-            costo_envio=costo_envio,
+        order_id, approval_url = _paypal_create_order(
+            amount=total_carrito,
+            reference_code=reference,
+            customer_email=user.correo_electronico,
+            return_url=return_url,
+            cancel_url=cancel_url,
         )
     except ValueError as exc:
         messages.error(request, str(exc))
         return redirect("web_cliente_checkout_revision")
-    except IntegrityError:
-        messages.error(request, "No se pudo registrar el pedido. Inténtalo de nuevo.")
-        return redirect("web_cliente_checkout_revision")
-    _limpiar_sesion_checkout(request)
-    request.session[SESSION_CK_RESULT] = {
-        "venta_id": resultado.venta_id,
-        "total": str(resultado.total),
-        "idempotente": resultado.idempotente,
-    }
+    request.session[SESSION_CK_PAYPAL] = {"order_id": order_id}
     request.session.modified = True
-    return redirect("web_cliente_checkout_confirmacion")
+    return redirect(approval_url)
+
+
+@_cliente_login_required
+def checkout_paypal_retorno(request):
+    if (request.GET.get("cancel") or "").lower() in {"true", "1", "yes"}:
+        messages.warning(request, "Pago cancelado en PayPal Sandbox.")
+        return redirect("web_cliente_checkout_revision")
+    paypal_data = request.session.get(SESSION_CK_PAYPAL) or {}
+    expected_order_id = (paypal_data.get("order_id") or "").strip()
+    token = (request.GET.get("token") or "").strip()
+    order_id = token or expected_order_id
+    if not order_id:
+        messages.error(request, "No se recibio orderId desde PayPal.")
+        return redirect("web_cliente_checkout_revision")
+    if expected_order_id and expected_order_id != order_id:
+        messages.error(request, "El orderId devuelto por PayPal no coincide con la sesion.")
+        return redirect("web_cliente_checkout_revision")
+    ok, status = _paypal_capture_order(order_id)
+    if not ok:
+        messages.error(request, f"No se pudo capturar el pago en PayPal ({status}).")
+        return redirect("web_cliente_checkout_revision")
+    uid = request.session.get(SESSION_USUARIO_ID)
+    return _ejecutar_checkout_desde_sesion(request, uid)
 
 
 @_cliente_login_required
@@ -1624,7 +1992,78 @@ def pedidos_cliente(request):
 
 @_cliente_login_required
 def mis_compras(request):
-    return render(request, "frontend/cliente/mis_compras.html")
+    uid = request.session.get(SESSION_USUARIO_ID)
+    ventas = list(
+        Venta.objects.filter(usuario_id=uid)
+        .select_related("usuario")
+        .prefetch_related("detalles__producto")
+        .order_by("-fecha_venta", "-id")[:120]
+    )
+    rows = []
+    for venta in ventas:
+        pago = (
+            Pago.objects.filter(medios_pago__detalle_venta__venta_id=venta.id)
+            .distinct()
+            .order_by("-fecha_pago", "-id")
+            .first()
+        )
+        envio = (
+            Envio.objects.filter(venta_id=venta.id, activo=True)
+            .select_related("transportadora")
+            .order_by("-fecha_envio", "-id")
+            .first()
+        )
+        rows.append(
+            {
+                "venta": venta,
+                "pago": pago,
+                "envio": envio,
+                "items_count": venta.detalles.count(),
+            }
+        )
+    return render(
+        request,
+        "frontend/cliente/mis_compras.html",
+        {"rows": rows},
+    )
+
+
+@_cliente_login_required
+def cliente_factura_compra(request, venta_id: int):
+    uid = request.session.get(SESSION_USUARIO_ID)
+    venta = get_object_or_404(
+        Venta.objects.select_related("usuario").prefetch_related("detalles__producto"),
+        pk=venta_id,
+        usuario_id=uid,
+    )
+    pago = (
+        Pago.objects.filter(medios_pago__detalle_venta__venta_id=venta.id)
+        .distinct()
+        .order_by("-fecha_pago", "-id")
+        .first()
+    )
+    if pago is None:
+        messages.error(request, "Aún no hay factura de pago disponible para esta compra.")
+        return redirect("web_cliente_mis_compras")
+    lineas = [
+        {
+            "nombre": d.producto.nombre,
+            "cantidad": d.cantidad,
+            "precio_unitario": d.precio_unitario,
+            "subtotal": d.precio_unitario * d.cantidad,
+        }
+        for d in venta.detalles.select_related("producto").all()
+    ]
+    return render(
+        request,
+        "frontend/cliente/factura_compra.html",
+        {
+            "venta": venta,
+            "pago": pago,
+            "cliente": venta.usuario,
+            "lineas": lineas,
+        },
+    )
 
 
 @_cliente_login_required

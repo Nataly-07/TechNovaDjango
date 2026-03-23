@@ -161,3 +161,12 @@ SPECTACULAR_SETTINGS = {
         }
     },
 }
+
+# PayPal Checkout (Sandbox)
+TECHNOVA_PAYPAL_CLIENT_ID = os.getenv("TECHNOVA_PAYPAL_CLIENT_ID", "").strip()
+TECHNOVA_PAYPAL_CLIENT_SECRET = os.getenv("TECHNOVA_PAYPAL_CLIENT_SECRET", "").strip()
+TECHNOVA_PAYPAL_BASE_URL = os.getenv(
+    "TECHNOVA_PAYPAL_BASE_URL",
+    "https://api-m.sandbox.paypal.com",
+).strip()
+TECHNOVA_PAYPAL_CURRENCY = os.getenv("TECHNOVA_PAYPAL_CURRENCY", "USD").strip().upper()

@@ -60,7 +60,7 @@
         <span class="stat-number">{{ pedidos_count }}</span>
         <span class="stat-label">pedidos realizados</span>
       </div>
-      <a href="{% url 'web_cliente_mis_compras' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Pedidos</a>
+      <a href="{% url 'web_cliente_pedidos' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Pedidos</a>
     </div>
   </div>
   <div class="card">
@@ -73,18 +73,6 @@
         <span class="stat-label">notificaciones pendientes</span>
       </div>
       <a href="{% url 'web_cliente_notificaciones' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Notificaciones</a>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-icon"><i class="bx bx-credit-card"></i></div>
-    <div class="card-content">
-      <h3>Medios de Pago</h3>
-      <p>Gestiona tus métodos de pago</p>
-      <div class="card-stats">
-        <span class="stat-number">{{ medios_pago_count }}</span>
-        <span class="stat-label">métodos configurados</span>
-      </div>
-      <a href="{% url 'web_login' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Gestionar Pagos</a>
     </div>
   </div>
   <div class="card">

@@ -1,12 +1,60 @@
 {% extends "frontend/base_cliente.html" %}
 {% load static %}
 {% block title %}Notificaciones — Technova{% endblock %}
-{% block cliente_content %}
-<h1>Notificaciones</h1>
-<div id="page-data">Cargando…</div>
-{% endblock %}
-{% block extra_js %}
+{% block extra_css %}
 {{ block.super }}
-<script src="{% static 'frontend/js/technova-pages.js' %}"></script>
-<script>document.addEventListener('DOMContentLoaded', function () { TechnovaPages.notificaciones(); });</script>
+<style>
+  .noti-wrap { max-width: 1100px; margin: 0 auto; }
+  .noti-head h1 { margin: 0 0 6px; }
+  .noti-head p { color: #64748b; margin: 0 0 18px; }
+  .noti-list { display: grid; gap: 12px; }
+  .noti-item {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-left: 5px solid #38bdf8;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    padding: 12px 14px;
+  }
+  .noti-item--pago { border-left-color: #22c55e; }
+  .noti-item--pedido { border-left-color: #8b5cf6; }
+  .noti-item--producto { border-left-color: #f59e0b; }
+  .noti-top { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .noti-title { margin: 0; color: #0f172a; font-size: 1rem; }
+  .noti-fecha { color: #64748b; font-size: .84rem; }
+  .noti-detalle { margin: 8px 0 0; color: #334155; }
+  .noti-estado { margin-top: 8px; font-size: .84rem; color: #0f172a; font-weight: 700; }
+  .noti-empty {
+    background: #fff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 24px;
+    text-align: center;
+    color: #64748b;
+  }
+</style>
+{% endblock %}
+{% block cliente_content %}
+<section class="noti-wrap">
+  <div class="noti-head">
+    <h1>Notificaciones</h1>
+    <p>Te avisamos cuando compras, cambios de estado y productos nuevos.</p>
+  </div>
+  {% if notificaciones %}
+  <div class="noti-list">
+    {% for n in notificaciones %}
+    <article class="noti-item {% if n.tipo == 'pago' %}noti-item--pago{% elif n.tipo == 'pedido' %}noti-item--pedido{% elif n.tipo == 'producto' %}noti-item--producto{% endif %}">
+      <div class="noti-top">
+        <h3 class="noti-title">{{ n.titulo }}</h3>
+        <span class="noti-fecha">{{ n.fecha|date:"d/m/Y" }}</span>
+      </div>
+      <p class="noti-detalle">{{ n.detalle }}</p>
+      <div class="noti-estado">Estado: {{ n.estado }}</div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="noti-empty">No tienes notificaciones por ahora.</div>
+  {% endif %}
+</section>
 {% endblock %}

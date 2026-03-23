@@ -98,12 +98,27 @@ urlpatterns = [
         name="web_cliente_checkout_finalizar",
     ),
     path(
+        "cliente/checkout/paypal/iniciar/",
+        views.checkout_paypal_iniciar,
+        name="web_cliente_checkout_paypal_iniciar",
+    ),
+    path(
+        "cliente/checkout/paypal/retorno/",
+        views.checkout_paypal_retorno,
+        name="web_cliente_checkout_paypal_retorno",
+    ),
+    path(
         "cliente/checkout/confirmacion/",
         views.checkout_confirmacion,
         name="web_cliente_checkout_confirmacion",
     ),
     path("cliente/pedidos/", views.pedidos_cliente, name="web_cliente_pedidos"),
     path("cliente/mis-compras/", views.mis_compras, name="web_cliente_mis_compras"),
+    path(
+        "cliente/mis-compras/<int:venta_id>/factura/",
+        views.cliente_factura_compra,
+        name="web_cliente_factura_compra",
+    ),
     path("cliente/atencion-cliente/", views.atencion_cliente, name="web_cliente_atencion"),
     path("producto/<int:producto_id>/", views.producto_detalle, name="web_producto_detalle"),
 ]

@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Technova — Inicio{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'frontend/css/technova-home.css' %}">
+<link rel="stylesheet" href="{% static 'frontend/css/technova-home.css' %}?v=5">
 {% endblock %}
 {% block body %}
 <div class="tecn-header-shell">
@@ -21,8 +21,16 @@
       <button type="button" onclick="toggleFiltros()" class="btn-filtros-toggle" id="btnFiltrosToggle"><span>⚙️ Filtros</span></button>
     </div>
     <div class="filtros-header-container" id="filtrosContainer" style="display: none;">
-      <div class="filtro-header-item"><label>MARCA</label><input type="text" id="filtroMarca" class="filtro-select-header" placeholder="Marca"></div>
-      <div class="filtro-header-item"><label>CATEGORÍA</label><input type="text" id="filtroCategoria" class="filtro-select-header" placeholder="Categoría"></div>
+      <div class="filtro-header-item"><label>MARCA</label>
+        <select id="filtroMarca" class="filtro-select-header">
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <div class="filtro-header-item"><label>CATEGORÍA</label>
+        <select id="filtroCategoria" class="filtro-select-header">
+          <option value="">Todas</option>
+        </select>
+      </div>
       <div class="filtro-header-item"><label>PRECIO MÍN</label><input type="number" id="filtroPrecioMin" class="filtro-input-header" min="0" step="0.01"></div>
       <div class="filtro-header-item"><label>PRECIO MÁX</label><input type="number" id="filtroPrecioMax" class="filtro-input-header" min="0" step="0.01"></div>
       <div class="filtro-header-item"><label>DISPONIBILIDAD</label>
@@ -36,8 +44,8 @@
   </div>
   <div class="acciones-usuario">
     <a href="{% url 'web_cliente_perfil' %}" class="account" id="linkPerfil"><i class="bx bx-user-circle" aria-hidden="true"></i><span>Mi cuenta</span></a>
-    <a href="{% url 'web_favoritos' %}" class="account"><i class="bx bx-heart" aria-hidden="true"></i><span>Favoritos</span></a>
-    <a href="{% url 'web_carrito' %}" class="account"><i class="bx bx-cart" aria-hidden="true"></i><span>Carrito</span></a>
+    <button type="button" class="account js-panel-toggle" data-panel="favoritos"><i class="bx bx-heart" aria-hidden="true"></i><span>Favoritos</span></button>
+    <button type="button" class="account js-panel-toggle" data-panel="carrito"><i class="bx bx-cart" aria-hidden="true"></i><span>Carrito</span></button>
     <a href="#" class="account" id="linkCerrarSesionHeader"><i class="bx bx-log-out" aria-hidden="true"></i><span>Cerrar sesión</span></a>
   </div>
 </header>
@@ -46,6 +54,15 @@
     <li><a href="{% url 'inicio_autenticado' %}">Inicio</a></li>
   </ul>
 </nav>
+<section id="panelResumenCliente" class="cliente-panel-resumen">
+  <div class="cliente-panel-card">
+    <div class="cliente-panel-head">
+      <h3 id="panelResumenTitulo" class="cliente-panel-titulo">Resumen</h3>
+      <button type="button" id="panelResumenCerrar" class="cliente-panel-cerrar">Cerrar</button>
+    </div>
+    <div id="panelResumenBody" class="cliente-panel-body"></div>
+  </div>
+</section>
 </div>
 
 <div class="busqueda-filtros-container">
@@ -78,9 +95,17 @@
   window.TECHNOVA_USUARIO_ID = {% if usuario_id is not None %}{{ usuario_id }}{% else %}null{% endif %};
   window.TECHNOVA_URL_CATALOGO_CARRITO = "{% url 'web_catalogo_agregar_carrito' %}";
   window.TECHNOVA_URL_CATALOGO_FAVORITO = "{% url 'web_catalogo_toggle_favorito' %}";
+  window.TECHNOVA_URL_FAVORITOS = "{% url 'web_favoritos' %}";
+  window.TECHNOVA_URL_CARRITO = "{% url 'web_carrito' %}";
+  window.TECHNOVA_URL_FAVORITO_QUITAR = "{% url 'web_favorito_quitar' %}";
+  window.TECHNOVA_URL_FAVORITO_AL_CARRITO = "{% url 'web_favorito_al_carrito' %}";
+  window.TECHNOVA_URL_CARRITO_ACTUALIZAR = "{% url 'web_carrito_actualizar' %}";
+  window.TECHNOVA_URL_CARRITO_ELIMINAR = "{% url 'web_carrito_eliminar' %}";
 </script>
+{{ favoritos_preview|json_script:"favoritosPreviewData" }}
+{{ carrito_preview|json_script:"carritoPreviewData" }}
 <script src="{% static 'frontend/js/carrusel.js' %}"></script>
-<script src="{% static 'frontend/js/technova-cliente-home.js' %}?v=3"></script>
+<script src="{% static 'frontend/js/technova-cliente-home.js' %}?v=9"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     var lOut = document.getElementById('linkCerrarSesionHeader');

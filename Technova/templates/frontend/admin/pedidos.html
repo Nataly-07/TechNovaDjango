@@ -14,9 +14,38 @@
     .wrap { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); min-height: calc(100vh - 140px); }
     .hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; flex-wrap: wrap; gap: 12px; }
     .hdr h2 { margin: 0; color: #2c3e50; font-size: 1.75rem; }
-    .filtros { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: end; }
-    .filtros input[type="text"] { padding: 10px 14px; border: 2px solid #e0e0e0; border-radius: 10px; min-width: 240px; }
-    .btn-buscar { padding: 10px 22px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
+    .filtros { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; align-items: end; }
+    .filtro-group { flex: 1; min-width: 200px; }
+    .filtro-group label { display: block; margin-bottom: 6px; color: #0f2a4a; font-weight: 600; }
+    .filtro-group input[type="text"], .filtro-group input[type="date"], .filtro-group select {
+      width: 100%;
+      padding: 11px 12px;
+      border: 2px solid #d8d8d8;
+      border-radius: 11px;
+      font-size: 0.95rem;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    .filtro-group input:focus, .filtro-group select:focus { outline: none; border-color: #667eea; }
+    .filtro-accion { flex: 0 0 auto; min-width: auto; }
+    .btn-buscar {
+      padding: 10px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      min-height: 44px;
+      min-width: 132px;
+      width: auto !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+      line-height: 1;
+    }
     table { width: 100%; border-collapse: collapse; min-width: 880px; }
     thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
     th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e8e8e8; font-size: 0.92rem; }
@@ -39,11 +68,32 @@
           <h2><i class="bx bx-cart"></i> Pedidos (ventas)</h2>
         </div>
         <form class="filtros" method="get" action="{% url 'web_admin_pedidos' %}">
-          <div>
-            <label for="busqueda" style="display:block;font-weight:600;margin-bottom:6px;color:#334155;">Buscar</label>
-            <input type="text" id="busqueda" name="busqueda" placeholder="ID, nombre o email del cliente" value="{{ busqueda }}">
+          <div class="filtro-group">
+            <label for="usuarioId">Usuario</label>
+            <select id="usuarioId" name="usuarioId">
+              <option value="">Todos</option>
+              {% for u in usuarios_filtro %}
+              <option value="{{ u.id }}" {% if usuario_id == u.id|stringformat:"s" %}selected{% endif %}>
+                {{ u.nombres }} {{ u.apellidos }} ({{ u.correo_electronico }})
+              </option>
+              {% endfor %}
+            </select>
           </div>
-          <button type="submit" class="btn-buscar"><i class="bx bx-search"></i> Buscar</button>
+          <div class="filtro-group">
+            <label for="fechaDesde">Fecha Desde</label>
+            <input type="date" id="fechaDesde" name="fechaDesde" value="{{ fecha_desde }}">
+          </div>
+          <div class="filtro-group">
+            <label for="fechaHasta">Fecha Hasta</label>
+            <input type="date" id="fechaHasta" name="fechaHasta" value="{{ fecha_hasta }}">
+          </div>
+          <div class="filtro-group">
+            <label for="producto">Buscar Producto</label>
+            <input type="text" id="producto" name="producto" placeholder="Nombre de producto" value="{{ producto }}">
+          </div>
+          <div class="filtro-group filtro-accion">
+            <button type="submit" class="btn-buscar"><i class="bx bx-search"></i> Buscar</button>
+          </div>
         </form>
 
         {% if ventas %}

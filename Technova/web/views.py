@@ -1298,7 +1298,27 @@ def admin_pedidos(request):
     """Listado de ventas / pedidos (panel admin, alineado a gestión de pedidos)."""
     usuario = _admin_usuario_sesion(request)
     busqueda = (request.GET.get("busqueda") or "").strip()
+    usuario_id = (request.GET.get("usuarioId") or "").strip()
+    fecha_desde = (request.GET.get("fechaDesde") or "").strip()
+    fecha_hasta = (request.GET.get("fechaHasta") or "").strip()
+    producto = (request.GET.get("producto") or "").strip()
     qs = Venta.objects.select_related("usuario").order_by("-fecha_venta", "-id")
+    if usuario_id.isdigit():
+        qs = qs.filter(usuario_id=int(usuario_id))
+    if fecha_desde:
+        try:
+            f_desde = datetime.strptime(fecha_desde, "%Y-%m-%d").date()
+            qs = qs.filter(fecha_venta__gte=f_desde)
+        except ValueError:
+            fecha_desde = ""
+    if fecha_hasta:
+        try:
+            f_hasta = datetime.strptime(fecha_hasta, "%Y-%m-%d").date()
+            qs = qs.filter(fecha_venta__lte=f_hasta)
+        except ValueError:
+            fecha_hasta = ""
+    if producto:
+        qs = qs.filter(detalles__producto__nombre__icontains=producto).distinct()
     if busqueda:
         if busqueda.isdigit():
             qs = qs.filter(id=int(busqueda))
@@ -1309,10 +1329,25 @@ def admin_pedidos(request):
                 | Q(usuario__correo_electronico__icontains=busqueda)
             )
     ventas = list(qs[:800])
+    usuarios_filtro = list(
+        Usuario.objects.filter(ventas__isnull=False)
+        .distinct()
+        .order_by("nombres", "apellidos")
+        .values("id", "nombres", "apellidos", "correo_electronico")
+    )
     return render(
         request,
         "frontend/admin/pedidos.html",
-        {"usuario": usuario, "ventas": ventas, "busqueda": busqueda},
+        {
+            "usuario": usuario,
+            "ventas": ventas,
+            "busqueda": busqueda,
+            "usuarios_filtro": usuarios_filtro,
+            "usuario_id": usuario_id,
+            "fecha_desde": fecha_desde,
+            "fecha_hasta": fecha_hasta,
+            "producto": producto,
+        },
     )
 
 

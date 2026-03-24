@@ -9,6 +9,9 @@
   --home-radius-pill: 15px;
   --home-shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
   --home-shadow-soft: 0 0 10px rgba(0, 0, 0, 0.1);
+  /* Catálogo: tarjetas e imagen uniformes */
+  --catalog-card-width: 200px;
+  --catalog-img-height: 168px;
 }
 
 .header .logo img {
@@ -55,6 +58,95 @@
   height: 40px;
   font-size: 18px;
   cursor: pointer;
+}
+
+/* ---------- Tarjetas catálogo (/, /inicio/): mismo tamaño + imagen contenida ---------- */
+.carrusel-track .producto {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: var(--catalog-card-width);
+  min-width: var(--catalog-card-width);
+  max-width: var(--catalog-card-width);
+  flex-shrink: 0;
+  margin: 0;
+  scroll-snap-align: start;
+  min-height: 100%;
+}
+
+.productos-grid {
+  align-items: stretch;
+}
+
+.productos-grid .producto {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  flex-shrink: 0;
+  margin: 0;
+  height: 100%;
+}
+
+.carrusel-track .producto > img,
+.productos-grid .producto > img {
+  width: 100%;
+  height: var(--catalog-img-height);
+  min-height: var(--catalog-img-height);
+  max-height: var(--catalog-img-height);
+  object-fit: contain;
+  object-position: center;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 10px;
+  margin: 0 0 8px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.carrusel-track .producto > h3,
+.productos-grid .producto > h3 {
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 600;
+  margin: 0 0 6px;
+  min-height: calc(1.35em * 2);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+  color: #1e293b;
+}
+
+.carrusel-track .producto > .producto-stock,
+.productos-grid .producto > .producto-stock {
+  margin-top: auto;
+}
+
+.carrusel-track .producto > a .detalles,
+.productos-grid .producto > a .detalles {
+  align-self: center;
+}
+
+.carrusel-track .producto > .carrito-btn,
+.carrusel-track .producto > .favorito-btn,
+.carrusel-track .producto > a.carrito-btn--carrusel,
+.productos-grid .producto > .carrito-btn,
+.productos-grid .producto > .favorito-btn,
+.productos-grid .producto > a.carrito-btn--carrusel {
+  align-self: center;
+  margin-top: 6px;
+}
+
+@media (max-width: 480px) {
+  :root {
+    --catalog-card-width: 168px;
+    --catalog-img-height: 148px;
+  }
 }
 
 /* ---------- Bloque Ofertas (home) ---------- */

@@ -3,6 +3,8 @@
  */
 (function () {
   var catalogoItemsCache = [];
+  /** Sincronizado con el servidor al agregar líneas; usado por el panel Carrito del header. */
+  var carritoPreviewItems = [];
 
   function escapeHtml(texto) {
     return String(texto || "")
@@ -293,7 +295,7 @@
     if (!panel || !body || !title) return;
 
     var favoritosData = getJsonScriptData("favoritosPreviewData");
-    var carritoData = getJsonScriptData("carritoPreviewData");
+    carritoPreviewItems = getJsonScriptData("carritoPreviewData") || [];
     var currentPanel = "favoritos";
 
     function renderFavoritos() {
@@ -317,11 +319,11 @@
 
     function renderCarrito() {
       title.textContent = "Carrito";
-      if (!carritoData.length) {
+      if (!carritoPreviewItems.length) {
         body.innerHTML = '<p class="cliente-panel-item-sub">Tu carrito está vacío.</p><a href="' + window.TECHNOVA_URL_CARRITO + '" class="cliente-panel-link" style="display:inline-block;margin-top:8px;">Ir a carrito</a>';
         return;
       }
-      body.innerHTML = carritoData
+      body.innerHTML = carritoPreviewItems
         .map(function (it) {
           var canDec = Number(it.cantidad || 1) > 1;
           var disabledAttr = canDec ? "" : " disabled";
@@ -379,7 +381,7 @@
             detalle_id: el.getAttribute("data-detalle-id"),
             cantidad: qty,
           });
-          carritoData = carritoData.map(function (it) {
+          carritoPreviewItems = carritoPreviewItems.map(function (it) {
             if (Number(it.detalle_id) === detalleId) {
               it.cantidad = qty;
             }
@@ -395,7 +397,7 @@
             detalle_id: el.getAttribute("data-detalle-id"),
             cantidad: qtyDec,
           });
-          carritoData = carritoData.map(function (it) {
+          carritoPreviewItems = carritoPreviewItems.map(function (it) {
             if (Number(it.detalle_id) === detalleId) {
               it.cantidad = qtyDec;
             }
@@ -406,7 +408,7 @@
           await postFormJson(window.TECHNOVA_URL_CARRITO_ELIMINAR, {
             detalle_id: el.getAttribute("data-detalle-id"),
           });
-          carritoData = carritoData.filter(function (it) {
+          carritoPreviewItems = carritoPreviewItems.filter(function (it) {
             return Number(it.detalle_id) !== detalleId;
           });
           showPanel("carrito");
@@ -418,8 +420,12 @@
           window.alert(e.message || "No se pudo completar la acción.");
         }
       } finally {
-        el.disabled = false;
+          el.disabled = false;
       }
+    });
+
+    document.addEventListener("technova:carrito-preview-synced", function () {
+      if (panel.style.display !== "none" && currentPanel === "carrito") renderCarrito();
     });
   }
 
@@ -512,9 +518,16 @@
     /* /inicio/ solo es accesible con sesion Django: priorizar POST con CSRF (no JWT). */
     if (catalogoTieneEndpointsSesion()) {
       try {
-        await postJsonSesion(window.TECHNOVA_URL_CATALOGO_CARRITO, {
+        var j = await postJsonSesion(window.TECHNOVA_URL_CATALOGO_CARRITO, {
           producto_id: parseInt(productoId, 10),
         });
+        if (Array.isArray(j.carrito_preview)) {
+          carritoPreviewItems.length = 0;
+          j.carrito_preview.forEach(function (it) {
+            carritoPreviewItems.push(it);
+          });
+          document.dispatchEvent(new CustomEvent("technova:carrito-preview-synced"));
+        }
         if (window.TechnovaUi) {
           await window.TechnovaUi.toastOk("Producto agregado al carrito");
         }

@@ -67,6 +67,26 @@ def _checkout_carrito_tiene_items(uid: int) -> bool:
     return bool(get_carrito_lineas_service().listar_items(uid))
 
 
+def _carrito_preview_para_usuario(uid: int | None) -> list[dict]:
+    """Vista previa del carrito (máx. 8 líneas) para el panel del header y respuestas JSON."""
+    if not uid:
+        return []
+    out: list[dict] = []
+    for it in get_carrito_lineas_service().listar_items(uid)[:8]:
+        out.append(
+            {
+                "detalle_id": it.get("detalle_id"),
+                "producto_id": it.get("producto_id"),
+                "nombre_producto": it.get("nombre_producto", ""),
+                "imagen": it.get("imagen") or "",
+                "cantidad": int(it.get("cantidad", 1)),
+                "stock": int(it.get("stock", 0) or 0),
+                "precio_unitario": str(it.get("precio_unitario", "0")),
+            }
+        )
+    return out
+
+
 def _transportadoras_para_checkout():
     qs = Transportadora.objects.filter(activo=True).order_by("nombre")
     if not qs.exists():
@@ -758,19 +778,7 @@ def home(request):
         }
         for f in favoritos_qs
     ]
-    carrito_preview = []
-    for it in get_carrito_lineas_service().listar_items(uid)[:8]:
-        carrito_preview.append(
-            {
-                "detalle_id": it.get("detalle_id"),
-                "producto_id": it.get("producto_id"),
-                "nombre_producto": it.get("nombre_producto", ""),
-                "imagen": it.get("imagen") or "",
-                "cantidad": int(it.get("cantidad", 1)),
-                "stock": int(it.get("stock", 0) or 0),
-                "precio_unitario": str(it.get("precio_unitario", "0")),
-            }
-        )
+    carrito_preview = _carrito_preview_para_usuario(uid)
     ctx = ctx_catalogo_index()
     ctx.update(
         {
@@ -796,7 +804,13 @@ def catalogo_agregar_carrito(request):
         get_carrito_lineas_service().agregar_producto(uid, producto_id, 1)
     except ValueError as exc:
         return JsonResponse({"ok": False, "message": str(exc)}, status=400)
-    return JsonResponse({"ok": True, "message": "Producto agregado al carrito."})
+    return JsonResponse(
+        {
+            "ok": True,
+            "message": "Producto agregado al carrito.",
+            "carrito_preview": _carrito_preview_para_usuario(uid),
+        }
+    )
 
 
 @_cliente_login_required

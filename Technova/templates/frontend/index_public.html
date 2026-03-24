@@ -82,7 +82,225 @@
   </ul>
 </nav>
 
-{% include "frontend/partials/secciones_catalogo_inicio.html" with cliente_autenticado=False %}
+<div class="busqueda-filtros-container">
+  <div id="resultadosBusqueda" class="resultados-container">
+    <h3 class="resultados-titulo">Resultados de búsqueda</h3>
+    <div id="productosFiltrados" class="productos-grid"></div>
+  </div>
+</div>
+
+<div class="mas-vendido-container" id="productosOriginales">
+  <div class="mas-vendido-header" id="catalogo-publico">
+    <span class="vendido">Lo más vendido</span>
+    <a href="#catalogo-publico" class="ver-mas">Ver más</a>
+  </div>
+
+  <div class="carrusel-productos-contenedor">
+    <button type="button" class="carrusel-btn prev" aria-label="Anterior">&#10094;</button>
+
+    <div class="carrusel-track">
+      {% for p in productos %}
+      <div class="producto" data-id="{{ p.id }}">
+        <img src="{{ p.imagen }}" alt="{{ p.nombre }}" loading="lazy"
+             onerror="this.src='{% static 'frontend/imagenes/placeholder.svg' %}'">
+        <a href="{% url 'web_producto_detalle' p.id %}"><span class="detalles">Ver Más Detalles</span></a>
+        <h3>{{ p.nombre }}</h3>
+        <div class="producto-stock">
+          {% if p.stock > 0 %}
+          <span class="producto-stock-badge producto-stock-badge--ok"><span>✓</span><span>Disponible</span></span>
+          {% else %}
+          <span class="producto-stock-badge producto-stock-badge--no"><span>✗</span><span>Agotado</span></span>
+          {% endif %}
+        </div>
+        <p>4.5 ⭐</p>
+        {% if p.precio_original and p.precio_descuento %}
+        <p class="precio-original">$<span>{{ p.precio_original|floatformat:0 }}</span></p>
+        <p class="precio-descuento">$<span>{{ p.precio_descuento|floatformat:0 }}</span><span class="descuento">-5%</span></p>
+        {% endif %}
+        <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--carrusel">&#128722;</a>
+      </div>
+      {% empty %}
+      <p style="padding:20px;text-align:center;color:#666;">No hay productos disponibles por ahora.</p>
+      {% endfor %}
+    </div>
+
+    <button type="button" class="carrusel-btn next" aria-label="Siguiente">&#10095;</button>
+  </div>
+</div>
+
+<div class="info-botones">
+  <div class="info-btn">
+    <span class="icon">&#128666;</span>
+    <span>Envios<br>gratis</span>
+  </div>
+  <div class="info-btn">
+    <span class="icon">&#128179;</span>
+    <span>Metodos<br>de pago</span>
+  </div>
+  <div class="info-btn">
+    <span class="icon">&#128100;</span>
+    <span>Asistencia<br>virtual</span>
+  </div>
+</div>
+
+{% if productos_recientes %}
+<div class="mas-vendido-container">
+  <div class="mas-vendido-header">
+    <span class="vendido">🆕 Productos Agregados Recientemente</span>
+    <a href="#catalogo-publico" class="ver-mas">Ver más</a>
+  </div>
+
+  <div class="carrusel-productos-contenedor">
+    <button type="button" class="carrusel-btn prev" aria-label="Anterior">&#10094;</button>
+
+    <div class="carrusel-track">
+      {% for p in productos_recientes %}
+      <div class="producto" data-id="{{ p.id }}">
+        <img src="{{ p.imagen }}" alt="{{ p.nombre }}" loading="lazy"
+             onerror="this.src='{% static 'frontend/imagenes/placeholder.svg' %}'">
+        <a href="{% url 'web_producto_detalle' p.id %}"><span class="detalles">Ver Más Detalles</span></a>
+        <h3>{{ p.nombre }}</h3>
+        <div class="producto-stock">
+          {% if p.stock > 0 %}
+          <span class="producto-stock-badge producto-stock-badge--ok"><span>✓</span><span>Disponible</span></span>
+          {% else %}
+          <span class="producto-stock-badge producto-stock-badge--no"><span>✗</span><span>Agotado</span></span>
+          {% endif %}
+        </div>
+        <p>4.5 ⭐</p>
+        {% if p.precio_original and p.precio_descuento %}
+        <p class="precio-original">$<span>{{ p.precio_original|floatformat:0 }}</span></p>
+        <p class="precio-descuento">$<span>{{ p.precio_descuento|floatformat:0 }}</span><span class="descuento">-5%</span></p>
+        {% endif %}
+        <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--carrusel">&#128722;</a>
+      </div>
+      {% endfor %}
+    </div>
+
+    <button type="button" class="carrusel-btn next" aria-label="Siguiente">&#10095;</button>
+  </div>
+</div>
+{% endif %}
+
+{% if oferta_dia %}
+<div class="ofertas-container ofertas-home">
+  <div class="bloque bloque--dia">
+    <span class="vendido1 vendido1--pill vendido1--pill--start">Oferta del dia</span>
+    <div class="producto-card producto-card--dia">
+      <img src="{{ oferta_dia.imagen }}" alt="{{ oferta_dia.nombre }}" loading="lazy"
+           onerror="this.src='{% static 'frontend/imagenes/placeholder.svg' %}'">
+      <a href="{% url 'web_producto_detalle' oferta_dia.id %}" class="link-detalles">Ver Más Detalles</a>
+      <h3>{{ oferta_dia.nombre }}</h3>
+      <div class="producto-stock">
+        {% if oferta_dia.stock > 0 %}
+        <span class="producto-stock-badge producto-stock-badge--ok"><span>✓</span><span>Disponible</span></span>
+        {% else %}
+        <span class="producto-stock-badge producto-stock-badge--no"><span>✗</span><span>Agotado</span></span>
+        {% endif %}
+      </div>
+      <p class="rating">4.9 ⭐</p>
+      {% if oferta_dia.precio_original and oferta_dia.precio_descuento %}
+      <p class="precio-original">$<span>{{ oferta_dia.precio_original|floatformat:0 }}</span></p>
+      <p class="precio-descuento">$<span>{{ oferta_dia.precio_descuento|floatformat:0 }}</span><span class="descuento">-5%</span></p>
+      {% endif %}
+      <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--dia">&#128722;</a>
+    </div>
+  </div>
+  {% if ofertas_interes %}
+  <div class="bloque bloque--sugeridas">
+    <div class="bloque-header">
+      <span class="vendido1 vendido1--pill">Ofertas que te pueden interesar</span>
+      <a href="#catalogo-publico" class="ver-mas ver-mas--accent">Ver mas</a>
+    </div>
+    <div class="productos-grid productos-grid--ofertas">
+      {% for p in ofertas_interes %}
+      <div class="producto-card producto-card--mini">
+        <img src="{{ p.imagen }}" alt="{{ p.nombre }}" loading="lazy"
+             onerror="this.src='{% static 'frontend/imagenes/placeholder.svg' %}'">
+        <a href="{% url 'web_producto_detalle' p.id %}" class="link-detalles">Ver Más Detalles</a>
+        <h3>{{ p.nombre }}</h3>
+        <div class="producto-stock">
+          {% if p.stock > 0 %}
+          <span class="producto-stock-badge producto-stock-badge--ok"><span>✓</span><span>Disponible</span></span>
+          {% else %}
+          <span class="producto-stock-badge producto-stock-badge--no"><span>✗</span><span>Agotado</span></span>
+          {% endif %}
+        </div>
+        <p class="rating">4.9 ⭐</p>
+        {% if p.precio_original and p.precio_descuento %}
+        <p class="precio-original">$<span>{{ p.precio_original|floatformat:0 }}</span></p>
+        <p class="precio-descuento">$<span>{{ p.precio_descuento|floatformat:0 }}</span><span class="descuento">-5%</span></p>
+        {% endif %}
+        <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--mini">&#128722;</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="index-explora-suite" aria-label="Explorar catálogo">
+  <div class="index-catalogo-filtros-row">
+    <section class="navegacion-categorias index-glass-panel" id="categorias-publico">
+      <header class="index-panel-head">
+        <span class="index-panel-kicker">Catálogo</span>
+        <h2 class="index-panel-title">Explora por categoría</h2>
+        <p class="index-panel-desc">Elige una categoría y descubre productos seleccionados para ti.</p>
+      </header>
+      <div class="categorias-grid categorias-grid--explora">
+        {% for c in categorias %}
+        <a href="#" class="categoria-item categoria-item--explora index-sub-cat" data-categoria="{{ c }}">
+          <span class="categoria-item__icon" aria-hidden="true">◇</span>
+          <span class="categoria-item__text">{{ c }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="navegacion-marcas index-glass-panel" id="marcas-publico">
+      <header class="index-panel-head">
+        <span class="index-panel-kicker">Filtros</span>
+        <h2 class="index-panel-title">Busca por marca</h2>
+        <p class="index-panel-desc">Filtra el catálogo por tu marca favorita en un clic.</p>
+      </header>
+      <div class="marcas-grid marcas-grid--explora">
+        {% for m in marcas %}
+        <a href="#" class="marca-item marca-item--explora index-sub-marca" data-marca="{{ m }}">
+          <span class="marca-item__icon" aria-hidden="true">✦</span>
+          <span class="marca-item__text">{{ m }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <section class="marcas index-marcas-showcase">
+    <header class="index-panel-head index-panel-head--on-dark">
+      <span class="index-panel-kicker index-panel-kicker--light">Confianza</span>
+      <h2 class="index-panel-title">Marcas populares</h2>
+      <p class="index-panel-desc index-panel-desc--light">Trabajamos con fabricantes líderes en innovación y calidad.</p>
+    </header>
+    <div class="brand-list brand-list--showcase">
+      <div class="brand-tile">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" loading="lazy" width="120" height="40">
+      </div>
+      <div class="brand-tile">
+        <img src="https://images.samsung.com/is/image/samsung/assets/global/about-us/brand/logo/360_197_1.png?$720_N_PNG$" alt="Samsung" loading="lazy" width="120" height="40">
+      </div>
+      <div class="brand-tile">
+        <img src="https://1000marcas.net/wp-content/uploads/2019/12/Xiaomi-Logo.png" alt="Xiaomi" loading="lazy" width="120" height="40">
+      </div>
+      <div class="brand-tile">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Motorola_logo.svg/1200px-Motorola_logo.svg.png" alt="Motorola" loading="lazy" width="120" height="40">
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer class="home-footer">
+  <p>© 2025 TECHNOVA. Todos los derechos reservados.</p>
+</footer>
 {% endblock %}
 {% block extra_js %}
 <script>

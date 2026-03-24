@@ -27,6 +27,7 @@ urlpatterns = [
         kwargs={"seccion": "inicio"},
         name="web_empleado_inicio",
     ),
+    path("empleado/perfil/editar/", views.empleado_perfil_editar, name="web_empleado_perfil_editar"),
     path("empleado/<slug:seccion>/", views.empleado_dashboard, name="web_empleado_seccion"),
     path("admin/perfil/", views.perfil_admin, name="web_admin_perfil"),
     path("admin/usuarios/crear/", views.admin_usuario_crear, name="web_admin_usuario_crear"),

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import json
 import re
 import uuid
@@ -2347,3 +2348,141 @@ def producto_detalle(request, producto_id: int):
             "usuario_id": request.session.get(SESSION_USUARIO_ID),
         },
     )
+=======
+"""
+Compatibilidad y API pública del módulo `web`.
+
+Las vistas HTTP viven en `web.adapters.http` (adaptadores de entrada). Este módulo
+reexporta los mismos símbolos que antes para no romper `from web import views`.
+"""
+
+from web.domain.constants import (
+    EMPLEADO_SECCIONES,
+    FACTURA_VENTA_PATTERN,
+    SESSION_CK_DIR,
+    SESSION_CK_ENV,
+    SESSION_CK_INFO,
+    SESSION_CK_PAGO,
+    SESSION_CK_PAYPAL,
+    SESSION_CK_RESULT,
+)
+
+from web.adapters.http.views_admin import (
+    admin_catalogo_categoria_agregar,
+    admin_catalogo_marca_agregar,
+    admin_inventario,
+    admin_pago_detalle,
+    admin_pago_factura,
+    admin_pagos,
+    admin_pedido_detalle,
+    admin_pedidos,
+    admin_producto_crear,
+    admin_producto_estado,
+    admin_proveedor_crear,
+    admin_proveedor_estado,
+    admin_proveedores,
+    admin_usuario_crear,
+    admin_usuario_estado,
+    admin_usuarios,
+    perfil_admin,
+)
+from web.adapters.http.views_carrito_checkout import (
+    carrito_actualizar,
+    carrito_eliminar,
+    carrito_page,
+    carrito_vaciar,
+    checkout_confirmacion,
+    checkout_direccion,
+    checkout_envio,
+    checkout_finalizar,
+    checkout_informacion,
+    checkout_pago,
+    checkout_paypal_iniciar,
+    checkout_paypal_retorno,
+    checkout_revision,
+)
+from web.adapters.http.views_cliente import (
+    favorito_agregar_carrito,
+    favorito_quitar,
+    favoritos_page,
+    notificaciones_cliente,
+    perfil_cliente,
+    perfil_desactivar,
+    perfil_editar,
+)
+from web.adapters.http.views_empleado import empleado_dashboard, empleado_perfil_editar
+from web.adapters.http.views_pedidos import (
+    atencion_cliente,
+    cliente_factura_compra,
+    mis_compras,
+    pedidos_cliente,
+    producto_detalle,
+)
+from web.adapters.http.views_public import (
+    catalogo_agregar_carrito,
+    catalogo_toggle_favorito,
+    home,
+    index_public,
+    root_entry,
+)
+
+__all__ = [
+    "FACTURA_VENTA_PATTERN",
+    "SESSION_CK_DIR",
+    "SESSION_CK_ENV",
+    "SESSION_CK_INFO",
+    "SESSION_CK_PAGO",
+    "SESSION_CK_PAYPAL",
+    "SESSION_CK_RESULT",
+    "EMPLEADO_SECCIONES",
+    "admin_catalogo_categoria_agregar",
+    "admin_catalogo_marca_agregar",
+    "admin_inventario",
+    "admin_pago_detalle",
+    "admin_pago_factura",
+    "admin_pagos",
+    "admin_pedido_detalle",
+    "admin_pedidos",
+    "admin_producto_crear",
+    "admin_producto_estado",
+    "admin_proveedor_crear",
+    "admin_proveedor_estado",
+    "admin_proveedores",
+    "admin_usuario_crear",
+    "admin_usuario_estado",
+    "admin_usuarios",
+    "atencion_cliente",
+    "carrito_actualizar",
+    "carrito_eliminar",
+    "carrito_page",
+    "carrito_vaciar",
+    "catalogo_agregar_carrito",
+    "catalogo_toggle_favorito",
+    "checkout_confirmacion",
+    "checkout_direccion",
+    "checkout_envio",
+    "checkout_finalizar",
+    "checkout_informacion",
+    "checkout_pago",
+    "checkout_paypal_iniciar",
+    "checkout_paypal_retorno",
+    "checkout_revision",
+    "cliente_factura_compra",
+    "empleado_dashboard",
+    "empleado_perfil_editar",
+    "favorito_agregar_carrito",
+    "favorito_quitar",
+    "favoritos_page",
+    "home",
+    "index_public",
+    "mis_compras",
+    "notificaciones_cliente",
+    "pedidos_cliente",
+    "perfil_admin",
+    "perfil_cliente",
+    "perfil_desactivar",
+    "perfil_editar",
+    "producto_detalle",
+    "root_entry",
+]
+>>>>>>> 0209689 (Corecciones en Index)

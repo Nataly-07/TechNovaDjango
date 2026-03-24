@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
-  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}?v=5">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
@@ -33,10 +33,10 @@
         </div>
         {% endfor %}
 
-        <div class="stats-bar">
-          <div class="stat-card"><h4>Total productos</h4><p class="number">{{ total_productos }}</p></div>
-          <div class="stat-card warning"><h4>Bajo stock (&lt;10)</h4><p class="number">{{ productos_bajo_stock }}</p></div>
-          <div class="stat-card danger"><h4>Agotados</h4><p class="number">{{ productos_agotados }}</p></div>
+        <div class="stats-bar stats-bar--inventario">
+          <div class="stat-card stat-inv-total" data-inv-kpi="total"><h4>Total productos</h4><p class="number">{{ total_productos }}</p></div>
+          <div class="stat-card stat-inv-bajo" data-inv-kpi="bajo"><h4>Bajo stock</h4><p class="number">{{ productos_bajo_stock }}</p></div>
+          <div class="stat-card stat-inv-agotado" data-inv-kpi="agotado"><h4>Agotados</h4><p class="number">{{ productos_agotados }}</p></div>
         </div>
 
         <form class="filtros-section" method="get" action="{% url 'web_admin_inventario' %}">

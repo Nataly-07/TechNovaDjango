@@ -337,3 +337,267 @@ footer.home-footer {
 footer.home-footer p {
   margin: 0;
 }
+
+/* ---------- Bloque “Explora / Marcas” (index público) ---------- */
+.index-explora-suite {
+  max-width: 1200px;
+  margin: 2.5rem auto 3rem;
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* Catálogo + Filtros en la misma fila (desktop) */
+.index-catalogo-filtros-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: stretch;
+  width: 100%;
+}
+
+.index-catalogo-filtros-row > .index-glass-panel {
+  min-width: 0;
+  height: 100%;
+}
+
+.index-explora-suite .index-glass-panel,
+.index-explora-suite .index-marcas-showcase {
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+}
+
+/* Tarjetas claras: categoría + busca por marca */
+.index-explora-suite .navegacion-categorias.index-glass-panel,
+.index-explora-suite .navegacion-marcas.index-glass-panel {
+  margin: 0;
+  max-width: none;
+  width: 100%;
+  padding: 2rem 1.75rem 2.25rem;
+  text-align: center;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow:
+    0 4px 6px -1px rgba(15, 23, 42, 0.06),
+    0 18px 40px -12px rgba(79, 70, 229, 0.12);
+}
+
+.index-explora-suite .navegacion-categorias.index-glass-panel::before,
+.index-explora-suite .navegacion-marcas.index-glass-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #38bdf8, #6366f1, #a855f7);
+  opacity: 0.95;
+}
+
+/* Cabeceras de panel */
+.index-panel-head {
+  margin-bottom: 1.5rem;
+}
+
+.index-panel-kicker {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6366f1;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.1));
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  margin-bottom: 0.5rem;
+}
+
+.index-panel-title {
+  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.index-panel-title::after {
+  content: "";
+  display: block;
+  width: 56px;
+  height: 3px;
+  margin: 0.65rem auto 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #38bdf8, #6366f1);
+}
+
+.index-panel-desc {
+  margin: 0 auto;
+  max-width: 32rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+/* Franja “Marcas populares” */
+.index-explora-suite .marcas.index-marcas-showcase {
+  margin: 0;
+  padding: 2.25rem 1.5rem 2.5rem;
+  text-align: center;
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 45%, #312e81 100%);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  box-shadow:
+    0 10px 40px -10px rgba(15, 23, 42, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.index-explora-suite .marcas.index-marcas-showcase::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.35), transparent 55%);
+  pointer-events: none;
+}
+
+.index-explora-suite .marcas.index-marcas-showcase > * {
+  position: relative;
+  z-index: 1;
+}
+
+.index-panel-head--on-dark .index-panel-title {
+  color: #f8fafc;
+}
+
+.index-panel-head--on-dark .index-panel-title::after {
+  background: linear-gradient(90deg, #38bdf8, #c084fc);
+}
+
+.index-panel-kicker--light {
+  color: #c4b5fd;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.index-panel-desc--light {
+  color: #cbd5e1;
+}
+
+/* Grid categorías / marcas — chips modernos */
+.categorias-grid--explora,
+.marcas-grid--explora {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem 1rem;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.categoria-item--explora,
+.marca-item--explora {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.35rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #fff !important;
+  text-decoration: none !important;
+  background: linear-gradient(135deg, #38bdf8 0%, #6366f1 55%, #7c3aed 100%);
+  border: none;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.categoria-item__icon,
+.marca-item__icon {
+  font-size: 0.85rem;
+  opacity: 0.95;
+}
+
+.categoria-item--explora:hover,
+.marca-item--explora:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.45);
+  filter: brightness(1.05);
+}
+
+.categoria-item--explora:active,
+.marca-item--explora:active {
+  transform: translateY(-1px) scale(1.01);
+}
+
+/* Logos marcas */
+.brand-list--showcase {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.5rem 0 0;
+}
+
+.brand-tile {
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 16px;
+  padding: 1rem 1.35rem;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.brand-tile:hover {
+  transform: translateY(-6px) scale(1.03);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.2);
+}
+
+.brand-list--showcase img {
+  height: 44px;
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+  padding: 0;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 900px) {
+  .index-catalogo-filtros-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .index-explora-suite {
+    gap: 1.25rem;
+    margin-top: 1.75rem;
+  }
+
+  .index-explora-suite .navegacion-categorias.index-glass-panel,
+  .index-explora-suite .navegacion-marcas.index-glass-panel,
+  .index-explora-suite .marcas.index-marcas-showcase {
+    padding-left: 1.1rem;
+    padding-right: 1.1rem;
+  }
+
+  .categoria-item--explora,
+  .marca-item--explora {
+    padding: 0.75rem 1.1rem;
+    font-size: 0.88rem;
+  }
+
+  .brand-tile {
+    padding: 0.75rem 1rem;
+    min-height: 64px;
+  }
+}

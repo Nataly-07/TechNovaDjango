@@ -548,15 +548,130 @@ def empleado_dashboard(request, seccion: str = "inicio"):
         return redirect("web_empleado_inicio")
     uid = request.session.get(SESSION_USUARIO_ID)
     usuario = Usuario.objects.get(pk=uid)
-    return render(
-        request,
-        "frontend/empleado/dashboard.html",
-        {
-            "usuario": usuario,
-            "seccion": seccion,
-            "titulo_seccion": EMPLEADO_SECCIONES[seccion],
-        },
-    )
+    ctx = {
+        "usuario": usuario,
+        "seccion": seccion,
+        "titulo_seccion": EMPLEADO_SECCIONES[seccion],
+    }
+
+    if seccion == "usuarios":
+        busqueda = (request.GET.get("busqueda") or "").strip()
+        # En panel empleado solo se visualiza información de clientes.
+        qs_usuarios = Usuario.objects.filter(rol=Usuario.Rol.CLIENTE).order_by("id")
+        if busqueda:
+            qs_usuarios = qs_usuarios.filter(
+                Q(nombres__icontains=busqueda)
+                | Q(apellidos__icontains=busqueda)
+                | Q(correo_electronico__icontains=busqueda)
+                | Q(numero_documento__icontains=busqueda)
+            )
+        ctx.update(
+            {
+                "busqueda": busqueda,
+                "usuarios_lista": list(qs_usuarios[:400]),
+                "total_clientes": Usuario.objects.filter(rol=Usuario.Rol.CLIENTE).count(),
+                "clientes_activos": Usuario.objects.filter(
+                    rol=Usuario.Rol.CLIENTE, activo=True
+                ).count(),
+                "clientes_inactivos": Usuario.objects.filter(
+                    rol=Usuario.Rol.CLIENTE, activo=False
+                ).count(),
+            }
+        )
+    elif seccion == "productos":
+        categoria = (request.GET.get("categoria") or "").strip()
+        busqueda = (request.GET.get("busqueda") or "").strip()
+        qs_productos = Producto.objects.select_related("proveedor").order_by("-id")
+        if categoria:
+            qs_productos = qs_productos.filter(categoria__iexact=categoria)
+        if busqueda:
+            qs_productos = qs_productos.filter(
+                Q(nombre__icontains=busqueda) | Q(codigo__icontains=busqueda)
+            )
+        ctx.update(
+            {
+                "categoria": categoria,
+                "busqueda": busqueda,
+                "productos_lista": list(qs_productos[:500]),
+                "categorias_opts": sorted(
+                    set(
+                        Producto.objects.exclude(categoria="")
+                        .values_list("categoria", flat=True)
+                        .distinct()
+                    ),
+                    key=str.lower,
+                ),
+                "total_productos": Producto.objects.count(),
+                "productos_bajo_stock": Producto.objects.filter(
+                    activo=True, stock__gt=0, stock__lt=10
+                ).count(),
+                "productos_agotados": Producto.objects.filter(activo=True, stock=0).count(),
+            }
+        )
+    elif seccion == "pedidos":
+        busqueda = (request.GET.get("busqueda") or "").strip()
+        usuario_id = (request.GET.get("usuarioId") or "").strip()
+        fecha_desde = (request.GET.get("fechaDesde") or "").strip()
+        fecha_hasta = (request.GET.get("fechaHasta") or "").strip()
+        producto = (request.GET.get("producto") or "").strip()
+        estado = (request.GET.get("estado") or "").strip().lower()
+
+        qs_ventas = Venta.objects.select_related("usuario").order_by("-fecha_venta", "-id")
+        if usuario_id.isdigit():
+            qs_ventas = qs_ventas.filter(usuario_id=int(usuario_id))
+        if fecha_desde:
+            f_desde = _parse_date_param(fecha_desde)
+            if f_desde:
+                qs_ventas = qs_ventas.filter(fecha_venta__gte=f_desde)
+            else:
+                fecha_desde = ""
+        if fecha_hasta:
+            f_hasta = _parse_date_param(fecha_hasta)
+            if f_hasta:
+                qs_ventas = qs_ventas.filter(fecha_venta__lte=f_hasta)
+            else:
+                fecha_hasta = ""
+        if producto:
+            qs_ventas = qs_ventas.filter(detalles__producto__nombre__icontains=producto).distinct()
+        if estado in {Venta.Estado.ABIERTA, Venta.Estado.FACTURADA, Venta.Estado.ANULADA}:
+            qs_ventas = qs_ventas.filter(estado=estado)
+        else:
+            estado = ""
+        if busqueda:
+            if busqueda.isdigit():
+                qs_ventas = qs_ventas.filter(id=int(busqueda))
+            else:
+                qs_ventas = qs_ventas.filter(
+                    Q(usuario__nombres__icontains=busqueda)
+                    | Q(usuario__apellidos__icontains=busqueda)
+                    | Q(usuario__correo_electronico__icontains=busqueda)
+                )
+
+        hoy = timezone.localdate()
+        ctx.update(
+            {
+                "busqueda": busqueda,
+                "usuario_id": usuario_id,
+                "fecha_desde": fecha_desde,
+                "fecha_hasta": fecha_hasta,
+                "producto": producto,
+                "estado": estado,
+                "ventas_lista": list(qs_ventas[:700]),
+                "usuarios_filtro": list(
+                    Usuario.objects.filter(ventas__isnull=False)
+                    .distinct()
+                    .order_by("nombres", "apellidos")
+                ),
+                "total_pedidos": Venta.objects.count(),
+                "total_ventas_monto": Venta.objects.aggregate(s=Sum("total"))["s"]
+                or Decimal("0"),
+                "pedidos_este_mes": Venta.objects.filter(
+                    fecha_venta__year=hoy.year, fecha_venta__month=hoy.month
+                ).count(),
+            }
+        )
+
+    return render(request, "frontend/empleado/dashboard.html", ctx)
 
 
 @_empleado_login_required

@@ -74,3 +74,167 @@ body.empleado-page .menu-dashboard .enlace.enlace--activo a {
   line-height: 1.45;
   margin: 0 0 18px;
 }
+
+/* KPI de usuarios (empleado): alta prioridad para vencer estilos base de admin */
+body.empleado-page .main-content .stat-card.empleado-kpi {
+  border-radius: 18px !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+body.empleado-page .main-content .stat-card.empleado-kpi::after {
+  content: "";
+  position: absolute;
+  right: -14%;
+  top: -28%;
+  width: 46%;
+  height: 145%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.24) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+body.empleado-page .main-content .stat-card.empleado-kpi h4 {
+  color: rgba(255, 255, 255, 0.95) !important;
+  position: relative;
+  z-index: 1;
+}
+
+body.empleado-page .main-content .stat-card.empleado-kpi .number {
+  color: #ffffff !important;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
+  position: relative;
+  z-index: 1;
+}
+
+body.empleado-page .main-content .stat-card.empleado-kpi--violeta {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 52%, #6366f1 100%) !important;
+}
+
+body.empleado-page .main-content .stat-card.empleado-kpi--verde {
+  background: linear-gradient(135deg, #0f766e 0%, #14b8a6 50%, #22c55e 100%) !important;
+}
+
+body.empleado-page .main-content .stat-card.empleado-kpi--naranja {
+  background: linear-gradient(135deg, #ea580c 0%, #fb923c 52%, #f59e0b 100%) !important;
+}
+
+/* ---------- Productos (empleado): tarjetas KPI más llamativas ---------- */
+.stats-bar--empleado-productos .stat-card {
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.2);
+}
+
+.stats-bar--empleado-productos .stat-card h4 {
+  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: 0.02em;
+}
+
+.stats-bar--empleado-productos .stat-card .number {
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+.stats-bar--empleado-productos .stat-inv-total {
+  background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 52%, #8b5cf6 100%) !important;
+}
+
+.stats-bar--empleado-productos .stat-inv-bajo {
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 55%, #ea580c 100%) !important;
+}
+
+.stats-bar--empleado-productos .stat-inv-agotado {
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 55%, #9f1239 100%) !important;
+}
+
+/* ---------- Pedidos (empleado): layout limpio y jerarquía visual ---------- */
+.stats-bar--empleado-pedidos .stat-card {
+  border-radius: 18px;
+}
+
+.empleado-pedidos-filtros {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 18px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+}
+
+.empleado-pedidos-filtros .filtro-group label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #334155;
+}
+
+.empleado-pedidos-filtros .filtro-group input,
+.empleado-pedidos-filtros .filtro-group select {
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.table-container--pedidos {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 16px;
+  overflow: auto;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+}
+
+.table-pedidos-empleado {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.table-pedidos-empleado thead {
+  background: linear-gradient(135deg, #1e3a8a 0%, #4338ca 55%, #6d28d9 100%);
+  color: #fff;
+}
+
+.table-pedidos-empleado th,
+.table-pedidos-empleado td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.table-pedidos-empleado tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.table-pedidos-empleado tbody tr:hover {
+  background: #eef2ff;
+}
+
+.pedido-id {
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.pedido-cliente {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.pedido-email {
+  color: #4f46e5;
+  font-size: 0.9rem;
+}
+
+.pedido-total {
+  font-weight: 800;
+  color: #059669;
+}
+
+@media (max-width: 980px) {
+  .empleado-pedidos-filtros {
+    padding: 12px;
+  }
+}

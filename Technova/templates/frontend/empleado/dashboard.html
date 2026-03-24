@@ -59,6 +59,225 @@
   </div>
 </div>
 <p class="empleado-perfil-nota">La vista de <strong>Mi perfil</strong> en el menú abre directamente el formulario de edición. Esta página es un resumen; puedes volver a editar cuando quieras.</p>
+{% elif seccion == 'usuarios' %}
+<div class="stats-bar">
+  <div class="stat-card empleado-kpi empleado-kpi--violeta"><h4>Clientes</h4><p class="number">{{ total_clientes }}</p></div>
+  <div class="stat-card empleado-kpi empleado-kpi--verde"><h4>Clientes Activos</h4><p class="number">{{ clientes_activos }}</p></div>
+  <div class="stat-card empleado-kpi empleado-kpi--naranja"><h4>Clientes Inactivos</h4><p class="number">{{ clientes_inactivos }}</p></div>
+</div>
+
+<form class="filtros-section" method="get" action="{% url 'web_empleado_seccion' seccion='usuarios' %}">
+  <div class="filtro-group">
+    <label for="filtroBusqueda">Buscar</label>
+    <input type="text" id="filtroBusqueda" name="busqueda" placeholder="Nombre, correo o documento del cliente" value="{{ busqueda }}">
+  </div>
+  <div class="filtro-group">
+    <button type="submit" class="btn-filtrar"><i class="bx bx-search"></i> Buscar</button>
+  </div>
+</form>
+
+<div class="table-container">
+  {% if usuarios_lista %}
+  <table class="table-usuarios">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Correo</th>
+        <th>Documento</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in usuarios_lista %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.nombres }} {{ u.apellidos }}</td>
+        <td>{{ u.correo_electronico }}</td>
+        <td>{{ u.tipo_documento }} {{ u.numero_documento }}</td>
+        <td>
+          {% if u.activo %}
+          <span class="estado-badge estado-activo"><i class="bx bx-check-circle"></i> Activo</span>
+          {% else %}
+          <span class="estado-badge estado-inactivo"><i class="bx bx-x-circle"></i> Inactivo</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bx bx-user-x" style="font-size:4rem;opacity:.5;"></i><h3>No se encontraron usuarios</h3><p>Prueba otros filtros.</p></div>
+  {% endif %}
+</div>
+{% elif seccion == 'productos' %}
+<div class="stats-bar stats-bar--inventario stats-bar--empleado-productos">
+  <div class="stat-card stat-inv-total" data-inv-kpi="total"><h4>Total productos</h4><p class="number">{{ total_productos }}</p></div>
+  <div class="stat-card stat-inv-bajo" data-inv-kpi="bajo"><h4>Bajo stock</h4><p class="number">{{ productos_bajo_stock }}</p></div>
+  <div class="stat-card stat-inv-agotado" data-inv-kpi="agotado"><h4>Agotados</h4><p class="number">{{ productos_agotados }}</p></div>
+</div>
+
+<form class="filtros-section" method="get" action="{% url 'web_empleado_seccion' seccion='productos' %}">
+  <div class="filtro-group">
+    <label for="filtroCategoria">Categoría</label>
+    <select id="filtroCategoria" name="categoria">
+      <option value="">Todas</option>
+      {% for cat in categorias_opts %}
+      <option value="{{ cat }}" {% if categoria == cat %}selected{% endif %}>{{ cat }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filtro-group">
+    <label for="filtroBusquedaProd">Buscar</label>
+    <input type="text" id="filtroBusquedaProd" name="busqueda" placeholder="Nombre o código" value="{{ busqueda }}">
+  </div>
+  <div class="filtro-group">
+    <button type="submit" class="btn-filtrar"><i class="bx bx-search"></i> Buscar</button>
+  </div>
+</form>
+
+<div class="table-container">
+  {% if productos_lista %}
+  <table class="table-inventario">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Código</th>
+        <th>Nombre</th>
+        <th>Precio</th>
+        <th>Categoría</th>
+        <th>Marca</th>
+        <th>Stock</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in productos_lista %}
+      <tr>
+        <td>{{ p.id }}</td>
+        <td>{{ p.codigo }}</td>
+        <td>{{ p.nombre }}</td>
+        <td>
+          {% if p.precio_venta %}
+          ${{ p.precio_venta|floatformat:0 }}
+          {% else %}
+          ${{ p.costo_unitario|floatformat:0 }}
+          {% endif %}
+        </td>
+        <td>{{ p.categoria|default:"—" }}</td>
+        <td>{{ p.marca|default:"—" }}</td>
+        <td>{{ p.stock }}</td>
+        <td>
+          {% if p.activo %}
+          <span class="estado-badge estado-activo"><i class="bx bx-check-circle"></i> Activo</span>
+          {% else %}
+          <span class="estado-badge estado-inactivo"><i class="bx bx-x-circle"></i> Inactivo</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bx bx-package" style="font-size:3rem;opacity:.5;"></i><h3>No hay productos</h3><p>Ajusta filtros para visualizar artículos.</p></div>
+  {% endif %}
+</div>
+{% elif seccion == 'pedidos' %}
+<div class="stats-bar stats-bar--empleado-pedidos">
+  <div class="stat-card total">
+    <h4>Total pedidos</h4>
+    <p class="number">{{ total_pedidos }}</p>
+  </div>
+  <div class="stat-card ventas">
+    <h4>Total ventas</h4>
+    <p class="number">${{ total_ventas_monto|floatformat:0 }}</p>
+  </div>
+  <div class="stat-card mes">
+    <h4>Este mes</h4>
+    <p class="number">{{ pedidos_este_mes }}</p>
+  </div>
+</div>
+
+<form class="filtros-section filtros-section--pedidos empleado-pedidos-filtros" method="get" action="{% url 'web_empleado_seccion' seccion='pedidos' %}">
+  <div class="filtro-group">
+    <label for="usuarioId">Usuario</label>
+    <select id="usuarioId" name="usuarioId">
+      <option value="">Todos</option>
+      {% for u in usuarios_filtro %}
+      <option value="{{ u.id }}" {% if usuario_id == u.id|stringformat:"s" %}selected{% endif %}>
+        {{ u.nombres }} {{ u.apellidos }} ({{ u.correo_electronico }})
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filtro-group">
+    <label for="fechaDesde">Fecha Desde</label>
+    <input type="date" id="fechaDesde" name="fechaDesde" value="{{ fecha_desde }}">
+  </div>
+  <div class="filtro-group">
+    <label for="fechaHasta">Fecha Hasta</label>
+    <input type="date" id="fechaHasta" name="fechaHasta" value="{{ fecha_hasta }}">
+  </div>
+  <div class="filtro-group">
+    <label for="estado">Estado</label>
+    <select id="estado" name="estado">
+      <option value="">Todos</option>
+      <option value="abierta" {% if estado == "abierta" %}selected{% endif %}>Abierta</option>
+      <option value="facturada" {% if estado == "facturada" %}selected{% endif %}>Facturada</option>
+      <option value="anulada" {% if estado == "anulada" %}selected{% endif %}>Anulada</option>
+    </select>
+  </div>
+  <div class="filtro-group">
+    <label for="producto">Buscar Producto</label>
+    <input type="text" id="producto" name="producto" placeholder="Nombre de producto" value="{{ producto }}">
+  </div>
+  <div class="filtro-group">
+    <label for="busquedaPedido">Buscar</label>
+    <input type="text" id="busquedaPedido" name="busqueda" placeholder="ID o cliente" value="{{ busqueda }}">
+  </div>
+  <div class="filtro-group filtro-accion">
+    <button type="submit" class="btn-buscar"><i class="bx bx-search"></i> Buscar</button>
+  </div>
+</form>
+
+{% if ventas_lista %}
+<div class="table-container table-container--pedidos">
+  <table class="table-pedidos-empleado">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Cliente</th>
+        <th>Email</th>
+        <th>Fecha</th>
+        <th>Total</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in ventas_lista %}
+      <tr>
+        <td><span class="pedido-id">#{{ v.id }}</span></td>
+        <td><span class="pedido-cliente">{{ v.usuario.nombres }} {{ v.usuario.apellidos }}</span></td>
+        <td><span class="pedido-email">{{ v.usuario.correo_electronico }}</span></td>
+        <td>{{ v.fecha_venta }}</td>
+        <td><span class="pedido-total">${{ v.total|floatformat:0 }}</span></td>
+        <td>
+          {% if v.estado == 'facturada' %}
+          <span class="badge badge-fact">{{ v.get_estado_display }}</span>
+          {% elif v.estado == 'anulada' %}
+          <span class="badge badge-anulada">{{ v.get_estado_display }}</span>
+          {% else %}
+          <span class="badge badge-abierta">{{ v.get_estado_display }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state"><i class="bx bx-receipt" style="font-size:3rem;opacity:0.4;"></i><p>No hay pedidos que coincidan con los filtros seleccionados.</p></div>
+{% endif %}
 {% else %}
 <div class="empleado-placeholder">
   <p class="empleado-placeholder__eyebrow">Módulo</p>

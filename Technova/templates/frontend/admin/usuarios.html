@@ -9,99 +9,15 @@
   <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <style>
-    .dashboard-wrapper .main-content { flex: 1; width: 100%; max-width: none; margin: 0; padding: 24px 24px 24px 0; overflow-x: visible; }
-    .usuarios-container { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 12px 30px rgba(24, 39, 75, 0.08); border: 1px solid #e8edf7; width: 100%; min-height: calc(100vh - 140px); }
-    .usuarios-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 12px; }
-    .usuarios-header h2 { color: #2c3e50; margin: 0; font-size: 1.8rem; }
-    .btn-agregar {
-      background: linear-gradient(135deg, #00cc44 0%, #00a638 100%);
-      color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 8px; font-size: 1rem;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .btn-agregar:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 204, 68, 0.3); }
-    #modalAgregar .modal-content { max-width: 620px; width: 94%; }
-    .form-group { margin-bottom: 18px; }
-    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #333; font-size: 0.95rem; }
-    .form-group label i { margin-right: 6px; color: #667eea; }
-    .form-group input, .form-group select, .form-group textarea {
-      width: 100%; padding: 12px 14px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; box-sizing: border-box;
-    }
-    .form-group input:focus, .form-group select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .modal-actions { display: flex; gap: 12px; margin-top: 22px; padding-top: 18px; border-top: 2px solid #f0f0f0; flex-wrap: wrap; }
-    .btn-modal { flex: 1; min-width: 140px; padding: 12px 20px; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer;
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-    .btn-modal-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-    .btn-modal-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3); }
-    .btn-modal-secondary { background: #e0e0e0; color: #333; }
-    .password-requisitos { margin-top: 8px; font-size: 12px; color: #666; }
-    .password-requisitos .requisito.ok { color: #10b981; font-weight: 600; }
-    .password-requisitos .requisito.bad { color: #ef4444; }
-    .hint-email { color: #667eea; font-size: 0.85rem; margin-top: 6px; display: block; }
-    .field-feedback { min-height: 1.15rem; margin-top: 6px; font-size: 0.82rem; line-height: 1.35; transition: color 0.15s ease; }
-    .field-feedback.is-ok { color: #0d9488; font-weight: 600; }
-    .field-feedback.is-err { color: #dc2626; font-weight: 500; }
-    .field-feedback.is-muted { color: #64748b; }
-    .field-feedback:empty { min-height: 0; margin-top: 0; }
-    #modalAgregar .form-group.field-ok input,
-    #modalAgregar .form-group.field-ok select { border-color: #10b981 !important; box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25); }
-    #modalAgregar .form-group.field-err input,
-    #modalAgregar .form-group.field-err select { border-color: #ef4444 !important; box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2); }
-    #modalAgregar .form-group.field-neutral input,
-    #modalAgregar .form-group.field-neutral select { border-color: #e0e0e0; box-shadow: none; }
-    @media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } }
-    .filtros-section { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; align-items: end; }
-    .filtro-group { flex: 1; min-width: 200px; }
-    .filtro-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50; font-size: 0.9rem; }
-    .filtro-group input, .filtro-group select { width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 0.95rem; }
-    .btn-filtrar { padding: 10px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
-    .stats-bar { display: flex; gap: 20px; margin-bottom: 25px; flex-wrap: wrap; }
-    .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; border-radius: 12px; flex: 1; min-width: 150px; }
-    .stat-card h4 { margin: 0 0 5px 0; font-size: 0.9rem; opacity: 0.9; }
-    .stat-card .number { font-size: 1.8rem; font-weight: 700; margin: 0; }
-    .table-container { overflow-x: auto; border: 1px solid #e8edf7; border-radius: 14px; background: #fff; }
-    .table-usuarios { width: 100%; min-width: 760px; border-collapse: collapse; }
-    .table-usuarios thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-    .table-usuarios th, .table-usuarios td { padding: 15px; text-align: left; border-bottom: 1px solid #e0e0e0; }
-    .table-usuarios tbody tr:hover { background: #f7f9fc; }
-    .rol-tag { padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: white; display: inline-block; min-width: 100px; text-align: center; }
-    .rol-tag.admin { background: linear-gradient(135deg, #007acc 0%, #005fa3 100%); }
-    .rol-tag.cliente { background: linear-gradient(135deg, #00cc44 0%, #00a638 100%); }
-    .rol-tag.empleado { background: linear-gradient(135deg, #ff9500 0%, #ff7700 100%); }
-    .estado-badge { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
-    .estado-activo { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-    .estado-inactivo { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-    .acciones-usuario { display: flex; gap: 8px; flex-wrap: wrap; }
-    .btn-accion { padding: 6px 12px; border: none; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-weight: 500; }
-    .btn-info { background: #ffc107; color: #000; }
-    .btn-activar { background: #28a745; color: white; }
-    .btn-desactivar { background: #dc3545; color: white; }
-    .empty-state { text-align: center; padding: 60px 20px; color: #7f8c8d; }
-    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
-    .modal.show { display: flex; }
-    .modal-content { background: white; border-radius: 20px; padding: 24px; max-width: 720px; width: 92%; max-height: 90vh; overflow-y: auto; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 2px solid #f0f0f0; padding-bottom: 12px; }
-    .close-modal { background: none; border: none; font-size: 1.8rem; cursor: pointer; color: #999; }
-    .user-view-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
-    .user-section { border: 1px solid #e8edf7; border-radius: 14px; padding: 14px; background: #fbfdff; }
-    .user-section h4 { margin: 0 0 10px; color: #2f4364; font-size: 0.95rem; }
-    .user-readonly { width: 100%; padding: 10px; border: 1px solid #dce6f5; border-radius: 8px; background: #f5f8fd; font-weight: 600; }
-    .compra-mini { border: 1px solid #e6edf8; border-radius: 10px; padding: 10px; margin-bottom: 8px; font-size: 0.88rem; }
-    .alert { padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-    .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-    .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-    @media (max-width: 768px) { .user-view-grid { grid-template-columns: 1fr; } }
-  </style>
 </head>
 <body>
   {% include "frontend/includes/admin_header_compact.html" %}
 
   <div class="dashboard-wrapper">
     {% include "frontend/layouts/sidebar_admin.html" %}
-    <main class="main-content">
+    <main class="main-content main-content--visible">
       <div class="usuarios-container">
         <div class="usuarios-header">
           <h2><i class="bx bx-user"></i> Gestión de Usuarios</h2>

@@ -8,6 +8,7 @@ class MedioPago(models.Model):
         TARJETA_CREDITO = "tarjeta_credito", "Tarjeta de credito"
         TARJETA_DEBITO = "tarjeta_debito", "Tarjeta de debito"
         PSE = "pse", "PSE"
+        PAYPAL = "paypal", "PayPal"
         TRANSFERENCIA = "transferencia", "Transferencia"
         EFECTIVO = "efectivo", "Efectivo"
 

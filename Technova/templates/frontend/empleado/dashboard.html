@@ -1,0 +1,57 @@
+{% extends "frontend/empleado/base_empleado.html" %}
+{% load static %}
+{% block head_title %}{{ titulo_seccion }} — Empleado Technova{% endblock %}
+{% block empleado_content %}
+{% if seccion == 'inicio' %}
+<div class="profile-card empleado-resumen-card">
+  <img src="{% static 'frontend/imagenes/placeholder.svg' %}" alt="Foto de perfil" width="64" height="64">
+  <div class="profile-details">
+    <h2>{{ usuario.nombres }} {{ usuario.apellidos }}</h2>
+    <p><i class="bx bx-envelope"></i> <span>{{ usuario.correo_electronico }}</span></p>
+    <p><i class="bx bx-shield"></i> <span>{{ usuario.get_rol_display }}</span></p>
+  </div>
+</div>
+
+<div class="empleado-placeholder empleado-placeholder--home">
+  <p class="empleado-placeholder__title">Área de empleado</p>
+  <p class="empleado-placeholder__text">Usa el menú lateral para acceder a cada módulo. La lógica de negocio se integrará próximamente.</p>
+</div>
+
+<div class="dashboard-cards">
+  <div class="card empleado-card-mock">
+    <div class="card-icon"><i class="bx bx-user"></i></div>
+    <div class="card-content">
+      <h3>Usuarios</h3>
+      <p>Gestión de usuarios (pendiente)</p>
+    </div>
+  </div>
+  <div class="card empleado-card-mock">
+    <div class="card-icon"><i class="bx bx-message"></i></div>
+    <div class="card-content">
+      <h3>Mensajes</h3>
+      <p>Buzón de mensajes (pendiente)</p>
+    </div>
+  </div>
+  <div class="card empleado-card-mock">
+    <div class="card-icon"><i class="bx bx-shopping-bag"></i></div>
+    <div class="card-content">
+      <h3>Artículos</h3>
+      <p>Visualización de catálogo (pendiente)</p>
+    </div>
+  </div>
+  <div class="card empleado-card-mock">
+    <div class="card-icon"><i class="bx bx-cart"></i></div>
+    <div class="card-content">
+      <h3>Pedidos</h3>
+      <p>Seguimiento de pedidos (pendiente)</p>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="empleado-placeholder">
+  <p class="empleado-placeholder__eyebrow">Módulo</p>
+  <h2 class="empleado-placeholder__title">{{ titulo_seccion }}</h2>
+  <p class="empleado-placeholder__text">Esta sección está en preparación. Aquí se conectará la funcionalidad equivalente al proyecto de referencia.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -9,54 +9,7 @@
   <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
-  <style>
-    .dashboard-wrapper .main-content { flex: 1; width: 100%; max-width: none; margin: 0; padding: 24px 24px 24px 0; overflow-x: auto; }
-    .wrap { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); min-height: calc(100vh - 140px); }
-    .hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; flex-wrap: wrap; gap: 12px; }
-    .hdr h2 { margin: 0; color: #2c3e50; font-size: 1.75rem; }
-    .filtros { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; align-items: end; }
-    .filtro-group { flex: 1; min-width: 200px; }
-    .filtro-group label { display: block; margin-bottom: 6px; color: #0f2a4a; font-weight: 600; }
-    .filtro-group input[type="text"], .filtro-group input[type="date"], .filtro-group select {
-      width: 100%;
-      padding: 11px 12px;
-      border: 2px solid #d8d8d8;
-      border-radius: 11px;
-      font-size: 0.95rem;
-      box-sizing: border-box;
-      background: #fff;
-    }
-    .filtro-group input:focus, .filtro-group select:focus { outline: none; border-color: #667eea; }
-    .filtro-accion { flex: 0 0 auto; min-width: auto; }
-    .btn-buscar {
-      padding: 10px 24px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-weight: 600;
-      cursor: pointer;
-      min-height: 44px;
-      min-width: 132px;
-      width: auto !important;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      white-space: nowrap;
-      line-height: 1;
-    }
-    table { width: 100%; border-collapse: collapse; min-width: 880px; }
-    thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e8e8e8; font-size: 0.92rem; }
-    tbody tr:hover { background: #f8f9fa; }
-    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
-    .badge-fact { background: #e0e7ff; color: #4338ca; }
-    .badge-abierta { background: #fff3cd; color: #856404; }
-    .badge-anulada { background: #f8d7da; color: #721c24; }
-    .btn-ver { padding: 6px 12px; background: var(--gradient-primary, linear-gradient(135deg,#667eea,#764ba2)); color: white; text-decoration: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; }
-    .empty { text-align: center; padding: 48px 20px; color: #64748b; }
-  </style>
+  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}">
 </head>
 <body>
   {% include "frontend/includes/admin_header_compact.html" %}
@@ -67,6 +20,22 @@
         <div class="hdr">
           <h2><i class="bx bx-cart"></i> Pedidos (ventas)</h2>
         </div>
+
+        <div class="stats-bar">
+          <div class="stat-card total">
+            <h4>Total pedidos</h4>
+            <p class="number">{{ total_pedidos }}</p>
+          </div>
+          <div class="stat-card ventas">
+            <h4>Total ventas</h4>
+            <p class="number">${{ total_ventas_monto|floatformat:0 }}</p>
+          </div>
+          <div class="stat-card mes">
+            <h4>Este mes</h4>
+            <p class="number">{{ pedidos_este_mes }}</p>
+          </div>
+        </div>
+
         <form class="filtros" method="get" action="{% url 'web_admin_pedidos' %}">
           <div class="filtro-group">
             <label for="usuarioId">Usuario</label>
@@ -142,6 +111,6 @@
       </div>
     </main>
   </div>
-  <footer style="text-align:center;padding:16px;color:#64748b;"><p style="margin:0;">&copy; 2025 Technova</p></footer>
+  <footer class="admin-footer-copy"><p>&copy; 2025 Technova</p></footer>
 </body>
 </html>

@@ -34,7 +34,7 @@ from envio.models import Envio, Transportadora
 from mensajeria.models import MensajeDirecto
 from pago.models import MedioPago, MetodoPagoUsuario, Pago
 from producto.domain.entities import ProductoEntidad
-from producto.models import Producto
+from producto.models import Producto, ProductoCatalogoExtra
 from proveedor.domain.entities import ProveedorEntidad
 from proveedor.models import Proveedor
 from usuario.adapters.web.session_views import SESSION_USUARIO_ID
@@ -138,9 +138,10 @@ def _transportadora_por_nombre_spring(nombre: str) -> Transportadora | None:
 
 
 def _map_metodo_pago_spring(m: str | None) -> str:
+    """Alinea el método del checkout web con el catálogo de MedioPago (PayPal ≠ PSE)."""
     m = (m or "").strip()
     if m == "paypal_sandbox":
-        return MedioPago.Metodo.PSE.value
+        return MedioPago.Metodo.PAYPAL.value
     if m in _metodos_pago_validos():
         return m
     return MedioPago.Metodo.PSE.value
@@ -403,6 +404,48 @@ def _badge_clase_estado_pago(estado: str) -> str:
     return "pendiente"
 
 
+def _fecha_larga_es(d: date | None) -> str:
+    if d is None:
+        return "—"
+    meses = (
+        "enero",
+        "febrero",
+        "marzo",
+        "abril",
+        "mayo",
+        "junio",
+        "julio",
+        "agosto",
+        "septiembre",
+        "octubre",
+        "noviembre",
+        "diciembre",
+    )
+    return f"{d.day} de {meses[d.month - 1].capitalize()} de {d.year}"
+
+
+def _etiqueta_medio_pago_mostrar(medio: MedioPago | None) -> str:
+    """Texto mostrado en admin (corrige etiqueta PSE cuando el pago fue PayPal en checkout web)."""
+    if medio is None:
+        return ""
+    if medio.metodo_pago == MedioPago.Metodo.PSE.value and getattr(
+        settings, "TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL", True
+    ):
+        return "PayPal"
+    return medio.get_metodo_pago_display()
+
+
+def _lista_metodos_pago_display(pago: Pago) -> list[str]:
+    """Etiquetas legibles únicas (por código de método) según medios asociados al pago."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for m in pago.medios_pago.all():
+        if m.metodo_pago not in seen:
+            seen.add(m.metodo_pago)
+            out.append(_etiqueta_medio_pago_mostrar(m))
+    return out
+
+
 def _filtrar_queryset_pagos_por_estado_get(qs, estado_raw: str | None):
     if not estado_raw:
         return qs
@@ -458,18 +501,155 @@ def _admin_login_required(view_func):
     return _wrapped
 
 
+def _empleado_login_required(view_func):
+    """Sesión activa y rol empleado (panel propio; admin y cliente redirigen)."""
+
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        uid = request.session.get(SESSION_USUARIO_ID)
+        if not uid:
+            return redirect("web_login")
+        try:
+            usuario = Usuario.objects.get(pk=uid)
+        except Usuario.DoesNotExist:
+            request.session.flush()
+            return redirect("web_login")
+        if usuario.rol == Usuario.Rol.ADMIN:
+            return redirect("web_admin_perfil")
+        if usuario.rol != Usuario.Rol.EMPLEADO:
+            return redirect("inicio_autenticado")
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
+
+
+EMPLEADO_SECCIONES: dict[str, str] = {
+    "inicio": "Panel de empleado",
+    "perfil": "Mi perfil",
+    "usuarios": "Usuarios",
+    "mensajes": "Mensajes",
+    "productos": "Visualización de artículos",
+    "pedidos": "Pedidos",
+    "venta-punto-fisico": "Venta punto físico",
+    "atencion-cliente": "Atención al cliente",
+    "notificaciones": "Notificaciones",
+}
+
+
+@_empleado_login_required
+def empleado_dashboard(request, seccion: str = "inicio"):
+    """Shell del panel empleado (misma base visual que admin); módulos sin implementar."""
+    if seccion not in EMPLEADO_SECCIONES:
+        return redirect("web_empleado_inicio")
+    uid = request.session.get(SESSION_USUARIO_ID)
+    usuario = Usuario.objects.get(pk=uid)
+    return render(
+        request,
+        "frontend/empleado/dashboard.html",
+        {
+            "usuario": usuario,
+            "seccion": seccion,
+            "titulo_seccion": EMPLEADO_SECCIONES[seccion],
+        },
+    )
+
+
+def _capitalize_catalogo(s: str) -> str:
+    s = (s or "").strip()
+    if not s:
+        return s
+    return s[0].upper() + s[1:].lower() if len(s) > 1 else s.upper()
+
+
+def _listas_categorias_marcas_publicas():
+    """Listas para menús del index (sin rutas /categoria/ en Django)."""
+    qs = Producto.objects.filter(activo=True)
+    cats = sorted(
+        {
+            _capitalize_catalogo(c)
+            for c in qs.exclude(categoria__exact="").values_list("categoria", flat=True).distinct()
+            if c and c.strip() and c.strip().lower() != "temporal"
+        }
+    )
+    marcas = sorted(
+        {
+            _capitalize_catalogo(m)
+            for m in qs.exclude(marca__exact="").values_list("marca", flat=True).distinct()
+            if m and m.strip() and m.strip().lower() != "temporal"
+        }
+    )
+    return cats, marcas
+
+
+def _precio_tarjeta_index(p: Producto):
+    base = p.precio_venta if p.precio_venta is not None else p.costo_unitario
+    if base is None:
+        return None, None
+    d = float(base)
+    o = round(d * 1.05)
+    return o, d
+
+
+def _imagen_producto_publica(p: Producto) -> str:
+    img = (p.imagen_url or "").strip()
+    if not img:
+        return "/static/frontend/imagenes/placeholder.svg"
+    if img.startswith("http://") or img.startswith("https://"):
+        return img
+    if img.startswith("/"):
+        return img
+    return f"/static/frontend/imagenes/{img}"
+
+
+def _producto_card_ctx(p: Producto) -> dict:
+    po, pd = _precio_tarjeta_index(p)
+    return {
+        "id": p.id,
+        "nombre": p.nombre,
+        "imagen": _imagen_producto_publica(p),
+        "stock": p.stock or 0,
+        "precio_original": po,
+        "precio_descuento": pd,
+    }
+
+
+def index_public(request):
+    """Landing pública (invitado): catálogo, ofertas y enlaces a login/registro (`/`)."""
+    productos_qs = Producto.objects.filter(activo=True).order_by("id")
+    productos_cards = [_producto_card_ctx(p) for p in productos_qs[:24]]
+    recientes_qs = Producto.objects.filter(activo=True).order_by("-creado_en", "-id")[:6]
+    productos_recientes = [_producto_card_ctx(p) for p in recientes_qs]
+    categorias, marcas = _listas_categorias_marcas_publicas()
+    oferta_dia = productos_cards[0] if productos_cards else None
+    ofertas_interes = productos_cards[:3]
+    return render(
+        request,
+        "frontend/index_public.html",
+        {
+            "productos": productos_cards,
+            "productos_recientes": productos_recientes,
+            "categorias": categorias,
+            "marcas": marcas,
+            "oferta_dia": oferta_dia,
+            "ofertas_interes": ofertas_interes,
+        },
+    )
+
+
 def root_entry(request):
-    """Raíz `/`: con sesión → inicio o perfil admin; sin sesión → login."""
+    """Raíz `/`: con sesión → inicio, empleado, o perfil admin; sin sesión → index público."""
     uid = request.session.get(SESSION_USUARIO_ID)
     if uid:
         try:
             u = Usuario.objects.get(pk=uid)
             if u.rol == Usuario.Rol.ADMIN:
                 return redirect("web_admin_perfil")
+            if u.rol == Usuario.Rol.EMPLEADO:
+                return redirect("web_empleado_inicio")
         except Usuario.DoesNotExist:
             pass
         return redirect("inicio_autenticado")
-    return redirect("web_login")
+    return index_public(request)
 
 
 @_cliente_login_required
@@ -481,6 +661,8 @@ def home(request):
             u = Usuario.objects.get(pk=uid)
             if u.rol == Usuario.Rol.ADMIN:
                 return redirect("web_admin_perfil")
+            if u.rol == Usuario.Rol.EMPLEADO:
+                return redirect("web_empleado_inicio")
         except Usuario.DoesNotExist:
             pass
     favoritos_qs = (
@@ -802,30 +984,38 @@ def admin_inventario(request):
     productos_bajo_stock = Producto.objects.filter(activo=True, stock__gt=0, stock__lt=10).count()
     productos_agotados = Producto.objects.filter(activo=True, stock=0).count()
 
-    categorias_opts = (
-        Producto.objects.exclude(categoria="")
-        .values_list("categoria", flat=True)
-        .distinct()
-        .order_by("categoria")
+    categorias_opts = sorted(
+        set(Producto.objects.exclude(categoria="").values_list("categoria", flat=True).distinct())
+        | _categorias_alta_permitidas(),
+        key=str.lower,
     )
 
+    counts_cat = {
+        row["categoria"]: row["cantidad"]
+        for row in Producto.objects.exclude(categoria="")
+        .values("categoria")
+        .annotate(cantidad=Count("id"))
+    }
+    extras_cat = set(
+        ProductoCatalogoExtra.objects.filter(tipo=ProductoCatalogoExtra.Tipo.CATEGORIA).values_list(
+            "nombre", flat=True
+        )
+    )
     categorias_info = [
-        {"nombre": row["categoria"], "cantidad": row["cantidad"]}
-        for row in (
-            Producto.objects.exclude(categoria="")
-            .values("categoria")
-            .annotate(cantidad=Count("id"))
-            .order_by("categoria")
-        )
+        {"nombre": n, "cantidad": counts_cat.get(n, 0)}
+        for n in sorted(set(counts_cat.keys()) | extras_cat, key=str.lower)
     ]
+
+    counts_marca = {
+        row["marca"]: row["cantidad"]
+        for row in Producto.objects.exclude(marca="").values("marca").annotate(cantidad=Count("id"))
+    }
+    extras_marca = set(
+        ProductoCatalogoExtra.objects.filter(tipo=ProductoCatalogoExtra.Tipo.MARCA).values_list("nombre", flat=True)
+    )
     marcas_info = [
-        {"nombre": row["marca"], "cantidad": row["cantidad"]}
-        for row in (
-            Producto.objects.exclude(marca="")
-            .values("marca")
-            .annotate(cantidad=Count("id"))
-            .order_by("marca")
-        )
+        {"nombre": n, "cantidad": counts_marca.get(n, 0)}
+        for n in sorted(set(counts_marca.keys()) | extras_marca, key=str.lower)
     ]
 
     compras_recientes = []
@@ -865,6 +1055,8 @@ def admin_inventario(request):
         "compras_recientes": compras_recientes,
         "ventas_recientes": ventas_recientes,
         "proveedores": Proveedor.objects.filter(activo=True).order_by("nombre"),
+        "categorias_alta_list": sorted(_categorias_alta_permitidas(), key=str.lower),
+        "marcas_alta_list": sorted(_marcas_alta_permitidas(), key=str.lower),
     }
     return render(request, "frontend/admin/inventario.html", ctx)
 
@@ -899,6 +1091,28 @@ _PRODUCTO_COLORES_ALTA_WEB = frozenset(
 )
 
 
+def _normalizar_nombre_catalogo(s: str) -> str:
+    return " ".join((s or "").strip().split())
+
+
+def _categorias_alta_permitidas() -> set[str]:
+    base = set(_PRODUCTO_CATEGORIAS_ALTA_WEB)
+    extras = set(
+        ProductoCatalogoExtra.objects.filter(tipo=ProductoCatalogoExtra.Tipo.CATEGORIA).values_list(
+            "nombre", flat=True
+        )
+    )
+    return base | extras
+
+
+def _marcas_alta_permitidas() -> set[str]:
+    base = set(_PRODUCTO_MARCAS_ALTA_WEB)
+    extras = set(
+        ProductoCatalogoExtra.objects.filter(tipo=ProductoCatalogoExtra.Tipo.MARCA).values_list("nombre", flat=True)
+    )
+    return base | extras
+
+
 @_admin_login_required
 @require_http_methods(["POST"])
 def admin_producto_crear(request):
@@ -919,14 +1133,11 @@ def admin_producto_crear(request):
     if not nombre or len(nombre) > 120:
         messages.error(request, "El nombre es obligatorio (máximo 120 caracteres).")
         return redirect("web_admin_inventario")
-    if categoria not in _PRODUCTO_CATEGORIAS_ALTA_WEB:
-        messages.error(request, "Selecciona una categoría: Celulares o Portátiles.")
+    if categoria not in _categorias_alta_permitidas():
+        messages.error(request, "Selecciona una categoría válida de la lista.")
         return redirect("web_admin_inventario")
-    if marca not in _PRODUCTO_MARCAS_ALTA_WEB:
-        messages.error(
-            request,
-            "Selecciona una marca: Apple, Lenovo, Motorola o Xiaomi.",
-        )
+    if marca not in _marcas_alta_permitidas():
+        messages.error(request, "Selecciona una marca válida de la lista.")
         return redirect("web_admin_inventario")
     if color not in _PRODUCTO_COLORES_ALTA_WEB:
         messages.error(request, "Selecciona un color de la lista.")
@@ -1017,6 +1228,68 @@ def admin_producto_estado(request, producto_id: int):
         "Producto activado correctamente." if activar else "Producto desactivado correctamente.",
     )
     return redirect("web_admin_inventario")
+
+
+def _redirect_inventario_tab_marcas():
+    return redirect(reverse("web_admin_inventario") + "?tab=marcas")
+
+
+@_admin_login_required
+@require_http_methods(["POST"])
+def admin_catalogo_categoria_agregar(request):
+    _admin_usuario_sesion(request)
+    nombre = _normalizar_nombre_catalogo(request.POST.get("nombre") or "")
+    if len(nombre) < 2:
+        messages.error(request, "El nombre de categoría debe tener al menos 2 caracteres.")
+        return _redirect_inventario_tab_marcas()
+    if len(nombre) > 120:
+        messages.error(request, "El nombre es demasiado largo.")
+        return _redirect_inventario_tab_marcas()
+    if nombre in _PRODUCTO_CATEGORIAS_ALTA_WEB:
+        messages.info(request, "Esa categoría ya está disponible en el sistema.")
+        return _redirect_inventario_tab_marcas()
+    if ProductoCatalogoExtra.objects.filter(
+        tipo=ProductoCatalogoExtra.Tipo.CATEGORIA, nombre__iexact=nombre
+    ).exists():
+        messages.warning(request, "Esa categoría ya fue registrada.")
+        return _redirect_inventario_tab_marcas()
+    try:
+        ProductoCatalogoExtra.objects.create(
+            tipo=ProductoCatalogoExtra.Tipo.CATEGORIA, nombre=nombre
+        )
+    except IntegrityError:
+        messages.warning(request, "Esa categoría ya existe.")
+        return _redirect_inventario_tab_marcas()
+    messages.success(request, f"Categoría «{nombre}» agregada. Ya puedes usarla al crear productos.")
+    return _redirect_inventario_tab_marcas()
+
+
+@_admin_login_required
+@require_http_methods(["POST"])
+def admin_catalogo_marca_agregar(request):
+    _admin_usuario_sesion(request)
+    nombre = _normalizar_nombre_catalogo(request.POST.get("nombre") or "")
+    if len(nombre) < 2:
+        messages.error(request, "El nombre de marca debe tener al menos 2 caracteres.")
+        return _redirect_inventario_tab_marcas()
+    if len(nombre) > 120:
+        messages.error(request, "El nombre es demasiado largo.")
+        return _redirect_inventario_tab_marcas()
+    if nombre in _PRODUCTO_MARCAS_ALTA_WEB:
+        messages.info(request, "Esa marca ya está disponible en el sistema.")
+        return _redirect_inventario_tab_marcas()
+    if ProductoCatalogoExtra.objects.filter(
+        tipo=ProductoCatalogoExtra.Tipo.MARCA, nombre__iexact=nombre
+    ).exists():
+        messages.warning(request, "Esa marca ya fue registrada.")
+        return _redirect_inventario_tab_marcas()
+    try:
+        ProductoCatalogoExtra.objects.create(tipo=ProductoCatalogoExtra.Tipo.MARCA, nombre=nombre)
+    except IntegrityError:
+        messages.warning(request, "Esa marca ya existe.")
+        return _redirect_inventario_tab_marcas()
+    messages.success(request, f"Marca «{nombre}» agregada. Ya puedes usarla al crear productos.")
+    return _redirect_inventario_tab_marcas()
 
 
 _TELEFONO_PROV_RE = re.compile(r"^[\d\s+\-().]{7,20}$")
@@ -1241,6 +1514,7 @@ def admin_pago_detalle(request, pago_id: int):
         for d in venta.detalles.select_related("producto").all()
     ]
     badge = _badge_clase_estado_pago(pago.estado_pago)
+    medios_pago_labels = _lista_metodos_pago_display(pago)
     return render(
         request,
         "frontend/admin/pago_detalle.html",
@@ -1251,6 +1525,9 @@ def admin_pago_detalle(request, pago_id: int):
             "cliente": cliente,
             "lineas": lineas,
             "badge": badge,
+            "medios_pago_labels": medios_pago_labels,
+            "fecha_pago_es": _fecha_larga_es(pago.fecha_pago),
+            "fecha_factura_es": _fecha_larga_es(pago.fecha_factura),
         },
     )
 
@@ -1335,6 +1612,14 @@ def admin_pedidos(request):
         .order_by("nombres", "apellidos")
         .values("id", "nombres", "apellidos", "correo_electronico")
     )
+    hoy = timezone.localdate()
+    total_pedidos = Venta.objects.count()
+    agg_monto = Venta.objects.aggregate(s=Sum("total"))
+    total_ventas_monto = agg_monto["s"] if agg_monto["s"] is not None else Decimal("0")
+    pedidos_este_mes = Venta.objects.filter(
+        fecha_venta__year=hoy.year,
+        fecha_venta__month=hoy.month,
+    ).count()
     return render(
         request,
         "frontend/admin/pedidos.html",
@@ -1347,6 +1632,9 @@ def admin_pedidos(request):
             "fecha_desde": fecha_desde,
             "fecha_hasta": fecha_hasta,
             "producto": producto,
+            "total_pedidos": total_pedidos,
+            "total_ventas_monto": total_ventas_monto,
+            "pedidos_este_mes": pedidos_este_mes,
         },
     )
 
@@ -1372,6 +1660,14 @@ def admin_pedido_detalle(request, venta_id: int):
         .first()
     )
     pago = Pago.objects.filter(medios_pago__detalle_venta__venta_id=venta.id).distinct().first()
+    medio_pago = None
+    if pago:
+        medio_pago = (
+            MedioPago.objects.filter(pago=pago, detalle_venta__venta_id=venta.id)
+            .order_by("id")
+            .first()
+        )
+    medio_pago_etiqueta = _etiqueta_medio_pago_mostrar(medio_pago) if medio_pago else ""
     return render(
         request,
         "frontend/admin/pedido_detalle.html",
@@ -1382,6 +1678,8 @@ def admin_pedido_detalle(request, venta_id: int):
             "lineas": lineas,
             "envio": envio,
             "pago": pago,
+            "medio_pago": medio_pago,
+            "medio_pago_etiqueta": medio_pago_etiqueta,
         },
     )
 

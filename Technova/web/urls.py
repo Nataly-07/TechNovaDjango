@@ -21,6 +21,13 @@ urlpatterns = [
         views.catalogo_toggle_favorito,
         name="web_catalogo_toggle_favorito",
     ),
+    path(
+        "empleado/",
+        views.empleado_dashboard,
+        kwargs={"seccion": "inicio"},
+        name="web_empleado_inicio",
+    ),
+    path("empleado/<slug:seccion>/", views.empleado_dashboard, name="web_empleado_seccion"),
     path("admin/perfil/", views.perfil_admin, name="web_admin_perfil"),
     path("admin/usuarios/crear/", views.admin_usuario_crear, name="web_admin_usuario_crear"),
     path(
@@ -34,6 +41,16 @@ urlpatterns = [
         "admin/inventario/producto/<int:producto_id>/estado/",
         views.admin_producto_estado,
         name="web_admin_producto_estado",
+    ),
+    path(
+        "admin/inventario/catalogo/categoria/",
+        views.admin_catalogo_categoria_agregar,
+        name="web_admin_catalogo_categoria_agregar",
+    ),
+    path(
+        "admin/inventario/catalogo/marca/",
+        views.admin_catalogo_marca_agregar,
+        name="web_admin_catalogo_marca_agregar",
     ),
     path("admin/inventario/", views.admin_inventario, name="web_admin_inventario"),
     path("admin/proveedores/crear/", views.admin_proveedor_crear, name="web_admin_proveedor_crear"),

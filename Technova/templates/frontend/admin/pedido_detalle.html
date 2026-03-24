@@ -9,96 +9,139 @@
   <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
-  <style>
-    .dashboard-wrapper .main-content { flex: 1; width: 100%; max-width: none; margin: 0; padding: 24px 24px 24px 0; }
-    .wrap { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); max-width: 960px; margin: 0 auto; }
-    .hdr { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e8e8e8; }
-    .hdr h2 { margin: 0; color: #2c3e50; }
-    .btn-back { padding: 10px 18px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; }
-    .card { background: #f8f9fa; border-radius: 12px; padding: 20px; margin-bottom: 18px; border: 1px solid #e8e8e8; }
-    .card h3 { margin: 0 0 14px 0; font-size: 1.1rem; color: #334155; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.95rem; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { padding: 10px 12px; border-bottom: 1px solid #e5e5e5; text-align: left; }
-    thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-    .links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
-    .btn-link { padding: 10px 18px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
-    .btn-pago { background: linear-gradient(135deg, #00cc44 0%, #00a638 100%); color: white; }
-  </style>
+  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}">
 </head>
 <body>
   {% include "frontend/includes/admin_header_compact.html" %}
   <div class="dashboard-wrapper">
     {% include "frontend/layouts/sidebar_admin.html" %}
     <main class="main-content">
-      <div class="wrap">
-        <div class="hdr">
-          <h2><i class="bx bx-package"></i> Pedido #{{ venta.id }}</h2>
-          <a href="{% url 'web_admin_pedidos' %}" class="btn-back"><i class="bx bx-arrow-back"></i> Volver</a>
-        </div>
-
-        <div class="card">
-          <h3>Venta</h3>
-          <div class="grid">
-            <div><strong>Fecha:</strong> {{ venta.fecha_venta }}</div>
-            <div><strong>Estado:</strong> {{ venta.get_estado_display }}</div>
-            <div><strong>Total:</strong> <span style="color:#00cc44;font-weight:800;">${{ venta.total|floatformat:0 }}</span></div>
+      <div class="page pedido-detalle">
+        <div class="hero">
+          <div>
+            <h1><i class="bx bx-package"></i> Pedido #{{ venta.id }}</h1>
+            <div class="hero-meta">
+              <span class="badge-estado">{{ venta.get_estado_display }}</span>
+              <span><i class="bx bx-calendar"></i> {{ venta.fecha_venta|date:"d/m/Y" }}</span>
+            </div>
           </div>
+          <a href="{% url 'web_admin_pedidos' %}" class="btn-back"><i class="bx bx-arrow-back"></i> Volver a pedidos</a>
         </div>
 
-        <div class="card">
-          <h3>Cliente</h3>
-          <div class="grid">
-            <div><strong>Nombre:</strong> {{ cliente.nombres }} {{ cliente.apellidos }}</div>
-            <div><strong>Email:</strong> {{ cliente.correo_electronico }}</div>
-            <div><strong>Teléfono:</strong> {{ cliente.telefono }}</div>
+        <div class="grid-main">
+          <section class="panel" aria-labelledby="hd-resumen">
+            <h2 class="panel-hd" id="hd-resumen"><i class="bx bx-receipt"></i> Resumen del pedido</h2>
+            <div class="panel-bd">
+              <dl style="margin:0;">
+                <div class="info-row"><dt>ID venta</dt><dd>#{{ venta.id }}</dd></div>
+                <div class="info-row"><dt>Estado</dt><dd>{{ venta.get_estado_display }}</dd></div>
+                <div class="info-row"><dt>Fecha</dt><dd>{{ venta.fecha_venta|date:"d/m/Y" }}</dd></div>
+                <div class="info-row"><dt>Total</dt><dd class="money sub-num">${{ venta.total|floatformat:0 }}</dd></div>
+              </dl>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="hd-cliente">
+            <h2 class="panel-hd" id="hd-cliente"><i class="bx bx-user"></i> Cliente</h2>
+            <div class="panel-bd">
+              <dl style="margin:0;">
+                <div class="info-row"><dt>Nombre</dt><dd>{{ cliente.nombres }} {{ cliente.apellidos }}</dd></div>
+                <div class="info-row"><dt>CC / Documento</dt><dd>{% if cliente.tipo_documento or cliente.numero_documento %}{{ cliente.tipo_documento }} {{ cliente.numero_documento }}{% else %}<span class="muted">—</span>{% endif %}</dd></div>
+                <div class="info-row"><dt>Correo</dt><dd style="word-break:break-all;">{{ cliente.correo_electronico }}</dd></div>
+                <div class="info-row"><dt>Teléfono</dt><dd>{% if cliente.telefono %}{{ cliente.telefono }}{% else %}<span class="muted">—</span>{% endif %}</dd></div>
+              </dl>
+            </div>
+          </section>
+        </div>
+
+        <div class="grid-pay-ship">
+          <section class="panel" aria-labelledby="hd-pago">
+            <h2 class="panel-hd" id="hd-pago"><i class="bx bx-credit-card"></i> Pago</h2>
+            <div class="panel-bd">
+              {% if pago %}
+              <dl style="margin:0;">
+                <div class="info-row"><dt>Medio de pago</dt>
+                  <dd style="text-align:right;">
+                    {% if medio_pago %}
+                    <span class="metodo-pago"><i class="bx bx-wallet"></i> {{ medio_pago_etiqueta }}</span>
+                    {% else %}
+                    <span class="muted">Sin medio registrado</span>
+                    {% endif %}
+                  </dd>
+                </div>
+                <div class="info-row"><dt>Estado del pago</dt><dd>{{ pago.get_estado_pago_display }}</dd></div>
+                <div class="info-row"><dt>Monto</dt><dd class="money sub-num">${{ pago.monto|floatformat:0 }}</dd></div>
+                <div class="info-row"><dt>Fecha de pago</dt><dd>{{ pago.fecha_pago|date:"d/m/Y" }}</dd></div>
+                <div class="info-row"><dt>Factura</dt><dd style="word-break:break-all;">{{ pago.numero_factura }}</dd></div>
+              </dl>
+              <div class="actions" style="margin-top:16px;">
+                <a href="{% url 'web_admin_pago_detalle' pago.id %}" class="btn-pago"><i class="bx bx-show"></i> Ver detalle del pago</a>
+              </div>
+              {% else %}
+              <div class="empty-box">No hay un pago asociado a este pedido en el sistema.</div>
+              {% endif %}
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="hd-envio">
+            <h2 class="panel-hd" id="hd-envio"><i class="bx bx-truck"></i> Envío</h2>
+            <div class="panel-bd">
+              {% if envio %}
+              <dl style="margin:0;">
+                <div class="info-row"><dt>Transportadora</dt><dd>{{ envio.transportadora.nombre }}</dd></div>
+                <div class="info-row"><dt>N.º guía</dt><dd>{{ envio.numero_guia|default:"—" }}</dd></div>
+                <div class="info-row"><dt>Costo envío</dt><dd class="money sub-num">${{ envio.costo_envio|floatformat:0 }}</dd></div>
+                <div class="info-row"><dt>Estado</dt><dd>{{ envio.get_estado_display }}</dd></div>
+              </dl>
+              {% else %}
+              <div class="empty-box">No hay registro de envío para este pedido.</div>
+              {% endif %}
+            </div>
+          </section>
+        </div>
+
+        <section class="panel productos-panel" aria-labelledby="hd-prods">
+          <h2 class="panel-hd" id="hd-prods"><i class="bx bx-list-ul"></i> Productos del pedido</h2>
+          <div class="panel-bd" style="padding-top:16px;">
+            <div class="productos-inner">
+              {% if lineas %}
+              <div class="prod-table-wrap">
+                <div class="table-wrap">
+                  <table class="pedido-lines">
+                    <thead>
+                      <tr>
+                        <th>Producto</th>
+                        <th class="th-num">Cant.</th>
+                        <th class="th-money">P. unitario</th>
+                        <th class="th-sub">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for linea in lineas %}
+                      <tr>
+                        <td class="td-producto">{{ linea.nombre }}</td>
+                        <td class="td-qty"><span class="qty-pill sub-num">{{ linea.cantidad }}</span></td>
+                        <td class="td-pu sub-num">${{ linea.precio_unitario|floatformat:0 }}</td>
+                        <td class="td-sub sub-num">${{ linea.subtotal|floatformat:0 }}</td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="prod-summary-bar">
+                <span class="meta"><i class="bx bx-package"></i> {{ lineas|length }} {% if lineas|length == 1 %}línea{% else %}líneas{% endif %} en el pedido</span>
+                <span class="prod-sum-total">Total pedido: <span class="amt sub-num">${{ venta.total|floatformat:0 }}</span></span>
+              </div>
+              {% else %}
+              <div class="empty-box">No hay productos registrados en este pedido.</div>
+              {% endif %}
+            </div>
           </div>
-        </div>
-
-        {% if envio %}
-        <div class="card">
-          <h3>Envío</h3>
-          <div class="grid">
-            <div><strong>Transportadora:</strong> {{ envio.transportadora.nombre }}</div>
-            <div><strong>N.º guía:</strong> {{ envio.numero_guia }}</div>
-            <div><strong>Costo envío:</strong> ${{ envio.costo_envio|floatformat:0 }}</div>
-            <div><strong>Estado envío:</strong> {{ envio.get_estado_display }}</div>
-          </div>
-        </div>
-        {% endif %}
-
-        <div class="card">
-          <h3>Productos</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>P. unitario</th>
-                <th>Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for linea in lineas %}
-              <tr>
-                <td>{{ linea.nombre }}</td>
-                <td>{{ linea.cantidad }}</td>
-                <td>${{ linea.precio_unitario|floatformat:0 }}</td>
-                <td style="color:#16a34a;font-weight:700;">${{ linea.subtotal|floatformat:0 }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="links">
-          {% if pago %}
-          <a href="{% url 'web_admin_pago_detalle' pago.id %}" class="btn-link btn-pago"><i class="bx bx-credit-card"></i> Ver pago #{{ pago.id }}</a>
-          {% endif %}
-        </div>
+        </section>
       </div>
     </main>
   </div>
-  <footer style="text-align:center;padding:16px;color:#64748b;"><p style="margin:0;">&copy; 2025 Technova</p></footer>
+  <footer class="admin-footer-copy"><p>&copy; 2025 Technova</p></footer>
 </body>
 </html>

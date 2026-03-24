@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "django.contrib.humanize",
     "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
@@ -170,3 +171,6 @@ TECHNOVA_PAYPAL_BASE_URL = os.getenv(
     "https://api-m.sandbox.paypal.com",
 ).strip()
 TECHNOVA_PAYPAL_CURRENCY = os.getenv("TECHNOVA_PAYPAL_CURRENCY", "USD").strip().upper()
+# Admin: mostrar "PayPal" en lugar de "PSE" para medios guardados con el mapeo antiguo (paypal_sandbox → PSE).
+# Pon TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL=0 si tienes pagos PSE bancarios reales en "pse".
+TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL = _env_bool("TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL", True)

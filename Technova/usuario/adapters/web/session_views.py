@@ -74,6 +74,8 @@ def login_web(request: HttpRequest) -> HttpResponse:
                 u = Usuario.objects.get(pk=uid)
                 if u.rol == Usuario.Rol.ADMIN:
                     return redirect("web_admin_perfil")
+                if u.rol == Usuario.Rol.EMPLEADO:
+                    return redirect("web_empleado_inicio")
             except Usuario.DoesNotExist:
                 pass
             return redirect("inicio_autenticado")
@@ -107,6 +109,8 @@ def login_web(request: HttpRequest) -> HttpResponse:
     messages.success(request, "Sesion iniciada correctamente.")
     if usuario.rol == Usuario.Rol.ADMIN:
         return redirect("web_admin_perfil")
+    if usuario.rol == Usuario.Rol.EMPLEADO:
+        return redirect("web_empleado_inicio")
     return redirect("inicio_autenticado")
 
 
@@ -116,6 +120,12 @@ def home_portal(request: HttpRequest) -> HttpResponse:
     uid = request.session.get(SESSION_USUARIO_ID)
     if not uid:
         return redirect("web_login")
+    try:
+        u = Usuario.objects.get(pk=uid)
+        if u.rol == Usuario.Rol.EMPLEADO:
+            return redirect("web_empleado_inicio")
+    except Usuario.DoesNotExist:
+        pass
     return render(
         request,
         "usuarios/home_portal.html",

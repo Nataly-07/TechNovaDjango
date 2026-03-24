@@ -5,34 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Factura — Technova</title>
+  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <style>
-    @media print { body { margin: 0; } .acciones { display: none; } }
-    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-    .factura-container { background: white; padding: 50px 60px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 550px; max-width: 100%; margin: 0 auto; box-sizing: border-box; }
-    .factura-header { text-align: center; border-bottom: 3px solid #667eea; padding-bottom: 20px; margin-bottom: 30px; width: 100%; }
-    .factura-header h1 { color: #667eea; margin: 0; font-size: 2em; }
-    .factura-header p { color: #666; margin: 5px 0; }
-    .factura-info { display: flex; flex-direction: column; align-items: center; gap: 30px; margin-bottom: 30px; width: 100%; }
-    .info-section { width: 100%; max-width: 400px; text-align: center; }
-    .info-section h3 { color: #2c3e50; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; margin-bottom: 15px; }
-    .info-item { margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .info-label { font-weight: 600; color: #666; }
-    .info-value { color: #2c3e50; }
-    .productos-table { width: 100%; border-collapse: collapse; margin: 30px auto; }
-    .productos-table th, .productos-table td { padding: 12px; border-bottom: 1px solid #e0e0e0; text-align: left; }
-    .productos-table th.text-right, .productos-table td.text-right { text-align: right; }
-    .productos-table thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-    .total-section { margin-top: 30px; padding-top: 20px; border-top: 3px solid #667eea; display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap; }
-    .total-label { font-size: 1.3em; font-weight: 700; color: #2c3e50; }
-    .total-amount { font-size: 1.8em; font-weight: 700; color: #00cc44; }
-    .acciones { text-align: center; margin-top: 30px; }
-    .btn { padding: 12px 30px; border-radius: 8px; text-decoration: none; display: inline-block; margin: 0 10px; font-weight: 600; cursor: pointer; border: none; font-size: 1rem; }
-    .btn-print { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-    .btn-back { background: #6c757d; color: white; }
-    .btn-download { background: linear-gradient(135deg, #00cc44 0%, #00a638 100%); color: white; }
-  </style>
   <script>
     function descargarPDF() {
       var elemento = document.querySelector('.factura-container');
@@ -59,7 +33,7 @@
     }
   </script>
 </head>
-<body>
+<body class="factura-print">
   <div class="factura-container">
     <div class="factura-header">
       <h1>TECHNOVA</h1>

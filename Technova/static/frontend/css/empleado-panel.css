@@ -1,0 +1,60 @@
+/**
+ * Panel empleado — complementa admin-panel / estilodas (shell sin módulos aún).
+ */
+
+body.empleado-page .menu-dashboard .enlace.enlace--activo a {
+  font-weight: 700;
+  opacity: 1;
+}
+
+.empleado-resumen-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.empleado-placeholder {
+  background: #fff;
+  border-radius: 16px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 640px;
+}
+
+.empleado-placeholder--home {
+  max-width: none;
+}
+
+.empleado-placeholder__eyebrow {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.empleado-placeholder__title {
+  margin: 0 0 10px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.empleado-placeholder__text {
+  margin: 0;
+  color: #7f8c8d;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.empleado-card-mock {
+  opacity: 0.92;
+}
+
+.empleado-card-mock .card-button {
+  pointer-events: none;
+  opacity: 0.65;
+}

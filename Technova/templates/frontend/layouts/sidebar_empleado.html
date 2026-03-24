@@ -1,0 +1,60 @@
+<div class="menu-dashboard">
+  <div class="menu">
+    <div class="enlace{% if seccion == 'inicio' %} enlace--activo{% endif %}">
+      <a href="{% url 'web_empleado_inicio' %}">
+        <i class="bx bx-home"></i> Inicio
+      </a>
+    </div>
+    <div class="enlace{% if seccion == 'perfil' %} enlace--activo{% endif %}">
+      <a href="{% url 'web_empleado_seccion' seccion='perfil' %}">
+        <i class="bx bx-user-circle"></i> Mi Perfil
+      </a>
+    </div>
+    <div class="enlace{% if seccion == 'usuarios' %} enlace--activo{% endif %}">
+      <a href="{% url 'web_empleado_seccion' seccion='usuarios' %}">
+        <i class="bx bx-user"></i> Usuarios
+      </a>
+    </div>
+    <div class="enlace{% if seccion == 'mensajes' %} enlace--activo{% endif %}">
+      <a href="{% url 'web_empleado_seccion' seccion='mensajes' %}">
+        <i class="bx bx-message"></i> Mensajes
+      </a>
+    </div>
+    <div class="enlace{% if seccion == 'productos' %} enlace--activo{% endif %}">
+      <a href="{% url 'web_empleado_seccion' seccion='productos' %}">
+        <i class="bx bx-shopping-bag"></i> Visualización Artículos
+      </a>
+    </div>
+    <div class="enlace{% if seccion == 'pedidos' %} enlace--activo{% endif %}">
+      <a href="{% url 'web_empleado_seccion' seccion='pedidos' %}">
+        <i class="bx bx-cart"></i> Pedidos
+      </a>
+    </div>
+    <div class="enlace{% if seccion == 'venta-punto-fisico' %} enlace--activo{% endif %}">
+      <a href="{% url 'web_empleado_seccion' seccion='venta-punto-fisico' %}">
+        <i class="bx bx-store"></i> Venta Punto Físico
+      </a>
+    </div>
+    <div class="enlace{% if seccion == 'atencion-cliente' %} enlace--activo{% endif %}">
+      <a href="{% url 'web_empleado_seccion' seccion='atencion-cliente' %}">
+        <i class="bx bx-headphone"></i> Atención al Cliente
+      </a>
+    </div>
+    <div class="enlace{% if seccion == 'notificaciones' %} enlace--activo{% endif %}">
+      <a href="{% url 'web_empleado_seccion' seccion='notificaciones' %}">
+        <i class="bx bx-bell"></i> Notificaciones
+      </a>
+    </div>
+    <div class="enlace">
+      <form method="post" action="{% url 'web_logout' %}">
+        {% csrf_token %}
+        <button
+          type="submit"
+          style="background:none;border:none;color:inherit;cursor:pointer;padding:0;width:100%;text-align:left;display:flex;align-items:center;gap:10px;"
+        >
+          <i class="bx bx-log-out"></i> Cerrar Sesión
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

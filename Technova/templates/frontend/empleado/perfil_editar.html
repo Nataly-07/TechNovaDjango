@@ -1,0 +1,42 @@
+{% extends "frontend/empleado/base_empleado.html" %}
+{% load static %}
+{% block head_title %}Editar perfil — Empleado Technova{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'frontend/css/technova-cliente-area.css' %}">
+{% endblock %}
+{% block empleado_content %}
+<div class="edit-profile-container empleado-edit-profile">
+  <div class="edit-profile-card">
+    <div class="edit-profile-header">
+      <i class="bx bx-edit-alt"></i>
+      <h2>Datos de contacto (empleado)</h2>
+    </div>
+    <p class="empleado-edit-hint">Este formulario es independiente del perfil de cliente. Solo puedes actualizar teléfono y dirección; el correo y el documento los gestiona administración.</p>
+    <div class="info-section">
+      <h3><i class="bx bx-info-circle"></i> Solo lectura</h3>
+      <p class="info-line"><i class="bx bx-envelope"></i> <strong>Correo:</strong> {{ usuario.correo_electronico }}</p>
+      <p class="info-line"><i class="bx bx-id-card"></i> <strong>Documento:</strong> {{ usuario.tipo_documento }} {{ usuario.numero_documento }}</p>
+    </div>
+    <form method="post" action="{% url 'web_empleado_perfil_editar' %}">
+      {% csrf_token %}
+      <div class="form-group">
+        <label><i class="bx bx-phone"></i> Teléfono</label>
+        <input type="tel" name="telefono" value="{{ usuario.telefono }}" placeholder="Número de teléfono" autocomplete="tel">
+      </div>
+      <div class="form-group">
+        <label><i class="bx bx-home"></i> Dirección</label>
+        <input type="text" name="direccion" value="{{ usuario.direccion }}" placeholder="Dirección" autocomplete="street-address">
+      </div>
+      <div class="form-group">
+        <label><i class="bx bx-lock-alt"></i> Contraseña actual *</label>
+        <input type="password" name="current_password" required placeholder="Requerida para guardar cambios" autocomplete="current-password">
+        <p class="password-hint"><i class="bx bx-info-circle"></i> Debes ingresar tu contraseña actual para poder realizar cambios</p>
+      </div>
+      <div class="form-actions">
+        <a href="{% url 'web_empleado_seccion' seccion='perfil' %}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary"><i class="bx bx-save"></i> Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

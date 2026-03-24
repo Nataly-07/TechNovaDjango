@@ -1,0 +1,264 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Reportes estadísticos — Technova</title>
+  <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}">
+</head>
+<body>
+  {% include "frontend/includes/admin_header_compact.html" %}
+  <div class="dashboard-wrapper">
+    {% include "frontend/layouts/sidebar_admin.html" %}
+    <main class="main-content main-content--visible">
+      <div class="wrap">
+        <div class="hdr">
+          <h2><i class="bx bx-file-blank"></i> Reportes estadísticos</h2>
+        </div>
+
+        <div class="stats-bar">
+          <div class="stat-card total">
+            <h4>Productos</h4>
+            <p class="number">{{ productos_count }}</p>
+          </div>
+          <div class="stat-card ventas">
+            <h4>Usuarios</h4>
+            <p class="number">{{ usuarios_count }}</p>
+          </div>
+          <div class="stat-card mes">
+            <h4>Ventas</h4>
+            <p class="number">{{ ventas_count }}</p>
+          </div>
+          <div class="stat-card stat-monto">
+            <h4>Monto total vendido</h4>
+            <p class="number">${{ monto_ventas_total|floatformat:0 }}</p>
+          </div>
+        </div>
+
+        <div class="movimientos-grid" style="margin-bottom:18px;">
+          <div class="movimiento-card">
+            <h3 style="margin-top:0;">Distribución de usuarios por rol</h3>
+            <table class="table-inventario" style="min-width:0;">
+              <thead><tr><th>Rol</th><th>Total</th></tr></thead>
+              <tbody>
+                <tr><td>Administradores</td><td><strong>{{ usuarios_por_rol.admin }}</strong></td></tr>
+                <tr><td>Empleados</td><td><strong>{{ usuarios_por_rol.empleado }}</strong></td></tr>
+                <tr><td>Clientes</td><td><strong>{{ usuarios_por_rol.cliente }}</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="movimiento-card">
+            <h3 style="margin-top:0;">Productos por categoría</h3>
+            <table class="table-inventario" style="min-width:0;">
+              <thead><tr><th>Categoría</th><th>Total</th></tr></thead>
+              <tbody>
+                {% for c in productos_por_categoria %}
+                <tr><td>{{ c.categoria }}</td><td><strong>{{ c.total }}</strong></td></tr>
+                {% empty %}
+                <tr><td colspan="2">Sin datos.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="movimiento-card">
+            <h3 style="margin-top:0;">Ventas por mes (últimos 6)</h3>
+            <table class="table-inventario" style="min-width:0;">
+              <thead><tr><th>Mes</th><th>Monto</th></tr></thead>
+              <tbody>
+                {% for vm in ventas_por_mes %}
+                <tr><td>{{ vm.mes }}</td><td><strong>${{ vm.total|floatformat:0 }}</strong></td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tabs" style="margin-bottom: 16px;">
+          <a class="tab {% if tipo == 'productos' %}active{% endif %}" href="{% url 'web_admin_reportes' %}?tipo=productos">Productos</a>
+          <a class="tab {% if tipo == 'usuarios' %}active{% endif %}" href="{% url 'web_admin_reportes' %}?tipo=usuarios">Usuarios</a>
+          <a class="tab {% if tipo == 'ventas' %}active{% endif %}" href="{% url 'web_admin_reportes' %}?tipo=ventas">Ventas</a>
+        </div>
+
+        {% if tipo == 'productos' %}
+        <form class="filtros" method="get" action="{% url 'web_admin_reportes' %}">
+          <input type="hidden" name="tipo" value="productos">
+          <div class="filtro-group">
+            <label for="categoria">Categoría</label>
+            <select id="categoria" name="categoria">
+              <option value="">Todas</option>
+              {% for c in categorias %}
+              <option value="{{ c }}" {% if categoria == c %}selected{% endif %}>{{ c }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filtro-group">
+            <label for="marca">Marca</label>
+            <select id="marca" name="marca">
+              <option value="">Todas</option>
+              {% for m in marcas %}
+              <option value="{{ m }}" {% if marca == m %}selected{% endif %}>{{ m }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filtro-group">
+            <label for="precioMin">Precio mínimo</label>
+            <input id="precioMin" type="number" name="precioMin" value="{{ precio_min }}" min="0" step="0.01">
+          </div>
+          <div class="filtro-group">
+            <label for="precioMax">Precio máximo</label>
+            <input id="precioMax" type="number" name="precioMax" value="{{ precio_max }}" min="0" step="0.01">
+          </div>
+          <div class="filtro-group filtro-accion">
+            <button class="btn-buscar" type="submit"><i class="bx bx-search"></i> Filtrar</button>
+          </div>
+          <div class="filtro-group filtro-accion">
+            <a class="btn-ver" href="{% url 'web_admin_reportes_preview' 'productos' %}?categoria={{ categoria }}&marca={{ marca }}&precioMin={{ precio_min }}&precioMax={{ precio_max }}" target="_blank" rel="noopener">
+              <i class="bx bx-show"></i> Vista previa
+            </a>
+          </div>
+          <div class="filtro-group filtro-accion">
+            <a class="btn-ver" href="{% url 'web_admin_reportes_pdf' 'productos' %}?categoria={{ categoria }}&marca={{ marca }}&precioMin={{ precio_min }}&precioMax={{ precio_max }}">
+              <i class="bx bx-file"></i> Descargar PDF
+            </a>
+          </div>
+        </form>
+
+        <div class="table-container">
+          <table class="table-inventario">
+            <thead>
+              <tr><th>ID</th><th>Código</th><th>Nombre</th><th>Categoría</th><th>Marca</th><th>Precio</th><th>Stock</th></tr>
+            </thead>
+            <tbody>
+              {% for p in preview_productos %}
+              <tr>
+                <td>{{ p.id }}</td>
+                <td>{{ p.codigo }}</td>
+                <td>{{ p.nombre }}</td>
+                <td>{{ p.categoria|default:"—" }}</td>
+                <td>{{ p.marca|default:"—" }}</td>
+                <td>{% if p.precio_venta %}${{ p.precio_venta|floatformat:0 }}{% else %}${{ p.costo_unitario|floatformat:0 }}{% endif %}</td>
+                <td>{{ p.stock }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="7">No hay datos para este filtro.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% elif tipo == 'usuarios' %}
+        <form class="filtros" method="get" action="{% url 'web_admin_reportes' %}">
+          <input type="hidden" name="tipo" value="usuarios">
+          <div class="filtro-group">
+            <label for="rol">Rol</label>
+            <select id="rol" name="rol">
+              <option value="">Todos</option>
+              <option value="admin" {% if rol == "admin" %}selected{% endif %}>Administrador</option>
+              <option value="empleado" {% if rol == "empleado" %}selected{% endif %}>Empleado</option>
+              <option value="cliente" {% if rol == "cliente" %}selected{% endif %}>Cliente</option>
+            </select>
+          </div>
+          <div class="filtro-group">
+            <label for="busqueda">Búsqueda</label>
+            <input id="busqueda" type="text" name="busqueda" value="{{ busqueda }}" placeholder="Nombre, correo o documento">
+          </div>
+          <div class="filtro-group filtro-accion">
+            <button class="btn-buscar" type="submit"><i class="bx bx-search"></i> Filtrar</button>
+          </div>
+          <div class="filtro-group filtro-accion">
+            <a class="btn-ver" href="{% url 'web_admin_reportes_preview' 'usuarios' %}?rol={{ rol }}&busqueda={{ busqueda }}" target="_blank" rel="noopener">
+              <i class="bx bx-show"></i> Vista previa
+            </a>
+          </div>
+          <div class="filtro-group filtro-accion">
+            <a class="btn-ver" href="{% url 'web_admin_reportes_pdf' 'usuarios' %}?rol={{ rol }}&busqueda={{ busqueda }}">
+              <i class="bx bx-file"></i> Descargar PDF
+            </a>
+          </div>
+        </form>
+
+        <div class="table-container">
+          <table class="table-usuarios">
+            <thead>
+              <tr><th>ID</th><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th></tr>
+            </thead>
+            <tbody>
+              {% for u in preview_usuarios %}
+              <tr>
+                <td>{{ u.id }}</td>
+                <td>{{ u.nombres }} {{ u.apellidos }}</td>
+                <td>{{ u.correo_electronico }}</td>
+                <td>{{ u.get_rol_display }}</td>
+                <td>{% if u.activo %}Activo{% else %}Inactivo{% endif %}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5">No hay datos para este filtro.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <form class="filtros" method="get" action="{% url 'web_admin_reportes' %}">
+          <input type="hidden" name="tipo" value="ventas">
+          <div class="filtro-group">
+            <label for="estado">Estado</label>
+            <select id="estado" name="estado">
+              <option value="">Todos</option>
+              <option value="abierta" {% if estado == "abierta" %}selected{% endif %}>Abierta</option>
+              <option value="facturada" {% if estado == "facturada" %}selected{% endif %}>Facturada</option>
+              <option value="anulada" {% if estado == "anulada" %}selected{% endif %}>Anulada</option>
+            </select>
+          </div>
+          <div class="filtro-group">
+            <label for="fechaDesde">Desde</label>
+            <input id="fechaDesde" type="date" name="fechaDesde" value="{{ fecha_desde }}">
+          </div>
+          <div class="filtro-group">
+            <label for="fechaHasta">Hasta</label>
+            <input id="fechaHasta" type="date" name="fechaHasta" value="{{ fecha_hasta }}">
+          </div>
+          <div class="filtro-group filtro-accion">
+            <button class="btn-buscar" type="submit"><i class="bx bx-search"></i> Filtrar</button>
+          </div>
+          <div class="filtro-group filtro-accion">
+            <a class="btn-ver" href="{% url 'web_admin_reportes_preview' 'ventas' %}?estado={{ estado }}&fechaDesde={{ fecha_desde }}&fechaHasta={{ fecha_hasta }}" target="_blank" rel="noopener">
+              <i class="bx bx-show"></i> Vista previa
+            </a>
+          </div>
+          <div class="filtro-group filtro-accion">
+            <a class="btn-ver" href="{% url 'web_admin_reportes_pdf' 'ventas' %}?estado={{ estado }}&fechaDesde={{ fecha_desde }}&fechaHasta={{ fecha_hasta }}">
+              <i class="bx bx-file"></i> Descargar PDF
+            </a>
+          </div>
+        </form>
+
+        <div class="table-container">
+          <table class="table-inventario">
+            <thead>
+              <tr><th>ID</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th>Total</th></tr>
+            </thead>
+            <tbody>
+              {% for v in preview_ventas %}
+              <tr>
+                <td>#{{ v.id }}</td>
+                <td>{{ v.usuario.nombres }} {{ v.usuario.apellidos }}</td>
+                <td>{{ v.fecha_venta }}</td>
+                <td>{{ v.get_estado_display }}</td>
+                <td>${{ v.total|floatformat:0 }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5">No hay datos para este filtro.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+    </main>
+  </div>
+</body>
+</html>

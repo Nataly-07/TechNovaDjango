@@ -177,7 +177,7 @@
       {% for it in carrito_items %}
       <div class="producto-item">
         {% if it.imagen %}
-          <img class="producto-imagen" src="{{ it.imagen }}" alt="" onerror="this.src='{% static 'frontend/imagenes/placeholder.svg' %}'">
+          <img class="producto-imagen" src="{{ it.imagen }}" alt="" data-placeholder="{% static 'frontend/imagenes/placeholder.svg' %}" onerror="this.onerror=null;this.src=this.dataset.placeholder">
         {% else %}
           <img class="producto-imagen" src="{% static 'frontend/imagenes/placeholder.svg' %}" alt="">
         {% endif %}

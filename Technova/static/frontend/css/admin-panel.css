@@ -247,6 +247,34 @@ body.admin-page-perfil .dashboard-wrapper .main-content {
   background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
 }
 
+/* Inventario — KPIs: tres colores distintos (data-inv-kpi + !important para vencer --admin-gradient) */
+.inventario-container .stats-bar--inventario .stat-card[data-inv-kpi="total"],
+.inventario-container .stat-card.stat-inv-total[data-inv-kpi="total"] {
+  /* Cian/azul con moradito muy suave (periwinkle) — mantiene buen contraste con texto blanco */
+  background: linear-gradient(
+      145deg,
+      #38bdf8 0%,
+      #0ea5e9 40%,
+      #5b8def 68%,
+      #7c8eef 88%,
+      #8b8df0 100%
+    )
+    !important;
+  box-shadow: 0 14px 40px rgba(99, 102, 241, 0.3), 0 8px 22px rgba(14, 165, 233, 0.22) !important;
+}
+
+.inventario-container .stats-bar--inventario .stat-card[data-inv-kpi="bajo"],
+.inventario-container .stat-card.stat-inv-bajo[data-inv-kpi="bajo"] {
+  background: linear-gradient(145deg, #f59e0b 0%, #ea580c 45%, #c2410c 100%) !important;
+  box-shadow: 0 14px 40px rgba(245, 158, 11, 0.45) !important;
+}
+
+.inventario-container .stats-bar--inventario .stat-card[data-inv-kpi="agotado"],
+.inventario-container .stat-card.stat-inv-agotado[data-inv-kpi="agotado"] {
+  background: linear-gradient(145deg, #e11d48 0%, #be123c 45%, #9f1239 100%) !important;
+  box-shadow: 0 14px 40px rgba(225, 29, 72, 0.42) !important;
+}
+
 .prov-container .stat-card.ok {
   background: linear-gradient(135deg, #00cc44 0%, #00a638 100%);
 }

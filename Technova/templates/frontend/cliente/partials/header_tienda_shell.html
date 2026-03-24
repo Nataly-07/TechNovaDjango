@@ -1,0 +1,82 @@
+{% load static %}
+<div class="tecn-header-shell">
+<header class="header header--tecn">
+  <a href="{% url 'inicio_autenticado' %}" class="logo">
+    <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Technova" class="logo-marca" width="48" height="48">
+    <span>TECHNOVA</span>
+  </a>
+  <div class="busqueda-header-wrapper">
+    <div class="busqueda-input-wrapper">
+      <input type="text" id="busquedaTermino" class="busqueda-input" placeholder="Buscar productos..."
+             autocomplete="off"
+             onkeypress="if(event.key==='Enter') buscarProductos()">
+      <button type="button" onclick="buscarProductos()" class="btn-buscar" title="Buscar" aria-label="Buscar"><span>🔍</span></button>
+      <button type="button" onclick="limpiarFiltros()" class="btn-limpiar" title="Limpiar" aria-label="Limpiar"><span>✕</span></button>
+      <button type="button" onclick="toggleFiltros()" class="btn-filtros-toggle" id="btnFiltrosToggle"><span>⚙️ Filtros</span></button>
+    </div>
+    <div class="filtros-header-container" id="filtrosContainer" style="display: none;">
+      <div class="filtro-header-item"><label>MARCA</label>
+        <select id="filtroMarca" class="filtro-select-header">
+          <option value="">Todas</option>
+          {% for m in marcas %}
+          <option value="{{ m }}">{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filtro-header-item"><label>CATEGORÍA</label>
+        <select id="filtroCategoria" class="filtro-select-header">
+          <option value="">Todas</option>
+          {% for c in categorias %}
+          <option value="{{ c }}">{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filtro-header-item"><label>PRECIO MÍN</label><input type="number" id="filtroPrecioMin" class="filtro-input-header" min="0" step="0.01"></div>
+      <div class="filtro-header-item"><label>PRECIO MÁX</label><input type="number" id="filtroPrecioMax" class="filtro-input-header" min="0" step="0.01"></div>
+      <div class="filtro-header-item"><label>DISPONIBILIDAD</label>
+        <select id="filtroDisponibilidad" class="filtro-select-header">
+          <option value="">Todas</option>
+          <option value="disponible">Disponible</option>
+          <option value="agotado">Agotado</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="acciones-usuario">
+    <a href="{% url 'web_cliente_perfil' %}" class="account" id="linkPerfil"><i class="bx bx-user-circle" aria-hidden="true"></i><span>Mi cuenta</span></a>
+    <button type="button" class="account js-panel-toggle" data-panel="favoritos"><i class="bx bx-heart" aria-hidden="true"></i><span>Favoritos</span></button>
+    <button type="button" class="account js-panel-toggle" data-panel="carrito"><i class="bx bx-cart" aria-hidden="true"></i><span>Carrito</span></button>
+    <a href="#" class="account" id="linkCerrarSesionHeader"><i class="bx bx-log-out" aria-hidden="true"></i><span>Cerrar sesión</span></a>
+  </div>
+</header>
+<nav class="menu-principal menu-principal--tecn">
+  <ul>
+    <li><a href="{% url 'inicio_autenticado' %}">Inicio</a></li>
+    <li class="submenu">
+      <a href="#">Categorías ▾</a>
+      <ul class="submenu-lista">
+        {% for c in categorias %}
+        <li><a href="#" class="index-sub-cat" data-categoria="{{ c }}">{{ c }}</a></li>
+        {% endfor %}
+      </ul>
+    </li>
+    <li class="submenu">
+      <a href="#">Marcas ▾</a>
+      <ul class="submenu-lista">
+        {% for m in marcas %}
+        <li><a href="#" class="index-sub-marca" data-marca="{{ m }}">{{ m }}</a></li>
+        {% endfor %}
+      </ul>
+    </li>
+  </ul>
+</nav>
+<section id="panelResumenCliente" class="cliente-panel-resumen">
+  <div class="cliente-panel-card">
+    <div class="cliente-panel-head">
+      <h3 id="panelResumenTitulo" class="cliente-panel-titulo">Resumen</h3>
+      <button type="button" id="panelResumenCerrar" class="cliente-panel-cerrar">Cerrar</button>
+    </div>
+    <div id="panelResumenBody" class="cliente-panel-body"></div>
+  </div>
+</section>
+</div>

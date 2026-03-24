@@ -3,7 +3,6 @@ Shared settings for all environments.
 """
 
 from dotenv import load_dotenv
-load_dotenv()  # carga variables de .env
 
 import os
 from datetime import timedelta
@@ -11,6 +10,8 @@ from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+# Siempre cargar .env junto a manage.py (no depender del cwd al arrancar runserver).
+load_dotenv(BASE_DIR / ".env")
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -89,6 +90,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "web.context_processors.technova_frontend",
+                "web.context_processors.technova_catalogo_nav",
             ],
         },
     },

@@ -1,21 +1,42 @@
 {% extends "frontend/base_tienda.html" %}
 {% load static %}
 {% block title %}Producto — Technova{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'frontend/css/technova-home.css' %}?v=5">
+{% endblock %}
 {% block body %}
-<header class="header">
-  <a href="{% url 'inicio_autenticado' %}" class="logo"><span>← TECHNOVA</span></a>
-</header>
-<main style="padding:2rem;max-width:900px;margin:0 auto;">
-  <h1>Detalle producto #{{ producto_id }}</h1>
-  <div id="page-data">Cargando…</div>
-</main>
+{% include "frontend/cliente/partials/header_tienda_shell.html" %}
 {% endblock %}
 {% block extra_js %}
-{{ block.super }}
-<script src="{% static 'frontend/js/technova-pages.js' %}"></script>
+<script>
+  window.TECHNOVA_SESION_SERVIDOR = true;
+  window.TECHNOVA_USUARIO_ID = {% if usuario_id is not None %}{{ usuario_id }}{% else %}null{% endif %};
+  window.TECHNOVA_URL_CATALOGO_CARRITO = "{% url 'web_catalogo_agregar_carrito' %}";
+  window.TECHNOVA_URL_CATALOGO_FAVORITO = "{% url 'web_catalogo_toggle_favorito' %}";
+  window.TECHNOVA_URL_FAVORITOS = "{% url 'web_favoritos' %}";
+  window.TECHNOVA_URL_CARRITO = "{% url 'web_carrito' %}";
+  window.TECHNOVA_URL_FAVORITO_QUITAR = "{% url 'web_favorito_quitar' %}";
+  window.TECHNOVA_URL_FAVORITO_AL_CARRITO = "{% url 'web_favorito_al_carrito' %}";
+  window.TECHNOVA_URL_CARRITO_ACTUALIZAR = "{% url 'web_carrito_actualizar' %}";
+  window.TECHNOVA_URL_CARRITO_ELIMINAR = "{% url 'web_carrito_eliminar' %}";
+</script>
+<script type="application/json" id="favoritosPreviewData">[]</script>
+<script type="application/json" id="carritoPreviewData">[]</script>
+<script src="{% static 'frontend/js/carrusel.js' %}"></script>
+<script src="{% static 'frontend/js/technova-producto-modal.js' %}?v=1"></script>
+<script src="{% static 'frontend/js/technova-cliente-home.js' %}?v=11"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    TechnovaPages.productoDetalle({{ producto_id }});
+    var lOut = document.getElementById('linkCerrarSesionHeader');
+    if (lOut && window.TechnovaAuth) {
+      lOut.addEventListener('click', function (e) {
+        e.preventDefault();
+        window.TechnovaAuth.logout();
+      });
+    }
+    if (window.TechnovaProductoModal) {
+      window.TechnovaProductoModal.open({{ producto_id }});
+    }
   });
 </script>
 {% endblock %}

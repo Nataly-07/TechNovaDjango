@@ -55,13 +55,15 @@
       p.id +
       '">' +
       '<img src="' +
-      imgUrl(p) +
+      escapeHtml(imgUrl(p)) +
       '" alt="' +
       escapeHtml(p.nombre) +
       '" onerror="this.src=\'/static/frontend/imagenes/placeholder.svg\'"/>' +
       '<a href="/producto/' +
       p.id +
-      '/"><span class="detalles">Ver Más Detalles</span></a>' +
+      '/" class="js-producto-modal-link" data-producto-id="' +
+      p.id +
+      '"><span class="detalles">Ver Más Detalles</span></a>' +
       "<h3>" +
       escapeHtml(p.nombre) +
       "</h3>" +

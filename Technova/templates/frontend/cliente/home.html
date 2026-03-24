@@ -3,95 +3,17 @@
 {% block title %}Technova — Inicio{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'frontend/css/technova-home.css' %}?v=5">
+<link rel="stylesheet" href="{% static 'frontend/css/index-home.css' %}?v=1">
 {% endblock %}
 {% block body %}
-<div class="tecn-header-shell">
-<header class="header header--tecn">
-  <a href="{% url 'inicio_autenticado' %}" class="logo">
-    <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Technova" class="logo-marca" width="48" height="48">
-    <span>TECHNOVA</span>
-  </a>
-  <div class="busqueda-header-wrapper">
-    <div class="busqueda-input-wrapper">
-      <input type="text" id="busquedaTermino" class="busqueda-input" placeholder="Buscar productos..."
-             autocomplete="off"
-             onkeypress="if(event.key==='Enter') buscarProductos()">
-      <button type="button" onclick="buscarProductos()" class="btn-buscar" title="Buscar" aria-label="Buscar"><span>🔍</span></button>
-      <button type="button" onclick="limpiarFiltros()" class="btn-limpiar" title="Limpiar" aria-label="Limpiar"><span>✕</span></button>
-      <button type="button" onclick="toggleFiltros()" class="btn-filtros-toggle" id="btnFiltrosToggle"><span>⚙️ Filtros</span></button>
-    </div>
-    <div class="filtros-header-container" id="filtrosContainer" style="display: none;">
-      <div class="filtro-header-item"><label>MARCA</label>
-        <select id="filtroMarca" class="filtro-select-header">
-          <option value="">Todas</option>
-        </select>
-      </div>
-      <div class="filtro-header-item"><label>CATEGORÍA</label>
-        <select id="filtroCategoria" class="filtro-select-header">
-          <option value="">Todas</option>
-        </select>
-      </div>
-      <div class="filtro-header-item"><label>PRECIO MÍN</label><input type="number" id="filtroPrecioMin" class="filtro-input-header" min="0" step="0.01"></div>
-      <div class="filtro-header-item"><label>PRECIO MÁX</label><input type="number" id="filtroPrecioMax" class="filtro-input-header" min="0" step="0.01"></div>
-      <div class="filtro-header-item"><label>DISPONIBILIDAD</label>
-        <select id="filtroDisponibilidad" class="filtro-select-header">
-          <option value="">Todas</option>
-          <option value="disponible">Disponible</option>
-          <option value="agotado">Agotado</option>
-        </select>
-      </div>
-    </div>
-  </div>
-  <div class="acciones-usuario">
-    <a href="{% url 'web_cliente_perfil' %}" class="account" id="linkPerfil"><i class="bx bx-user-circle" aria-hidden="true"></i><span>Mi cuenta</span></a>
-    <button type="button" class="account js-panel-toggle" data-panel="favoritos"><i class="bx bx-heart" aria-hidden="true"></i><span>Favoritos</span></button>
-    <button type="button" class="account js-panel-toggle" data-panel="carrito"><i class="bx bx-cart" aria-hidden="true"></i><span>Carrito</span></button>
-    <a href="#" class="account" id="linkCerrarSesionHeader"><i class="bx bx-log-out" aria-hidden="true"></i><span>Cerrar sesión</span></a>
-  </div>
-</header>
-<nav class="menu-principal menu-principal--tecn">
-  <ul>
-    <li><a href="{% url 'inicio_autenticado' %}">Inicio</a></li>
-  </ul>
-</nav>
-<section id="panelResumenCliente" class="cliente-panel-resumen">
-  <div class="cliente-panel-card">
-    <div class="cliente-panel-head">
-      <h3 id="panelResumenTitulo" class="cliente-panel-titulo">Resumen</h3>
-      <button type="button" id="panelResumenCerrar" class="cliente-panel-cerrar">Cerrar</button>
-    </div>
-    <div id="panelResumenBody" class="cliente-panel-body"></div>
-  </div>
-</section>
-</div>
+{% include "frontend/cliente/partials/header_tienda_shell.html" %}
 
-<div class="busqueda-filtros-container">
-  <div id="resultadosBusqueda" class="resultados-container">
-    <h3 class="resultados-titulo">Resultados de búsqueda</h3>
-    <div id="productosFiltrados" class="productos-grid"></div>
-  </div>
-</div>
-
-<div class="mas-vendido-container" id="productosOriginales">
-  <div class="mas-vendido-header">
-    <span class="vendido">Catálogo</span>
-  </div>
-  <div class="carrusel-productos-contenedor">
-    <button type="button" class="carrusel-btn prev" aria-label="Anterior">&#10094;</button>
-    <div class="carrusel-track"></div>
-    <button type="button" class="carrusel-btn next" aria-label="Siguiente">&#10095;</button>
-  </div>
-</div>
-
-<div class="info-botones">
-  <div class="info-btn"><span class="icon">&#128666;</span><span>Envíos<br>a todo el país</span></div>
-  <div class="info-btn"><span class="icon">&#128179;</span><span>Métodos<br>de pago</span></div>
-  <div class="info-btn"><span class="icon">&#128100;</span><span>Atención<br>virtual</span></div>
-</div>
+{% include "frontend/partials/secciones_catalogo_inicio.html" with cliente_autenticado=True %}
 {% endblock %}
 {% block extra_js %}
 <script>
   window.TECHNOVA_SESION_SERVIDOR = true;
+  window.TECHNOVA_HOME_SSR = true;
   window.TECHNOVA_USUARIO_ID = {% if usuario_id is not None %}{{ usuario_id }}{% else %}null{% endif %};
   window.TECHNOVA_URL_CATALOGO_CARRITO = "{% url 'web_catalogo_agregar_carrito' %}";
   window.TECHNOVA_URL_CATALOGO_FAVORITO = "{% url 'web_catalogo_toggle_favorito' %}";
@@ -105,7 +27,8 @@
 {{ favoritos_preview|json_script:"favoritosPreviewData" }}
 {{ carrito_preview|json_script:"carritoPreviewData" }}
 <script src="{% static 'frontend/js/carrusel.js' %}"></script>
-<script src="{% static 'frontend/js/technova-cliente-home.js' %}?v=9"></script>
+<script src="{% static 'frontend/js/technova-producto-modal.js' %}?v=1"></script>
+<script src="{% static 'frontend/js/technova-cliente-home.js' %}?v=13"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     var lOut = document.getElementById('linkCerrarSesionHeader');

@@ -1,6 +1,243 @@
 /* producto.css */
 
-/* Layout general */
+/* Contenedor principal de la vista detalle (plantilla) */
+.producto-detalle-main {
+  padding: 0;
+  max-width: none;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Escena tipo “ventana” centrada sobre fondo suave */
+.producto-detalle-scene {
+  min-height: calc(100vh - 88px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem clamp(0.75rem, 3vw, 2rem) 2.5rem;
+  box-sizing: border-box;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% -30%, rgba(139, 92, 246, 0.14), transparent 55%),
+    radial-gradient(ellipse 50% 50% at 100% 20%, rgba(6, 182, 212, 0.1), transparent 45%),
+    linear-gradient(180deg, #eef2f7 0%, #f8fafc 40%, #e2e8f0 100%);
+}
+
+/* Dentro del panel cliente (sidebar + main): sin forzar altura de viewport */
+.cliente-dashboard-main .producto-detalle-scene {
+  min-height: auto;
+  align-items: flex-start;
+  padding: 0.25rem 0 1.5rem;
+}
+
+.producto-detalle-cargando {
+  margin: 0;
+  color: #64748b;
+  font-size: 1rem;
+}
+
+/* Tarjeta flotante */
+.producto-detalle-flotante {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow:
+    0 25px 50px -12px rgba(15, 23, 42, 0.2),
+    0 0 0 1px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.producto-detalle-flotante::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #06b6d4, #8b5cf6, #a855f7);
+  border-radius: 20px 20px 0 0;
+}
+
+.producto-detalle-flotante .producto-detalle-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+@media (min-width: 840px) {
+  .producto-detalle-flotante .producto-detalle-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 2rem;
+    padding: 2rem 2.25rem 2.25rem;
+  }
+}
+
+.producto-detalle-flotante .producto-detalle-imagen {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 16px;
+  padding: 1.25rem;
+  border: 1px solid #e2e8f0;
+}
+
+.producto-detalle-flotante .producto-detalle-imagen img {
+  width: 100%;
+  max-width: min(100%, 380px);
+  height: auto;
+  max-height: 380px;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12);
+}
+
+.producto-detalle-info {
+  min-width: 0;
+  color: #0f172a;
+}
+
+.producto-detalle-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8b5cf6;
+}
+
+.producto-detalle-titulo {
+  font-size: clamp(1.5rem, 2.8vw, 2rem);
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 1.25rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* Tabla de datos */
+.producto-detalle-specs {
+  margin: 0 0 1.25rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  background: #fafafa;
+}
+
+.producto-detalle-spec-item {
+  display: grid;
+  grid-template-columns: minmax(100px, 130px) 1fr;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  align-items: baseline;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.producto-detalle-spec-item:last-child {
+  border-bottom: none;
+}
+
+@media (max-width: 400px) {
+  .producto-detalle-spec-item {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+  }
+}
+
+.producto-detalle-spec-item dt {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.producto-detalle-spec-val {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.producto-detalle-spec-val--bajo {
+  color: #c2410c;
+  font-weight: 600;
+}
+
+.producto-detalle-spec-val--agotado {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.producto-detalle-descripcion-bloque {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.producto-detalle-subtitulo {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.producto-detalle-descripcion-texto {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: #334155;
+}
+
+.producto-detalle-descripcion-vacio {
+  margin: 0;
+  font-size: 0.95rem;
+  font-style: italic;
+  color: #94a3b8;
+}
+
+.producto-detalle-precio-caja {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(139, 92, 246, 0.12) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.producto-detalle-precio-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.producto-detalle-precio-monto {
+  font-size: clamp(1.5rem, 2.5vw, 1.85rem);
+  font-weight: 800;
+  color: #0f7d3d;
+  letter-spacing: -0.02em;
+}
+
+/* Layout legacy (si se usa en otra plantilla estática) */
 .producto-individual {
   padding: 40px 20px;
   background-color: #f8f8f8;
@@ -13,17 +250,16 @@
   background-color: #fff;
   border-radius: 12px;
   padding: 40px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   max-width: 1200px;
   margin: 0 auto;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
 
-
-/* Imagen */
 .img-producto {
   flex: 1;
+  min-width: 0;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -31,7 +267,8 @@
 
 .img-producto img {
   width: 100%;
-  max-width: 750px; /* <-- la aumentamos bastante */
+  max-width: 100%;
+  max-height: 420px;
   height: auto;
   border-radius: 16px;
   object-fit: contain;
@@ -40,15 +277,13 @@
 }
 
 .img-producto img:hover {
-  transform: scale(1.03); /* Efecto sutil de zoom al pasar el mouse */
+  transform: scale(1.03);
 }
 
-
-
-/* Info */
 .info-producto {
   flex: 1;
-  max-width: 500px;
+  min-width: 0;
+  max-width: 520px;
 }
 
 .titulo-producto {
@@ -164,4 +399,97 @@
 .marca-item:hover {
   background: var(--gradient-primary-hover);
   transform: translateY(-2px);
+}
+
+/* Modal: ficha sin cambiar de página */
+.producto-modal-root {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  box-sizing: border-box;
+}
+
+.producto-modal-root.is-open {
+  display: flex;
+}
+
+.producto-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(5px);
+}
+
+.producto-modal-dialog {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 960px;
+  max-height: min(92vh, 920px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.4);
+  background: #fff;
+}
+
+.producto-modal-body {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  min-height: 0;
+}
+
+.producto-detalle-flotante--modal {
+  position: relative;
+  max-width: none;
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
+}
+
+.producto-detalle-layout--modal {
+  padding: clamp(1rem, 3vw, 1.75rem);
+}
+
+.producto-modal-cerrar {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 3;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.12);
+  transition: background 0.2s, transform 0.15s;
+}
+
+.producto-modal-cerrar:hover {
+  background: #f1f5f9;
+  transform: scale(1.05);
+}
+
+.producto-modal-cargando,
+.producto-modal-error {
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.producto-modal-error {
+  color: #b91c1c;
 }

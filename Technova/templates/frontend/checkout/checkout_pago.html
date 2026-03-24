@@ -3,18 +3,16 @@
 <h2 class="section-title">Forma de pago</h2>
 <form method="post" action="{% url 'web_cliente_checkout_pago' %}" id="pagoForm">
   {% csrf_token %}
-  <input type="hidden" name="metodoPago" value="paypal_sandbox" />
-  <div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin-top: 10px; border: 2px solid #e0e0e0;">
-    <h3 style="color: #667eea; margin-bottom: 10px; font-size: 1.1em;">Pasarela seleccionada: PayPal Sandbox</h3>
-    <p style="margin: 0 0 10px; color: #4b5563;">
-      Serás redirigido a PayPal Sandbox para completar el pago de forma segura.
-    </p>
-    <ul style="margin: 0; padding-left: 18px; color: #4b5563;">
-      <li>Si el pago queda aprobado, tu compra se confirmará automáticamente.</li>
-      <li>Si el pago falla o queda pendiente, volverás con un mensaje de estado.</li>
-    </ul>
+  <div style="display:flex;flex-direction:column;gap:14px;margin-top:10px;">
+    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:14px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;">
+      <input type="radio" name="metodoPago" value="paypal_sandbox" checked style="margin-top:4px;" />
+      <span>
+        <strong style="color:#667eea;">PayPal Sandbox</strong>
+        <span style="display:block;color:#4b5563;font-size:0.95em;margin-top:4px;">Redireccion a PayPal Sandbox para pagar con tarjeta o cuenta PayPal (USD).</span>
+      </span>
+    </label>
   </div>
-  <button type="submit" class="account cta" style="margin-top:18px;">Continuar con PayPal</button>
+  <button type="submit" class="account cta" style="margin-top:18px;">Continuar</button>
 </form>
 <a href="{% url 'web_cliente_checkout_envio' %}" style="display:inline-block;margin-top:14px;color:#0ea5e9;font-weight:600;">← Anterior</a>
 {% endblock %}

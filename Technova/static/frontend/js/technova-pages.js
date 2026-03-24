@@ -140,16 +140,23 @@
     }
   }
 
+  function escapeHtml(texto) {
+    return String(texto || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
   async function productoDetalle(id) {
+    if (window.TechnovaProductoModal && typeof window.TechnovaProductoModal.open === "function") {
+      await window.TechnovaProductoModal.open(id);
+      return;
+    }
     const el = document.getElementById("page-data");
-    try {
-      const data = await window.TechnovaApi.get("/producto/" + id + "/");
+    if (el) {
       el.innerHTML =
-        "<pre style='white-space:pre-wrap;background:#fff;padding:1rem;border-radius:12px;'>" +
-        JSON.stringify(data, null, 2) +
-        "</pre>";
-    } catch (e) {
-      el.textContent = e.message || "Error";
+        "<p style='color:#dc2626'>No se pudo cargar el visor de producto.</p>";
     }
   }
 

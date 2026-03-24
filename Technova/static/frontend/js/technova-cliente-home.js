@@ -4,6 +4,14 @@
 (function () {
   var catalogoItemsCache = [];
 
+  function escapeHtml(texto) {
+    return String(texto || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
   function csrfToken() {
     var el = document.querySelector("input[name=csrfmiddlewaretoken]");
     if (el && el.value) return el.value;
@@ -33,8 +41,11 @@
     var j = await r.json().catch(function () {
       return {};
     });
-    if (!r.ok || j.ok === false) {
+    if (!r.ok) {
       throw new Error(j.message || r.statusText || "Error");
+    }
+    if (j.ok !== true) {
+      throw new Error(j.message || "Respuesta invalida del servidor.");
     }
     return j;
   }
@@ -65,15 +76,17 @@
       p.id +
       '">' +
       '<img src="' +
-      imgUrl(p) +
+      escapeHtml(imgUrl(p)) +
       '" alt="' +
-      (p.nombre || "") +
+      escapeHtml(p.nombre || "") +
       '" onerror="this.src=\'/static/frontend/imagenes/placeholder.svg\'"/>' +
       '<a href="/producto/' +
       p.id +
-      '/"><span class="detalles">Ver más detalles</span></a>' +
+      '/" class="js-producto-modal-link" data-producto-id="' +
+      p.id +
+      '"><span class="detalles">Ver más detalles</span></a>' +
       "<h3>" +
-      (p.nombre || "") +
+      escapeHtml(p.nombre || "") +
       "</h3>" +
       '<div style="margin:5px 0;">' +
       disp +
@@ -94,20 +107,31 @@
   }
 
   async function cargarCatalogo() {
-    const track = document.querySelector(".carrusel-track");
-    if (!track) return;
+    const firstTrack = document.querySelector(".carrusel-track");
+    if (!firstTrack) return;
+    /** Solo respetar SSR si el servidor ya pintó tarjetas; si vino vacío, la API sigue siendo la fuente (como antes del SSR). */
+    var servidorTieneTarjetas = !!firstTrack.querySelector(".producto[data-id]");
+    var marcarSsr =
+      firstTrack.getAttribute("data-ssr") === "1" ||
+      window.TECHNOVA_HOME_SSR === true;
+    var usarSsrSinSobrescribir = marcarSsr && servidorTieneTarjetas;
     try {
       const data = await window.TechnovaApi.get("/producto/");
       const items = data.items || [];
       catalogoItemsCache = items;
       poblarSelectsFiltros(items);
-      track.innerHTML = items.map(cardHtml).join("") || "<p>No hay productos.</p>";
+      if (!usarSsrSinSobrescribir) {
+        firstTrack.innerHTML =
+          items.map(cardHtml).join("") || "<p>No hay productos.</p>";
+      }
       document.dispatchEvent(new CustomEvent("technova:productos-cargados"));
     } catch (e) {
-      track.innerHTML =
-        '<p style="padding:20px;color:#e63946;">No se pudo cargar el catálogo. ' +
-        (e.message || "") +
-        "</p>";
+      if (!usarSsrSinSobrescribir) {
+        firstTrack.innerHTML =
+          '<p style="padding:20px;color:#e63946;">No se pudo cargar el catálogo. ' +
+          (e.message || "") +
+          "</p>";
+      }
     }
   }
 
@@ -399,37 +423,85 @@
     });
   }
 
+  /** El clic puede caer en un nodo #text (p. ej. emoji dentro del boton); esos nodos no tienen .closest(). */
+  function clickTargetElement(ev) {
+    var t = ev.target;
+    if (t && t.nodeType === 1) return t;
+    if (t && t.parentElement) return t.parentElement;
+    return null;
+  }
+
+  function scrollToCatalogoInicio() {
+    var el = document.getElementById("catalogo-publico");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function aplicarFiltroCategoriaInicio(val) {
+    var sel = document.getElementById("filtroCategoria");
+    var fc = document.getElementById("filtrosContainer");
+    var toggle = document.getElementById("btnFiltrosToggle");
+    if (sel) sel.value = val || "";
+    if (fc) {
+      fc.style.display = "block";
+      if (toggle) toggle.classList.add("active");
+    }
+    scrollToCatalogoInicio();
+    buscarAvanzado();
+  }
+
+  function aplicarFiltroMarcaInicio(val) {
+    var sel = document.getElementById("filtroMarca");
+    var fc = document.getElementById("filtrosContainer");
+    var toggle = document.getElementById("btnFiltrosToggle");
+    if (sel) sel.value = val || "";
+    if (fc) {
+      fc.style.display = "block";
+      if (toggle) toggle.classList.add("active");
+    }
+    scrollToCatalogoInicio();
+    buscarAvanzado();
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     window.TECHNOVA_API_PREFIX = window.TECHNOVA_API_PREFIX || "/api/v1";
     cargarCatalogo();
 
-    document.querySelector(".carrusel-track")?.addEventListener("click", function (ev) {
-      const b = ev.target.closest(".js-carrito");
-      if (b) {
+    document.addEventListener(
+      "click",
+      function (ev) {
+        var el = clickTargetElement(ev);
+        var b = el && el.closest ? el.closest(".js-carrito") : null;
+        var f = el && el.closest ? el.closest(".js-favorito") : null;
+        if (!b && !f) return;
+        if (b) {
+          ev.preventDefault();
+          importarCarrito(b.getAttribute("data-producto-id"));
+          return;
+        }
+        if (f) {
+          ev.preventDefault();
+          toggleFavorito(f.getAttribute("data-producto-id"));
+        }
+      },
+      true
+    );
+
+    document.querySelectorAll(".index-sub-cat").forEach(function (btn) {
+      btn.addEventListener("click", function (ev) {
         ev.preventDefault();
-        const pid = b.getAttribute("data-producto-id");
-        importarCarrito(pid);
-      }
-      const f = ev.target.closest(".js-favorito");
-      if (f) {
-        ev.preventDefault();
-        const pid = f.getAttribute("data-producto-id");
-        toggleFavorito(pid);
-      }
+        ev.stopPropagation();
+        aplicarFiltroCategoriaInicio(btn.getAttribute("data-categoria") || "");
+      });
     });
 
-    document.getElementById("productosFiltrados")?.addEventListener("click", function (ev) {
-      const b = ev.target.closest(".js-carrito");
-      if (b) {
+    document.querySelectorAll(".index-sub-marca").forEach(function (btn) {
+      btn.addEventListener("click", function (ev) {
         ev.preventDefault();
-        importarCarrito(b.getAttribute("data-producto-id"));
-      }
-      const f = ev.target.closest(".js-favorito");
-      if (f) {
-        ev.preventDefault();
-        toggleFavorito(f.getAttribute("data-producto-id"));
-      }
+        ev.stopPropagation();
+        aplicarFiltroMarcaInicio(btn.getAttribute("data-marca") || "");
+      });
     });
+
     panelResumenInit();
     if (Array.isArray(catalogoItemsCache) && catalogoItemsCache.length) {
       poblarSelectsFiltros(catalogoItemsCache);

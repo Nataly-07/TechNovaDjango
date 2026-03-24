@@ -13,7 +13,7 @@ from django.contrib import messages
 from django.conf import settings
 from django.db import IntegrityError
 from django.db.models import Count, Prefetch, Q, Sum
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
@@ -274,18 +274,7 @@ def _paypal_capture_order(order_id: str) -> tuple[bool, str]:
         return False, "NETWORK_ERROR"
 
 
-def _ejecutar_checkout_desde_sesion(request, uid: int):
-    info = request.session.get(SESSION_CK_INFO) or {}
-    dire = request.session.get(SESSION_CK_DIR) or {}
-    env = request.session.get(SESSION_CK_ENV) or {}
-    pago = request.session.get(SESSION_CK_PAGO) or {}
-    if not info or not dire or not env or not pago:
-        messages.error(request, "Datos de checkout incompletos. Vuelve a empezar.")
-        return redirect("web_cliente_checkout_info")
-    carrito_id = _carrito_activo_id(uid)
-    if not carrito_id:
-        messages.error(request, "No hay carrito activo.")
-        return redirect("web_carrito")
+def _aplicar_usuario_desde_checkout_sesion(uid: int, info: dict, dire: dict) -> None:
     try:
         u = Usuario.objects.get(pk=uid)
         if info.get("firstName"):
@@ -307,6 +296,21 @@ def _ejecutar_checkout_desde_sesion(request, uid: int):
         u.save(update_fields=["nombres", "apellidos", "telefono", "direccion", "actualizado_en"])
     except Exception:  # noqa: BLE001
         pass
+
+
+def _ejecutar_checkout_desde_sesion(request, uid: int, *, numero_factura: str | None = None):
+    info = request.session.get(SESSION_CK_INFO) or {}
+    dire = request.session.get(SESSION_CK_DIR) or {}
+    env = request.session.get(SESSION_CK_ENV) or {}
+    pago = request.session.get(SESSION_CK_PAGO) or {}
+    if not info or not dire or not env or not pago:
+        messages.error(request, "Datos de checkout incompletos. Vuelve a empezar.")
+        return redirect("web_cliente_checkout_info")
+    carrito_id = _carrito_activo_id(uid)
+    if not carrito_id:
+        messages.error(request, "No hay carrito activo.")
+        return redirect("web_carrito")
+    _aplicar_usuario_desde_checkout_sesion(uid, info, dire)
     t = _transportadora_por_nombre_spring(env.get("transportadora", ""))
     if t is None:
         t = _transportadoras_para_checkout().first()
@@ -316,7 +320,8 @@ def _ejecutar_checkout_desde_sesion(request, uid: int):
     numero_guia = f"WEB-{uuid.uuid4().hex[:12].upper()}"
     costo_envio = Decimal("0")
     metodo_pago = _map_metodo_pago_spring(pago.get("metodoPago"))
-    numero_factura = f"FACT-{timezone.localdate().year}-{uid}-{uuid.uuid4().hex[:14].upper()}"
+    if numero_factura is None:
+        numero_factura = f"FACT-{timezone.localdate().year}-{uid}-{uuid.uuid4().hex[:14].upper()}"
     try:
         resultado = get_checkout_service().ejecutar_checkout(
             usuario_id=uid,
@@ -554,85 +559,14 @@ def empleado_dashboard(request, seccion: str = "inicio"):
     )
 
 
-def _capitalize_catalogo(s: str) -> str:
-    s = (s or "").strip()
-    if not s:
-        return s
-    return s[0].upper() + s[1:].lower() if len(s) > 1 else s.upper()
-
-
-def _listas_categorias_marcas_publicas():
-    """Listas para menús del index (sin rutas /categoria/ en Django)."""
-    qs = Producto.objects.filter(activo=True)
-    cats = sorted(
-        {
-            _capitalize_catalogo(c)
-            for c in qs.exclude(categoria__exact="").values_list("categoria", flat=True).distinct()
-            if c and c.strip() and c.strip().lower() != "temporal"
-        }
-    )
-    marcas = sorted(
-        {
-            _capitalize_catalogo(m)
-            for m in qs.exclude(marca__exact="").values_list("marca", flat=True).distinct()
-            if m and m.strip() and m.strip().lower() != "temporal"
-        }
-    )
-    return cats, marcas
-
-
-def _precio_tarjeta_index(p: Producto):
-    base = p.precio_venta if p.precio_venta is not None else p.costo_unitario
-    if base is None:
-        return None, None
-    d = float(base)
-    o = round(d * 1.05)
-    return o, d
-
-
-def _imagen_producto_publica(p: Producto) -> str:
-    img = (p.imagen_url or "").strip()
-    if not img:
-        return "/static/frontend/imagenes/placeholder.svg"
-    if img.startswith("http://") or img.startswith("https://"):
-        return img
-    if img.startswith("/"):
-        return img
-    return f"/static/frontend/imagenes/{img}"
-
-
-def _producto_card_ctx(p: Producto) -> dict:
-    po, pd = _precio_tarjeta_index(p)
-    return {
-        "id": p.id,
-        "nombre": p.nombre,
-        "imagen": _imagen_producto_publica(p),
-        "stock": p.stock or 0,
-        "precio_original": po,
-        "precio_descuento": pd,
-    }
-
-
 def index_public(request):
     """Landing pública (invitado): catálogo, ofertas y enlaces a login/registro (`/`)."""
-    productos_qs = Producto.objects.filter(activo=True).order_by("id")
-    productos_cards = [_producto_card_ctx(p) for p in productos_qs[:24]]
-    recientes_qs = Producto.objects.filter(activo=True).order_by("-creado_en", "-id")[:6]
-    productos_recientes = [_producto_card_ctx(p) for p in recientes_qs]
-    categorias, marcas = _listas_categorias_marcas_publicas()
-    oferta_dia = productos_cards[0] if productos_cards else None
-    ofertas_interes = productos_cards[:3]
+    from web.catalogo_nav import ctx_catalogo_index
+
     return render(
         request,
         "frontend/index_public.html",
-        {
-            "productos": productos_cards,
-            "productos_recientes": productos_recientes,
-            "categorias": categorias,
-            "marcas": marcas,
-            "oferta_dia": oferta_dia,
-            "ofertas_interes": ofertas_interes,
-        },
+        ctx_catalogo_index(),
     )
 
 
@@ -655,6 +589,8 @@ def root_entry(request):
 @_cliente_login_required
 def home(request):
     """Inicio autenticado / catálogo (`/inicio/`)."""
+    from web.catalogo_nav import ctx_catalogo_index
+
     uid = request.session.get(SESSION_USUARIO_ID)
     if uid:
         try:
@@ -692,15 +628,15 @@ def home(request):
                 "precio_unitario": str(it.get("precio_unitario", "0")),
             }
         )
-    return render(
-        request,
-        "frontend/cliente/home.html",
+    ctx = ctx_catalogo_index()
+    ctx.update(
         {
             "usuario_id": uid,
             "favoritos_preview": favoritos_preview,
             "carrito_preview": carrito_preview,
-        },
+        }
     )
+    return render(request, "frontend/cliente/home.html", ctx)
 
 
 @_cliente_login_required
@@ -2170,11 +2106,7 @@ def checkout_revision(request):
     envio = request.session.get(SESSION_CK_ENV) or {}
     pago = request.session.get(SESSION_CK_PAGO) or {}
     metodo_raw = pago.get("metodoPago") or ""
-    metodo_label = (
-        "PayPal Sandbox"
-        if metodo_raw == "paypal_sandbox"
-        else (metodo_raw or "—")
-    )
+    metodo_label = "PayPal Sandbox" if metodo_raw == "paypal_sandbox" else (metodo_raw or "—")
     return render(
         request,
         "frontend/checkout/checkout_revision.html",
@@ -2198,7 +2130,8 @@ def checkout_finalizar(request):
     """POST /checkout/finalizar — CheckoutService + limpieza de sesión (Spring)."""
     uid = request.session.get(SESSION_USUARIO_ID)
     pago = request.session.get(SESSION_CK_PAGO) or {}
-    if (pago.get("metodoPago") or "").strip() == "paypal_sandbox":
+    metodo = (pago.get("metodoPago") or "").strip()
+    if metodo == "paypal_sandbox":
         return redirect("web_cliente_checkout_paypal_iniciar")
     return _ejecutar_checkout_desde_sesion(request, uid)
 
@@ -2404,6 +2337,13 @@ def atencion_cliente(request):
     return render(request, "frontend/cliente/atencion.html")
 
 
-@_cliente_login_required
 def producto_detalle(request, producto_id: int):
-    return render(request, "frontend/cliente/producto_detalle.html", {"producto_id": producto_id})
+    """Detalle público del producto (catálogo); datos vía API en cliente."""
+    return render(
+        request,
+        "frontend/cliente/producto_detalle.html",
+        {
+            "producto_id": producto_id,
+            "usuario_id": request.session.get(SESSION_USUARIO_ID),
+        },
+    )

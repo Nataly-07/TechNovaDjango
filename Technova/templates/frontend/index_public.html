@@ -102,7 +102,8 @@
       {% for p in productos %}
       <div class="producto" data-id="{{ p.id }}">
         <img src="{{ p.imagen }}" alt="{{ p.nombre }}" loading="lazy"
-             onerror="this.src='{% static 'frontend/imagenes/placeholder.svg' %}'">
+             data-placeholder="{% static 'frontend/imagenes/placeholder.svg' %}"
+             onerror="this.onerror=null;this.src=this.dataset.placeholder">
         <a href="{% url 'web_producto_detalle' p.id %}"><span class="detalles">Ver Más Detalles</span></a>
         <h3>{{ p.nombre }}</h3>
         <div class="producto-stock">
@@ -157,7 +158,8 @@
       {% for p in productos_recientes %}
       <div class="producto" data-id="{{ p.id }}">
         <img src="{{ p.imagen }}" alt="{{ p.nombre }}" loading="lazy"
-             onerror="this.src='{% static 'frontend/imagenes/placeholder.svg' %}'">
+             data-placeholder="{% static 'frontend/imagenes/placeholder.svg' %}"
+             onerror="this.onerror=null;this.src=this.dataset.placeholder">
         <a href="{% url 'web_producto_detalle' p.id %}"><span class="detalles">Ver Más Detalles</span></a>
         <h3>{{ p.nombre }}</h3>
         <div class="producto-stock">
@@ -188,7 +190,8 @@
     <span class="vendido1 vendido1--pill vendido1--pill--start">Oferta del dia</span>
     <div class="producto-card producto-card--dia">
       <img src="{{ oferta_dia.imagen }}" alt="{{ oferta_dia.nombre }}" loading="lazy"
-           onerror="this.src='{% static 'frontend/imagenes/placeholder.svg' %}'">
+           data-placeholder="{% static 'frontend/imagenes/placeholder.svg' %}"
+           onerror="this.onerror=null;this.src=this.dataset.placeholder">
       <a href="{% url 'web_producto_detalle' oferta_dia.id %}" class="link-detalles">Ver Más Detalles</a>
       <h3>{{ oferta_dia.nombre }}</h3>
       <div class="producto-stock">
@@ -216,7 +219,8 @@
       {% for p in ofertas_interes %}
       <div class="producto-card producto-card--mini">
         <img src="{{ p.imagen }}" alt="{{ p.nombre }}" loading="lazy"
-             onerror="this.src='{% static 'frontend/imagenes/placeholder.svg' %}'">
+             data-placeholder="{% static 'frontend/imagenes/placeholder.svg' %}"
+             onerror="this.onerror=null;this.src=this.dataset.placeholder">
         <a href="{% url 'web_producto_detalle' p.id %}" class="link-detalles">Ver Más Detalles</a>
         <h3>{{ p.nombre }}</h3>
         <div class="producto-stock">

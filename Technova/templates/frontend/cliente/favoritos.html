@@ -139,7 +139,7 @@
   {% for p in productos %}
   <div class="favorito-card">
     {% if p.imagen %}
-      <img src="{{ p.imagen }}" alt="{{ p.nombre }}" onerror="this.src='{% static 'frontend/imagenes/placeholder.svg' %}'">
+      <img src="{{ p.imagen }}" alt="{{ p.nombre }}" data-placeholder="{% static 'frontend/imagenes/placeholder.svg' %}" onerror="this.onerror=null;this.src=this.dataset.placeholder">
     {% else %}
       <img src="{% static 'frontend/imagenes/placeholder.svg' %}" alt="{{ p.nombre }}">
     {% endif %}

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ titulo }} - Vista previa</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; }
+    h1 { margin: 0 0 8px; color: #312e81; }
+    .meta { margin-bottom: 14px; font-size: 13px; color: #475569; }
+    .filtros { margin-bottom: 16px; font-size: 13px; color: #334155; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th {
+      background: #4f46e5;
+      color: #fff;
+      border: 1px solid #cbd5e1;
+      padding: 8px;
+      text-align: left;
+    }
+    tbody td {
+      border: 1px solid #cbd5e1;
+      padding: 7px;
+      vertical-align: top;
+    }
+    tbody tr:nth-child(even) { background: #eef2ff; }
+    .acciones { margin-top: 14px; display: flex; gap: 10px; }
+    .btn {
+      display: inline-block;
+      background: #4f46e5;
+      color: #fff;
+      text-decoration: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .btn.secondary { background: #475569; }
+  </style>
+</head>
+<body>
+  <h1>{{ titulo }}</h1>
+  <div class="meta">Generado: {% now "d/m/Y H:i" %}</div>
+  <div class="filtros">
+    {% for f in filtros %}
+      <div>{{ f }}</div>
+    {% endfor %}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        {% for h in headers %}
+        <th>{{ h }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        {% for col in row %}
+        <td>{{ col }}</td>
+        {% endfor %}
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="{{ headers|length }}">Sin datos.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="acciones">
+    <a class="btn" href="{% url 'web_admin_reportes_pdf' tipo %}?{{ request.GET.urlencode }}">Descargar PDF</a>
+    <a class="btn secondary" href="{% url 'web_admin_reportes' %}?tipo={{ tipo }}">Volver a Reportes</a>
+  </div>
+</body>
+</html>

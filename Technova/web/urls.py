@@ -61,6 +61,9 @@ urlpatterns = [
         name="web_admin_proveedor_estado",
     ),
     path("admin/proveedores/", views.admin_proveedores, name="web_admin_proveedores"),
+    path("admin/reportes/", views.admin_reportes, name="web_admin_reportes"),
+    path("admin/reportes/<str:tipo>/preview/", views.admin_reportes_preview, name="web_admin_reportes_preview"),
+    path("admin/reportes/<str:tipo>/pdf/", views.admin_reportes_pdf, name="web_admin_reportes_pdf"),
     path("admin/pagos/", views.admin_pagos, name="web_admin_pagos"),
     path(
         "admin/pagos/detalle/<int:pago_id>/",

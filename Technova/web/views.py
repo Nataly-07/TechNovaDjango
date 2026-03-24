@@ -2,7 +2,8 @@ import json
 import re
 import uuid
 import base64
-from datetime import date, datetime
+from io import BytesIO
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 from urllib import error as urllib_error
@@ -1760,6 +1761,337 @@ def admin_pedido_detalle(request, venta_id: int):
             "medio_pago_etiqueta": medio_pago_etiqueta,
         },
     )
+
+
+def _reporte_filtrar_productos(
+    *, categoria: str = "", marca: str = "", precio_min: Decimal | None = None, precio_max: Decimal | None = None
+):
+    qs = Producto.objects.select_related("proveedor").order_by("id")
+    if categoria:
+        qs = qs.filter(categoria__iexact=categoria)
+    if marca:
+        qs = qs.filter(marca__iexact=marca)
+    if precio_min is not None:
+        qs = qs.filter(precio_venta__gte=precio_min)
+    if precio_max is not None:
+        qs = qs.filter(precio_venta__lte=precio_max)
+    return qs
+
+
+def _reporte_filtrar_usuarios(*, rol: str = "", busqueda: str = ""):
+    qs = Usuario.objects.all().order_by("id")
+    if rol in {Usuario.Rol.ADMIN, Usuario.Rol.CLIENTE, Usuario.Rol.EMPLEADO}:
+        qs = qs.filter(rol=rol)
+    if busqueda:
+        qs = qs.filter(
+            Q(nombres__icontains=busqueda)
+            | Q(apellidos__icontains=busqueda)
+            | Q(correo_electronico__icontains=busqueda)
+            | Q(numero_documento__icontains=busqueda)
+        )
+    return qs
+
+
+def _reporte_filtrar_ventas(*, estado: str = "", fecha_desde: str = "", fecha_hasta: str = ""):
+    qs = Venta.objects.select_related("usuario").order_by("-fecha_venta", "-id")
+    if estado in {Venta.Estado.ABIERTA, Venta.Estado.FACTURADA, Venta.Estado.ANULADA}:
+        qs = qs.filter(estado=estado)
+
+    fd = _parse_date_param(fecha_desde) if fecha_desde else None
+    fh = _parse_date_param(fecha_hasta) if fecha_hasta else None
+    if fd:
+        qs = qs.filter(fecha_venta__gte=fd)
+    if fh:
+        qs = qs.filter(fecha_venta__lte=fh)
+    return qs
+
+
+def _reporte_build_pdf(titulo: str, filtros: list[str], headers: list[str], rows: list[list[str]]) -> bytes:
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import mm
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    except Exception as exc:
+        raise RuntimeError("No se encontró la librería 'reportlab'.") from exc
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=14 * mm,
+        rightMargin=14 * mm,
+        topMargin=14 * mm,
+        bottomMargin=14 * mm,
+    )
+    styles = getSampleStyleSheet()
+    elements = [
+        Paragraph(f"<b>{titulo}</b>", styles["Title"]),
+        Spacer(1, 6),
+        Paragraph(f"Fecha de generación: {timezone.localtime().strftime('%d/%m/%Y %H:%M')}", styles["Normal"]),
+        Spacer(1, 4),
+        Paragraph(" | ".join(filtros) if filtros else "Sin filtros aplicados.", styles["Normal"]),
+        Spacer(1, 10),
+    ]
+    data = [headers] + rows
+    table = Table(data, repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#4f46e5")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.HexColor("#eef2ff")]),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ]
+        )
+    )
+    elements.append(table)
+    doc.build(elements)
+    return buffer.getvalue()
+
+
+def _reporte_dataset_from_request(request, tipo: str) -> dict:
+    tipo = (tipo or "").strip().lower()
+    if tipo not in {"productos", "usuarios", "ventas"}:
+        raise ValueError("Tipo de reporte no válido.")
+
+    if tipo == "productos":
+        categoria = (request.GET.get("categoria") or "").strip()
+        marca = (request.GET.get("marca") or "").strip()
+        precio_min_raw = (request.GET.get("precioMin") or "").strip()
+        precio_max_raw = (request.GET.get("precioMax") or "").strip()
+        precio_min = _decimal_desde_post(precio_min_raw) if precio_min_raw else None
+        precio_max = _decimal_desde_post(precio_max_raw) if precio_max_raw else None
+        items = list(
+            _reporte_filtrar_productos(
+                categoria=categoria, marca=marca, precio_min=precio_min, precio_max=precio_max
+            ).select_related("proveedor")[:1000]
+        )
+        rows = [
+            [
+                str(p.id),
+                p.codigo,
+                p.nombre,
+                p.categoria or "—",
+                p.marca or "—",
+                f"${(p.precio_venta if p.precio_venta is not None else p.costo_unitario):,.0f}",
+                str(p.stock),
+            ]
+            for p in items
+        ]
+        return {
+            "titulo": "Reporte Estadístico de Productos",
+            "headers": ["ID", "Código", "Nombre", "Categoría", "Marca", "Precio", "Stock"],
+            "rows": rows,
+            "filtros": [
+                f"Categoría: {categoria or 'Todas'}",
+                f"Marca: {marca or 'Todas'}",
+                f"Precio min: {precio_min_raw or '—'}",
+                f"Precio max: {precio_max_raw or '—'}",
+                f"Total registros: {len(rows)}",
+            ],
+        }
+
+    if tipo == "usuarios":
+        rol = (request.GET.get("rol") or "").strip().lower()
+        busqueda = (request.GET.get("busqueda") or "").strip()
+        items = list(_reporte_filtrar_usuarios(rol=rol, busqueda=busqueda)[:1000])
+        rows = [
+            [
+                str(u.id),
+                f"{u.nombres} {u.apellidos}".strip(),
+                u.correo_electronico,
+                u.get_rol_display(),
+                "Activo" if u.activo else "Inactivo",
+                f"{u.tipo_documento} {u.numero_documento}",
+            ]
+            for u in items
+        ]
+        return {
+            "titulo": "Reporte Estadístico de Usuarios",
+            "headers": ["ID", "Nombre", "Correo", "Rol", "Estado", "Documento"],
+            "rows": rows,
+            "filtros": [
+                f"Rol: {rol or 'Todos'}",
+                f"Búsqueda: {busqueda or '—'}",
+                f"Total registros: {len(rows)}",
+            ],
+        }
+
+    estado = (request.GET.get("estado") or "").strip().lower()
+    fecha_desde = (request.GET.get("fechaDesde") or "").strip()
+    fecha_hasta = (request.GET.get("fechaHasta") or "").strip()
+    items = list(_reporte_filtrar_ventas(estado=estado, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)[:1000])
+    rows = [
+        [
+            str(v.id),
+            f"{v.usuario.nombres} {v.usuario.apellidos}".strip() if v.usuario_id else "—",
+            str(v.fecha_venta),
+            v.get_estado_display(),
+            f"${v.total:,.0f}",
+        ]
+        for v in items
+    ]
+    return {
+        "titulo": "Reporte Estadístico de Ventas",
+        "headers": ["ID", "Cliente", "Fecha", "Estado", "Total"],
+        "rows": rows,
+        "filtros": [
+            f"Estado: {estado or 'Todos'}",
+            f"Desde: {fecha_desde or '—'}",
+            f"Hasta: {fecha_hasta or '—'}",
+            f"Total registros: {len(rows)}",
+        ],
+    }
+
+
+@_admin_login_required
+def admin_reportes(request):
+    usuario = _admin_usuario_sesion(request)
+
+    tipo = (request.GET.get("tipo") or "productos").strip().lower()
+    if tipo not in {"productos", "usuarios", "ventas"}:
+        tipo = "productos"
+
+    categoria = (request.GET.get("categoria") or "").strip()
+    marca = (request.GET.get("marca") or "").strip()
+    precio_min_raw = (request.GET.get("precioMin") or "").strip()
+    precio_max_raw = (request.GET.get("precioMax") or "").strip()
+    rol = (request.GET.get("rol") or "").strip().lower()
+    busqueda = (request.GET.get("busqueda") or "").strip()
+    estado = (request.GET.get("estado") or "").strip().lower()
+    fecha_desde = (request.GET.get("fechaDesde") or "").strip()
+    fecha_hasta = (request.GET.get("fechaHasta") or "").strip()
+
+    precio_min = _decimal_desde_post(precio_min_raw) if precio_min_raw else None
+    precio_max = _decimal_desde_post(precio_max_raw) if precio_max_raw else None
+
+    productos_qs = _reporte_filtrar_productos(
+        categoria=categoria,
+        marca=marca,
+        precio_min=precio_min,
+        precio_max=precio_max,
+    )
+    usuarios_qs = _reporte_filtrar_usuarios(rol=rol, busqueda=busqueda)
+    ventas_qs = _reporte_filtrar_ventas(estado=estado, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)
+
+    usuarios_por_rol = {
+        "admin": Usuario.objects.filter(rol=Usuario.Rol.ADMIN).count(),
+        "empleado": Usuario.objects.filter(rol=Usuario.Rol.EMPLEADO).count(),
+        "cliente": Usuario.objects.filter(rol=Usuario.Rol.CLIENTE).count(),
+    }
+    productos_por_categoria = (
+        Producto.objects.exclude(categoria="")
+        .values("categoria")
+        .annotate(total=Count("id"))
+        .order_by("-total", "categoria")[:8]
+    )
+
+    hoy = timezone.localdate()
+    ventas_por_mes = []
+    for i in range(5, -1, -1):
+        ref = hoy.replace(day=1) - timedelta(days=31 * i)
+        total_mes = (
+            Venta.objects.filter(fecha_venta__year=ref.year, fecha_venta__month=ref.month).aggregate(s=Sum("total"))[
+                "s"
+            ]
+            or Decimal("0")
+        )
+        ventas_por_mes.append({"mes": ref.strftime("%b %Y"), "total": total_mes})
+
+    ctx = {
+        "usuario": usuario,
+        "tipo": tipo,
+        "categoria": categoria,
+        "marca": marca,
+        "precio_min": precio_min_raw,
+        "precio_max": precio_max_raw,
+        "rol": rol,
+        "busqueda": busqueda,
+        "estado": estado,
+        "fecha_desde": fecha_desde,
+        "fecha_hasta": fecha_hasta,
+        "productos_count": Producto.objects.count(),
+        "usuarios_count": Usuario.objects.count(),
+        "ventas_count": Venta.objects.count(),
+        "monto_ventas_total": Venta.objects.aggregate(s=Sum("total"))["s"] or Decimal("0"),
+        "categorias": sorted(
+            set(Producto.objects.exclude(categoria="").values_list("categoria", flat=True).distinct()), key=str.lower
+        ),
+        "marcas": sorted(
+            set(Producto.objects.exclude(marca="").values_list("marca", flat=True).distinct()), key=str.lower
+        ),
+        "usuarios_por_rol": usuarios_por_rol,
+        "productos_por_categoria": list(productos_por_categoria),
+        "ventas_por_mes": ventas_por_mes,
+        "preview_productos": list(productos_qs[:50]),
+        "preview_usuarios": list(usuarios_qs[:50]),
+        "preview_ventas": list(ventas_qs[:50]),
+    }
+    return render(request, "frontend/admin/reportes.html", ctx)
+
+
+@_admin_login_required
+def admin_reportes_preview(request, tipo: str):
+    _admin_usuario_sesion(request)
+    try:
+        data = _reporte_dataset_from_request(request, tipo)
+    except ValueError:
+        messages.error(request, "Tipo de reporte no válido.")
+        return redirect("web_admin_reportes")
+    return render(
+        request,
+        "frontend/admin/reportes_preview.html",
+        {
+            "tipo": tipo,
+            "titulo": data["titulo"],
+            "headers": data["headers"],
+            "rows": data["rows"],
+            "filtros": data["filtros"],
+        },
+    )
+
+
+@_admin_login_required
+def admin_reportes_pdf(request, tipo: str):
+    _admin_usuario_sesion(request)
+    tipo = (tipo or "").strip().lower()
+    if tipo not in {"productos", "usuarios", "ventas"}:
+        messages.error(request, "Tipo de reporte no válido.")
+        return redirect("web_admin_reportes")
+
+    try:
+        data = _reporte_dataset_from_request(request, tipo)
+        rows = data["rows"]
+        if not rows:
+            fila_vacia = [""] * max(len(data["headers"]), 1)
+            fila_vacia[0] = "—"
+            if len(fila_vacia) > 1:
+                fila_vacia[1] = "Sin datos"
+            rows = [fila_vacia]
+        pdf = _reporte_build_pdf(
+            data["titulo"],
+            data["filtros"],
+            data["headers"],
+            rows,
+        )
+    except RuntimeError:
+        messages.error(
+            request,
+            "Falta la dependencia para PDF. Instala reportlab en tu entorno virtual: pip install reportlab",
+        )
+        return redirect("web_admin_reportes")
+
+    filename = f"reporte_{tipo}_{timezone.localtime().strftime('%Y%m%d_%H%M%S')}.pdf"
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 @_cliente_login_required

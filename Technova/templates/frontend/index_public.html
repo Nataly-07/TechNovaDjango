@@ -2,9 +2,10 @@
 {% load static %}
 {% block title %}Technova{% endblock %}
 {% block body %}
-<header class="header">
+<div class="tecn-header-shell">
+<header class="header header--tecn">
   <a href="{% url 'root' %}" class="logo">
-    <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="logo-technova">
+    <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Technova" class="logo-marca" width="48" height="48">
     <span>TECHNOVA</span>
   </a>
 
@@ -60,7 +61,7 @@
     <a href="{% url 'web_registro' %}" class="account"><span>Crear Cuenta</span></a>
   </div>
 </header>
-<nav class="menu-principal">
+<nav class="menu-principal menu-principal--tecn">
   <ul>
     <li><a href="{% url 'root' %}">Inicio</a></li>
     <li class="submenu">
@@ -81,6 +82,7 @@
     </li>
   </ul>
 </nav>
+</div>
 
 <div class="busqueda-filtros-container">
   <div id="resultadosBusqueda" class="resultados-container">

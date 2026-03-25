@@ -180,33 +180,65 @@
 </div>
 {% endif %}
 
-<section class="navegacion-categorias" id="categorias-publico">
-  <h2>Explora por Categoría</h2>
-  <div class="categorias-grid">
-    {% for c in categorias %}
-    <a href="#" class="categoria-item index-sub-cat" data-categoria="{{ c }}">{{ c }}</a>
-    {% endfor %}
-  </div>
-</section>
+<div class="index-explora-suite{% if cliente_autenticado %} index-explora-suite--tienda{% endif %}" aria-label="Explorar catálogo">
+  <div class="index-catalogo-filtros-row">
+    <section class="navegacion-categorias index-glass-panel" id="categorias-publico">
+      <header class="index-panel-head">
+        <span class="index-panel-kicker">CATÁLOGO</span>
+        <h2 class="index-panel-title">Explora por categoría</h2>
+        <p class="index-panel-desc">Elige una categoría y descubre productos seleccionados para ti.</p>
+      </header>
+      <div class="categorias-grid categorias-grid--explora">
+        {% for c in categorias %}
+        <a href="#" class="categoria-item categoria-item--explora index-sub-cat" data-categoria="{{ c }}">
+          <span class="categoria-item__icon" aria-hidden="true">◇</span>
+          <span class="categoria-item__text">{{ c }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
 
-<section class="marcas">
-  <h2>Marcas Populares</h2>
-  <div class="brand-list">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" loading="lazy" width="120" height="40">
-    <img src="https://images.samsung.com/is/image/samsung/assets/global/about-us/brand/logo/360_197_1.png?$720_N_PNG$" alt="Samsung" loading="lazy" width="120" height="40">
-    <img src="https://1000marcas.net/wp-content/uploads/2019/12/Xiaomi-Logo.png" alt="Xiaomi" loading="lazy" width="120" height="40">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Motorola_logo.svg/1200px-Motorola_logo.svg.png" alt="Motorola" loading="lazy" width="120" height="40">
+    <section class="navegacion-marcas index-glass-panel" id="marcas-publico">
+      <header class="index-panel-head">
+        <span class="index-panel-kicker">FILTROS</span>
+        <h2 class="index-panel-title">Busca por marca</h2>
+        <p class="index-panel-desc">Filtra el catálogo por tu marca favorita en un clic.</p>
+      </header>
+      <div class="marcas-grid marcas-grid--explora">
+        {% for m in marcas %}
+        <a href="#" class="marca-item marca-item--explora index-sub-marca" data-marca="{{ m }}">
+          <span class="marca-item__icon" aria-hidden="true">✦</span>
+          <span class="marca-item__text">{{ m }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
   </div>
-</section>
 
-<section class="navegacion-marcas" id="marcas-publico">
-  <h2>Busca por Marca</h2>
-  <div class="marcas-grid">
-    {% for m in marcas %}
-    <a href="#" class="marca-item index-sub-marca" data-marca="{{ m }}">{{ m }}</a>
-    {% endfor %}
+  <div class="index-explora-suite__showcase">
+    <section class="marcas index-marcas-showcase">
+      <header class="index-panel-head index-panel-head--on-dark">
+        <span class="index-panel-kicker index-panel-kicker--light">CONFIANZA</span>
+        <h2 class="index-panel-title">Marcas populares</h2>
+        <p class="index-panel-desc index-panel-desc--light">Trabajamos con fabricantes líderes en innovación y calidad.</p>
+      </header>
+      <div class="brand-list brand-list--showcase">
+        <div class="brand-tile">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" loading="lazy" width="120" height="40">
+        </div>
+        <div class="brand-tile">
+          <img src="https://images.samsung.com/is/image/samsung/assets/global/about-us/brand/logo/360_197_1.png?$720_N_PNG$" alt="Samsung" loading="lazy" width="120" height="40">
+        </div>
+        <div class="brand-tile">
+          <img src="https://1000marcas.net/wp-content/uploads/2019/12/Xiaomi-Logo.png" alt="Xiaomi" loading="lazy" width="120" height="40">
+        </div>
+        <div class="brand-tile">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Motorola_logo.svg/1200px-Motorola_logo.svg.png" alt="Motorola" loading="lazy" width="120" height="40">
+        </div>
+      </div>
+    </section>
   </div>
-</section>
+</div>
 
 <footer class="home-footer">
   <p>© 2025 TECHNOVA. Todos los derechos reservados.</p>

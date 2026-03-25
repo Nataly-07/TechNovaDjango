@@ -56,6 +56,29 @@ def perfil_cliente(request):
         nuevos_productos_count = Producto.objects.filter(activo=True).count()
         notificaciones_count += min(nuevos_productos_count, 12)
 
+    # Datos del catálogo como en el index principal
+    productos = (
+        Producto.objects.filter(activo=True)
+        .select_related("categoria")
+        .order_by("-creado_en")[:20]
+    )
+    
+    # Obtener categorías únicas
+    categorias = list(
+        Producto.objects.filter(activo=True, categoria__isnull=False)
+        .values_list("categoria", flat=True)
+        .distinct()
+        .order_by("categoria")
+    )
+    
+    # Obtener marcas únicas
+    marcas = list(
+        Producto.objects.filter(activo=True, marca__isnull=False)
+        .values_list("marca", flat=True)
+        .distinct()
+        .order_by("marca")
+    )
+
     ctx = {
         "usuario": usuario,
         "favoritos_count": favoritos_count,
@@ -64,6 +87,10 @@ def perfil_cliente(request):
         "notificaciones_count": notificaciones_count,
         "medios_pago_count": medios_pago_count,
         "compras_count": compras_count,
+        # Datos del catálogo
+        "productos": productos,
+        "categorias": categorias,
+        "marcas": marcas,
     }
     return render(request, "frontend/cliente/perfil.html", ctx)
 

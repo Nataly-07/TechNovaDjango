@@ -62,4 +62,11 @@
   document.getElementById('btnSalirHeader')?.addEventListener('click', salir);
 })();
 </script>
+
+<!-- JavaScript para el catálogo -->
+<script src="{% static 'frontend/js/carrusel.js' %}"></script>
+<script src="{% static 'frontend/js/technova-producto-modal.js' %}?v=1"></script>
+<script src="{% static 'frontend/js/technova-cliente-home.js' %}?v=13"></script>
+
+{% block extra_js %}{% endblock %}
 {% endblock %}

@@ -431,27 +431,68 @@ footer.home-footer p {
 }
 
 /* ---------- Bloque “Explora / Marcas” (index público) ---------- */
+/* Áreas nombradas: fila 1 = catálogo+filtros, fila 2 = franja marcas (sin solapar) */
 .index-explora-suite {
   max-width: 1200px;
   margin: 2.5rem auto 3rem;
   padding: 0 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.75rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "filtros"
+    "showcase";
+  gap: 3rem;
+  row-gap: 3rem;
+  align-content: start;
 }
 
-/* Catálogo + Filtros en la misma fila (desktop) */
-.index-catalogo-filtros-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
-  align-items: stretch;
+/* Refuerzo /inicio/ (tienda): evita que otra hoja anule display:grid */
+.index-explora-suite.index-explora-suite--tienda {
+  display: grid !important;
+  grid-template-rows: auto auto !important;
+  grid-template-areas: "filtros" "showcase" !important;
+  gap: 3rem !important;
+  row-gap: 3rem !important;
+}
+
+.index-explora-suite__showcase {
+  grid-area: showcase;
   width: 100%;
+  min-width: 0;
+  display: block;
+}
+
+/* Catálogo + Filtros: flex + gap (más fiable que grid+width:100% en /inicio/) */
+.index-catalogo-filtros-row {
+  grid-area: filtros;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 2rem;
+  column-gap: 2rem;
+  row-gap: 2rem;
+  width: 100%;
+  min-width: 0;
+  min-height: min-content;
+  box-sizing: border-box;
 }
 
 .index-catalogo-filtros-row > .index-glass-panel {
+  flex: 1 1 0;
   min-width: 0;
-  height: 100%;
+  max-width: 100%;
+  align-self: stretch;
+  box-sizing: border-box;
+}
+
+/* Refuerzo tienda: separación horizontal clara (misma URL que index público) */
+.index-explora-suite.index-explora-suite--tienda .index-catalogo-filtros-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 2rem !important;
+  column-gap: 2rem !important;
+  row-gap: 2rem !important;
 }
 
 .index-explora-suite .index-glass-panel,
@@ -465,8 +506,8 @@ footer.home-footer p {
 .index-explora-suite .navegacion-categorias.index-glass-panel,
 .index-explora-suite .navegacion-marcas.index-glass-panel {
   margin: 0;
-  max-width: none;
-  width: 100%;
+  max-width: 100%;
+  width: auto;
   padding: 2rem 1.75rem 2.25rem;
   text-align: center;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%);
@@ -536,6 +577,8 @@ footer.home-footer p {
 /* Franja “Marcas populares” */
 .index-explora-suite .marcas.index-marcas-showcase {
   margin: 0;
+  width: 100%;
+  min-width: 0;
   padding: 2.25rem 1.5rem 2.5rem;
   text-align: center;
   background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 45%, #312e81 100%);
@@ -665,7 +708,13 @@ footer.home-footer p {
 
 @media (max-width: 900px) {
   .index-catalogo-filtros-row {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .index-catalogo-filtros-row > .index-glass-panel {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
   }
 }
 

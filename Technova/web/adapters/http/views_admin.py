@@ -12,7 +12,7 @@ from django.views.decorators.http import require_http_methods
 
 from compra.models import Compra, DetalleCompra
 from envio.models import Envio
-from mensajeria.models import MensajeDirecto
+from mensajeria.models import MensajeDirecto, Notificacion
 from pago.models import MedioPago, Pago
 from producto.domain.entities import ProductoEntidad
 from producto.models import Producto, ProductoCatalogoExtra
@@ -60,6 +60,9 @@ def perfil_admin(request):
     mensajes_pendientes = MensajeDirecto.objects.exclude(
         estado=MensajeDirecto.Estado.RESPONDIDO
     ).count()
+    notificaciones_no_leidas = Notificacion.objects.filter(
+        usuario_id=uid, leida=False
+    ).count()
     ctx = {
         "usuario": usuario,
         "users_count": Usuario.objects.count(),
@@ -67,6 +70,7 @@ def perfil_admin(request):
         "proveedores_count": Proveedor.objects.filter(activo=True).count(),
         "reportes_disponibles": 3,
         "mensajes_pendientes": mensajes_pendientes,
+        "notificaciones_no_leidas": notificaciones_no_leidas,
         "pedidos_procesados": Venta.objects.count(),
         "transacciones_procesadas": Pago.objects.count(),
     }

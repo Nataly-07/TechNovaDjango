@@ -88,7 +88,7 @@
               <span class="stat-number">{{ reportes_disponibles }}</span>
               <span class="stat-label">reportes disponibles</span>
             </div>
-            <a href="#" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Reportes</a>
+            <a href="{% url 'web_admin_reportes' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Reportes</a>
           </div>
         </div>
         <div class="card">
@@ -101,6 +101,18 @@
               <span class="stat-label">proveedores activos</span>
             </div>
             <a href="{% url 'web_admin_proveedores' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Gestionar Proveedores</a>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon"><i class="bx bx-bell"></i></div>
+          <div class="card-content">
+            <h3>Notificaciones</h3>
+            <p>Avisos del sistema para tu cuenta</p>
+            <div class="card-stats">
+              <span class="stat-number">{{ notificaciones_no_leidas }}</span>
+              <span class="stat-label">no leídas</span>
+            </div>
+            <a href="{% url 'web_admin_notificaciones' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver notificaciones</a>
           </div>
         </div>
         <div class="card">

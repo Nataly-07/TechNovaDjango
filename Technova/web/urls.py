@@ -30,6 +30,8 @@ urlpatterns = [
     path("empleado/perfil/editar/", views.empleado_perfil_editar, name="web_empleado_perfil_editar"),
     path("empleado/<slug:seccion>/", views.empleado_dashboard, name="web_empleado_seccion"),
     path("admin/perfil/", views.perfil_admin, name="web_admin_perfil"),
+    path("admin/notificaciones/poll/", views.admin_notificaciones_poll, name="web_admin_notificaciones_poll"),
+    path("admin/notificaciones/", views.admin_notificaciones, name="web_admin_notificaciones"),
     path("admin/usuarios/crear/", views.admin_usuario_crear, name="web_admin_usuario_crear"),
     path(
         "admin/usuarios/<int:usuario_id>/estado/",

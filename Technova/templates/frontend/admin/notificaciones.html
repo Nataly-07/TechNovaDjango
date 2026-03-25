@@ -1,0 +1,232 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Notificaciones — Technova Admin</title>
+  <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}">
+</head>
+<body class="admin-page-notificaciones">
+  {% include "frontend/includes/admin_header_compact.html" %}
+  <div class="dashboard-wrapper">
+    {% include "frontend/layouts/sidebar_admin.html" %}
+    <main class="main-content">
+      <div class="wrap">
+        <form id="csrf-store" style="display:none" aria-hidden="true">{% csrf_token %}</form>
+        <div class="hdr hdr--split">
+          <div>
+            <h2><i class="bx bx-bell"></i> Notificaciones</h2>
+            <p class="notif-subtitle">Avisos del sistema para tu cuenta de administrador.</p>
+          </div>
+          <div id="hdr-marcar-todas-wrap">
+          {% if total_no_leidas > 0 %}
+          <form method="post" action="{% url 'web_admin_notificaciones' %}" class="form-inline-post">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="marcar_todas_leidas">
+            <button type="submit" class="btn-buscar">
+              <i class="bx bx-check-double"></i> Marcar todas como leídas (<span id="hdr-no-leidas-count">{{ total_no_leidas }}</span>)
+            </button>
+          </form>
+          {% endif %}
+          </div>
+        </div>
+
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+          <i class="bx {% if message.tags == 'error' %}bx-error-circle{% else %}bx-check-circle{% endif %}"></i>
+          <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+
+        <div class="stats-bar">
+          <div class="stat-card total">
+            <h4>Total recibidas</h4>
+            <p class="number" id="stat-total-recibidas">{{ total_recibidas }}</p>
+          </div>
+          <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+            <h4>No leídas</h4>
+            <p class="number" id="stat-total-no-leidas">{{ total_no_leidas }}</p>
+          </div>
+        </div>
+
+        <form class="filtros" method="get" action="{% url 'web_admin_notificaciones' %}">
+          <div class="filtro-group">
+            <label for="leida">Estado</label>
+            <select id="leida" name="leida">
+              <option value="" {% if not filtro_leida %}selected{% endif %}>Todas</option>
+              <option value="no" {% if filtro_leida == "no" %}selected{% endif %}>No leídas</option>
+              <option value="si" {% if filtro_leida == "si" %}selected{% endif %}>Leídas</option>
+            </select>
+          </div>
+          <div class="filtro-group">
+            <label for="q">Buscar</label>
+            <input type="search" id="q" name="q" placeholder="Título o mensaje" value="{{ filtro_q }}">
+          </div>
+          <div class="filtro-group filtro-accion">
+            <button type="submit" class="btn-buscar"><i class="bx bx-search"></i> Filtrar</button>
+          </div>
+        </form>
+
+        <div id="notif-table-wrap" style="overflow-x:auto;margin-top:1.5rem;{% if not notificaciones %}display:none;{% endif %}">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Título</th>
+                <th>Mensaje</th>
+                <th>Tipo</th>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="notif-tbody">
+              {% for n in notificaciones %}
+              <tr class="{% if not n.leida %}tr-no-leida{% endif %}">
+                <td><strong>#{{ n.id }}</strong></td>
+                <td>{{ n.titulo }}</td>
+                <td class="cell-msg">{{ n.mensaje|truncatechars:160 }}</td>
+                <td><span class="badge badge-abierta">{{ n.tipo }}</span></td>
+                <td>{{ n.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                <td>
+                  {% if n.leida %}
+                  <span class="badge badge-fact">Leída</span>
+                  {% else %}
+                  <span class="badge badge-abierta">No leída</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if not n.leida %}
+                  <form method="post" action="{% url 'web_admin_notificaciones' %}" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="accion" value="marcar_leida">
+                    <input type="hidden" name="notificacion_id" value="{{ n.id }}">
+                    <button type="submit" class="btn-ver" title="Marcar como leída"><i class="bx bx-check"></i></button>
+                  </form>
+                  {% else %}
+                  <span class="muted">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="empty-msg" id="notif-empty-msg" {% if notificaciones %}style="display:none;"{% endif %}><i class="bx bx-info-circle"></i> No tienes notificaciones con los filtros actuales.</p>
+      </div>
+    </main>
+  </div>
+  <script>
+  (function () {
+    var pollUrl = "{% url 'web_admin_notificaciones_poll' %}";
+    var listUrl = "{% url 'web_admin_notificaciones' %}";
+    var tbody = document.getElementById("notif-tbody");
+    var emptyMsg = document.getElementById("notif-empty-msg");
+    var tableWrap = document.getElementById("notif-table-wrap");
+    var hdrWrap = document.getElementById("hdr-marcar-todas-wrap");
+    var csrfInput = document.querySelector("#csrf-store input[name=csrfmiddlewaretoken]");
+    var csrf = csrfInput ? csrfInput.value : "";
+
+    function esc(s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function truncateMsg(s, max) {
+      s = String(s || "");
+      if (s.length <= max) return s;
+      return s.slice(0, max - 1) + "…";
+    }
+
+    function fmtFecha(iso) {
+      try {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return iso;
+        return d.toLocaleString("es-ES", {
+          day: "2-digit", month: "2-digit", year: "numeric",
+          hour: "2-digit", minute: "2-digit"
+        });
+      } catch (e) { return iso; }
+    }
+
+    function renderMarcarTodas(noLeidas) {
+      if (!hdrWrap) return;
+      if (noLeidas < 1) {
+        hdrWrap.innerHTML = "";
+        return;
+      }
+      hdrWrap.innerHTML =
+        '<form method="post" action="' + esc(listUrl) + '" class="form-inline-post">' +
+        '<input type="hidden" name="csrfmiddlewaretoken" value="' + esc(csrf) + '">' +
+        '<input type="hidden" name="accion" value="marcar_todas_leidas">' +
+        '<button type="submit" class="btn-buscar">' +
+        '<i class="bx bx-check-double"></i> Marcar todas como leídas (<span id="hdr-no-leidas-count">' +
+        noLeidas + "</span>)</button></form>";
+    }
+
+    function renderTableRows(items) {
+      if (!tbody) return;
+      var html = "";
+      for (var i = 0; i < items.length; i++) {
+        var n = items[i];
+        var rowClass = n.leida ? "" : "tr-no-leida";
+        var estadoHtml = n.leida
+          ? '<span class="badge badge-fact">Leída</span>'
+          : '<span class="badge badge-abierta">No leída</span>';
+        var accionHtml = n.leida
+          ? '<span class="muted">—</span>'
+          : '<form method="post" action="' + esc(listUrl) + '" style="display:inline;">' +
+            '<input type="hidden" name="csrfmiddlewaretoken" value="' + esc(csrf) + '">' +
+            '<input type="hidden" name="accion" value="marcar_leida">' +
+            '<input type="hidden" name="notificacion_id" value="' + n.id + '">' +
+            '<button type="submit" class="btn-ver" title="Marcar como leída"><i class="bx bx-check"></i></button></form>';
+        html += '<tr' + (rowClass ? ' class="' + rowClass + '"' : "") + '>' +
+          "<td><strong>#" + n.id + "</strong></td>" +
+          "<td>" + esc(n.titulo) + "</td>" +
+          '<td class="cell-msg">' + esc(truncateMsg(n.mensaje, 160)) + "</td>" +
+          '<td><span class="badge badge-abierta">' + esc(n.tipo) + "</span></td>" +
+          "<td>" + esc(fmtFecha(n.fecha_creacion)) + "</td>" +
+          "<td>" + estadoHtml + "</td>" +
+          "<td>" + accionHtml + "</td></tr>";
+      }
+      tbody.innerHTML = html;
+    }
+
+    function poll() {
+      if (document.visibilityState === "hidden") return;
+      var qs = window.location.search || "";
+      fetch(pollUrl + qs, { credentials: "same-origin", headers: { "Accept": "application/json" } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var elR = document.getElementById("stat-total-recibidas");
+          var elN = document.getElementById("stat-total-no-leidas");
+          if (elR) elR.textContent = data.total_recibidas;
+          if (elN) elN.textContent = data.total_no_leidas;
+          renderMarcarTodas(data.total_no_leidas);
+          if (tbody && data.notificaciones) {
+            renderTableRows(data.notificaciones);
+            if (emptyMsg) {
+              emptyMsg.style.display = data.notificaciones.length ? "none" : "";
+            }
+            if (tableWrap) {
+              tableWrap.style.display = data.notificaciones.length ? "" : "none";
+            }
+          }
+        })
+        .catch(function () {});
+    }
+
+    setInterval(poll, 12000);
+    setTimeout(poll, 4000);
+  })();
+  </script>
+</body>
+</html>

@@ -138,4 +138,8 @@ def registrar_usuario_desde_payload(
     except IntegrityError:
         return ResultadoRegistroUsuario(None, mensaje_integridad_registro())
 
+    from mensajeria.services.notificaciones_admin import notificar_usuario_nuevo
+
+    notificar_usuario_nuevo(usuario)
+
     return ResultadoRegistroUsuario(usuario, None)

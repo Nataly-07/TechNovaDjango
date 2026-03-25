@@ -33,7 +33,7 @@ from common.container import (
 )
 from compra.models import Compra, DetalleCompra
 from envio.models import Envio, Transportadora
-from mensajeria.models import MensajeDirecto
+from mensajeria.models import MensajeDirecto, Notificacion
 from pago.models import MedioPago, MetodoPagoUsuario, Pago
 from producto.domain.entities import ProductoEntidad
 from producto.models import Producto, ProductoCatalogoExtra
@@ -870,6 +870,9 @@ def perfil_admin(request):
     mensajes_pendientes = MensajeDirecto.objects.exclude(
         estado=MensajeDirecto.Estado.RESPONDIDO
     ).count()
+    notificaciones_no_leidas = Notificacion.objects.filter(
+        usuario_id=uid, leida=False
+    ).count()
     ctx = {
         "usuario": usuario,
         "users_count": Usuario.objects.count(),
@@ -877,10 +880,119 @@ def perfil_admin(request):
         "proveedores_count": Proveedor.objects.filter(activo=True).count(),
         "reportes_disponibles": 3,
         "mensajes_pendientes": mensajes_pendientes,
+        "notificaciones_no_leidas": notificaciones_no_leidas,
         "pedidos_procesados": Venta.objects.count(),
         "transacciones_procesadas": Pago.objects.count(),
     }
     return render(request, "frontend/admin/perfil.html", ctx)
+
+
+@_admin_login_required
+@require_http_methods(["GET", "POST"])
+def admin_notificaciones(request):
+    """Notificaciones del sistema para el administrador en sesión (solo lectura + marcar leídas)."""
+    usuario = _admin_usuario_sesion(request)
+    admin_uid = usuario.id
+
+    if request.method == "POST":
+        accion = (request.POST.get("accion") or "").strip()
+        if accion == "marcar_leida":
+            raw_id = request.POST.get("notificacion_id")
+            if raw_id and str(raw_id).isdigit():
+                n = Notificacion.objects.filter(
+                    pk=int(raw_id), usuario_id=admin_uid
+                ).update(leida=True)
+                if n:
+                    messages.success(request, "Notificación marcada como leída.")
+                else:
+                    messages.error(request, "No se encontró la notificación o no te pertenece.")
+            else:
+                messages.error(request, "Identificador de notificación no válido.")
+        elif accion == "marcar_todas_leidas":
+            n = Notificacion.objects.filter(usuario_id=admin_uid, leida=False).update(
+                leida=True
+            )
+            messages.success(request, f"Se marcaron {n} notificación(es) como leídas.")
+        else:
+            messages.error(request, "Acción no reconocida.")
+        return redirect("web_admin_notificaciones")
+
+    leida_filtro = (request.GET.get("leida") or "").strip().lower()
+    q = (request.GET.get("q") or "").strip()
+
+    qs = (
+        Notificacion.objects.filter(usuario_id=admin_uid)
+        .select_related("usuario")
+        .order_by("-fecha_creacion", "-id")
+    )
+    if leida_filtro == "si":
+        qs = qs.filter(leida=True)
+    elif leida_filtro == "no":
+        qs = qs.filter(leida=False)
+    if q:
+        qs = qs.filter(Q(titulo__icontains=q) | Q(mensaje__icontains=q))
+
+    notificaciones = list(qs[:500])
+    total_recibidas = Notificacion.objects.filter(usuario_id=admin_uid).count()
+    total_no_leidas = Notificacion.objects.filter(usuario_id=admin_uid, leida=False).count()
+
+    return render(
+        request,
+        "frontend/admin/notificaciones.html",
+        {
+            "usuario": usuario,
+            "notificaciones": notificaciones,
+            "total_recibidas": total_recibidas,
+            "total_no_leidas": total_no_leidas,
+            "filtro_leida": leida_filtro,
+            "filtro_q": q,
+        },
+    )
+
+
+@_admin_login_required
+@require_http_methods(["GET"])
+def admin_notificaciones_poll(request):
+    """JSON para actualizar el listado sin recargar (polling ~cada 12 s en la plantilla)."""
+    usuario = _admin_usuario_sesion(request)
+    admin_uid = usuario.id
+    leida_filtro = (request.GET.get("leida") or "").strip().lower()
+    q = (request.GET.get("q") or "").strip()
+
+    qs = Notificacion.objects.filter(usuario_id=admin_uid).order_by(
+        "-fecha_creacion", "-id"
+    )
+    if leida_filtro == "si":
+        qs = qs.filter(leida=True)
+    elif leida_filtro == "no":
+        qs = qs.filter(leida=False)
+    if q:
+        qs = qs.filter(Q(titulo__icontains=q) | Q(mensaje__icontains=q))
+
+    notificaciones = list(qs[:500])
+    total_recibidas = Notificacion.objects.filter(usuario_id=admin_uid).count()
+    total_no_leidas = Notificacion.objects.filter(
+        usuario_id=admin_uid, leida=False
+    ).count()
+
+    items = [
+        {
+            "id": n.id,
+            "titulo": n.titulo,
+            "mensaje": n.mensaje,
+            "tipo": n.tipo,
+            "leida": n.leida,
+            "fecha_creacion": n.fecha_creacion.isoformat(),
+        }
+        for n in notificaciones
+    ]
+    return JsonResponse(
+        {
+            "total_recibidas": total_recibidas,
+            "total_no_leidas": total_no_leidas,
+            "notificaciones": items,
+        }
+    )
 
 
 def _admin_usuario_sesion(request) -> Usuario:

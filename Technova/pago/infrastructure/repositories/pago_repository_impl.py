@@ -28,10 +28,22 @@ class PagoPersistenceAdapter(PagoRepositoryPort):
         model = Pago.objects.filter(id=pago_id).first()
         if model is None:
             raise ValueError("El pago no existe.")
+        estado_anterior = model.estado_pago
         model.estado_pago = estado_pago
         if estado_pago == EstadoPago.APROBADO.value:
             model.fecha_pago = timezone.localdate()
             model.save(update_fields=["estado_pago", "fecha_pago", "actualizado_en"])
         else:
             model.save(update_fields=["estado_pago", "actualizado_en"])
+        if (
+            estado_pago == EstadoPago.RECHAZADO.value
+            and estado_anterior != EstadoPago.RECHAZADO.value
+        ):
+            from mensajeria.services.notificaciones_admin import notificar_pago_rechazado
+
+            notificar_pago_rechazado(
+                pago_id=model.id,
+                monto=model.monto,
+                numero_factura=model.numero_factura,
+            )
         return PagoMapper.to_domain(model)

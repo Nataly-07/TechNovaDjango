@@ -2324,3 +2324,51 @@ body.factura-print .btn-download {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- Admin: notificaciones ---------- */
+.hdr--split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.form-inline-post {
+  margin: 0;
+}
+
+.admin-page-notificaciones .tr-no-leida {
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.admin-page-notificaciones .cell-mail {
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.admin-page-notificaciones .cell-msg {
+  max-width: 280px;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.admin-page-notificaciones .muted {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.admin-page-notificaciones .empty-msg {
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  color: #64748b;
+}
+
+.admin-page-notificaciones .notif-subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.92rem;
+  color: #64748b;
+  font-weight: 500;
+}

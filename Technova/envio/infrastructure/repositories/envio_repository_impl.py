@@ -32,6 +32,7 @@ class EnvioOrmRepository(EnvioRepositoryPort):
             model = Envio.objects.get(id=envio.id)
         except Envio.DoesNotExist:
             return None
+        estado_anterior = model.estado
         model.venta_id = envio.venta_id
         model.transportadora_id = envio.transportadora_id
         model.fecha_envio = envio.fecha_envio
@@ -42,6 +43,19 @@ class EnvioOrmRepository(EnvioRepositoryPort):
             model.save()
         except IntegrityError:
             raise ValueError("Numero de guia duplicado.") from None
+        if estado_anterior != model.estado and model.estado in (
+            Envio.Estado.EN_RUTA,
+            Envio.Estado.ENTREGADO,
+        ):
+            from mensajeria.services.notificaciones_admin import notificar_envio_cambio_estado
+
+            notificar_envio_cambio_estado(
+                envio_id=model.id,
+                venta_id=model.venta_id,
+                estado_anterior=estado_anterior,
+                estado_nuevo=model.estado,
+                guia=model.numero_guia,
+            )
         return EnvioEntidad(
             id=model.id,
             venta_id=model.venta_id,

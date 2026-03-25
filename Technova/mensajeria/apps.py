@@ -2,4 +2,7 @@ from django.apps import AppConfig
 
 
 class MensajeriaConfig(AppConfig):
-    name = 'mensajeria'
+    name = "mensajeria"
+
+    def ready(self) -> None:
+        import mensajeria.signals  # noqa: F401

@@ -6,8 +6,13 @@ from django.utils import timezone
 
 from carrito.models import Carrito
 from envio.models import Envio
+from mensajeria.services.notificaciones_admin import (
+    notificar_checkout_completado,
+    notificar_pedido_anulado,
+)
 from pago.models import MedioPago, Pago
 from producto.models import Producto
+from usuario.models import Usuario
 from venta.domain.repositories import CheckoutPort, VentaAnulacionPort
 from venta.domain.results import AnulacionVentaResultado, CheckoutResultado
 from venta.domain.value_objects import Dinero, NumeroFactura
@@ -142,6 +147,22 @@ class VentaTransactionAdapter(CheckoutPort, VentaAnulacionPort):
         carrito.save(update_fields=["estado"])
         carrito.detalles.all().delete()
 
+        lineas = [(d.producto.nombre, d.cantidad) for d in detalles_venta]
+
+        def _notificar_pedido() -> None:
+            notificar_checkout_completado(
+                venta_id=venta.id,
+                pago_id=pago.id,
+                envio_id=envio.id,
+                usuario_id=usuario_id,
+                total=total_final,
+                metodo_pago=metodo_pago,
+                numero_factura=numero_factura,
+                lineas=lineas,
+            )
+
+        transaction.on_commit(_notificar_pedido)
+
         return CheckoutResultado(
             venta_id=venta.id,
             pago_id=pago.id,
@@ -157,6 +178,12 @@ class VentaTransactionAdapter(CheckoutPort, VentaAnulacionPort):
             raise ValueError("La venta no existe.")
         if venta.estado == Venta.Estado.ANULADA:
             raise ValueError("La venta ya se encuentra anulada.")
+
+        cli = Usuario.objects.filter(pk=venta.usuario_id).first()
+        cliente_label = (
+            f"{cli.nombres} {cli.apellidos}".strip() if cli else f"Usuario #{venta.usuario_id}"
+        )
+        monto_venta = venta.total
 
         detalles = (
             DetalleVenta.objects.select_for_update()
@@ -193,6 +220,15 @@ class VentaTransactionAdapter(CheckoutPort, VentaAnulacionPort):
 
         venta.estado = Venta.Estado.ANULADA
         venta.save(update_fields=["estado", "actualizado_en"])
+
+        def _notificar_anulacion() -> None:
+            notificar_pedido_anulado(
+                venta_id=venta.id,
+                cliente_label=cliente_label,
+                monto=monto_venta,
+            )
+
+        transaction.on_commit(_notificar_anulacion)
 
         return AnulacionVentaResultado(
             venta_id=venta.id,

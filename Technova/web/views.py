@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import uuid
 import base64
@@ -43,6 +44,8 @@ from usuario.application.registro_usuario_service import registrar_usuario_desde
 from usuario.application.use_cases.autenticacion_usecases import credenciales_coinciden
 from usuario.infrastructure.models.usuario_model import Usuario
 from venta.models import Venta
+
+logger = logging.getLogger(__name__)
 
 FACTURA_VENTA_PATTERN = re.compile(r"^FACT-\d+-(\d+)$", re.IGNORECASE)
 # Mismas claves de sesión que Spring: checkout_informacion, checkout_direccion, etc.
@@ -319,6 +322,19 @@ def _aplicar_usuario_desde_checkout_sesion(uid: int, info: dict, dire: dict) -> 
         pass
 
 
+def _numero_factura_desde_paypal_order(order_id: str, uid: int) -> str | None:
+    """
+    Número de factura estable a partir del order ID de PayPal y el usuario.
+    Permite idempotencia si el cliente vuelve a cargar la URL de retorno tras un pago capturado.
+    Máximo 50 caracteres (límite del modelo Pago).
+    """
+    safe = "".join(c for c in (order_id or "") if c.isalnum())
+    if not safe:
+        return None
+    base = f"FACT-PP-{uid}-{safe}"
+    return base[:50]
+
+
 def _ejecutar_checkout_desde_sesion(request, uid: int, *, numero_factura: str | None = None):
     info = request.session.get(SESSION_CK_INFO) or {}
     dire = request.session.get(SESSION_CK_DIR) or {}
@@ -357,8 +373,22 @@ def _ejecutar_checkout_desde_sesion(request, uid: int, *, numero_factura: str | 
     except ValueError as exc:
         messages.error(request, str(exc))
         return redirect("web_cliente_checkout_revision")
-    except IntegrityError:
-        messages.error(request, "No se pudo registrar el pedido. Intentalo de nuevo.")
+    except IntegrityError as exc:
+        logger.exception(
+            "Checkout IntegrityError (uid=%s carrito_id=%s factura=%s): %s",
+            uid,
+            carrito_id,
+            numero_factura,
+            exc,
+        )
+        msg = (
+            "No se pudo registrar el pedido en la base de datos. "
+            "Si el cargo ya apareció en PayPal o en tu banco, guarda el comprobante y contacta soporte; "
+            "no vuelvas a pagar hasta confirmar."
+        )
+        if settings.DEBUG:
+            msg = f"{msg} [DEBUG: {exc}]"
+        messages.error(request, msg)
         return redirect("web_cliente_checkout_revision")
     _limpiar_sesion_checkout(request)
     request.session.pop(SESSION_CK_PAYPAL, None)
@@ -2678,7 +2708,8 @@ def checkout_paypal_retorno(request):
         messages.error(request, f"No se pudo capturar el pago en PayPal ({status}).")
         return redirect("web_cliente_checkout_revision")
     uid = request.session.get(SESSION_USUARIO_ID)
-    return _ejecutar_checkout_desde_sesion(request, uid)
+    numero_factura_pp = _numero_factura_desde_paypal_order(order_id, int(uid or 0))
+    return _ejecutar_checkout_desde_sesion(request, uid, numero_factura=numero_factura_pp)
 
 
 @_cliente_login_required

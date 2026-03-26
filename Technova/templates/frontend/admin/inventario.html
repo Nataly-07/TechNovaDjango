@@ -343,9 +343,26 @@
           <p class="field-feedback" id="feed-descripcion" role="status"></p>
         </div>
         <div class="form-group field-neutral" data-field-wrap="imagen_url">
-          <label for="imagen_url"><i class="bx bx-image"></i> URL de imagen</label>
+          <label for="imagen_url"><i class="bx bx-image"></i> URL de imagen principal</label>
           <input type="url" name="imagen_url" id="imagen_url" maxlength="500" placeholder="https://… (opcional)" aria-describedby="feed-imagen_url">
           <p class="field-feedback" id="feed-imagen_url" role="status"></p>
+        </div>
+        
+        <!-- Contenedor para imágenes adicionales -->
+        <div class="form-group field-neutral" data-field-wrap="imagenes_adicionales">
+          <label><i class="bx bx-images"></i> Imágenes adicionales</label>
+          <div id="contenedorImagenesAdicionales">
+            <div class="imagen-adicional-row" data-imagen-index="0">
+              <input type="url" name="imagenes_adicionales[]" maxlength="500" placeholder="https://ejemplo.com/imagen1.jpg" class="imagen-adicional-input">
+              <button type="button" class="btn-eliminar-imagen" onclick="eliminarImagenAdicional(0)" title="Eliminar imagen">
+                <i class="bx bx-trash"></i>
+              </button>
+            </div>
+          </div>
+          <button type="button" id="btnAgregarImagen" class="btn-agregar-imagen" onclick="agregarCampoImagen()">
+            <i class="bx bx-plus"></i> Agregar otra imagen
+          </button>
+          <p class="field-feedback" id="feed-imagenes_adicionales" role="status"></p>
         </div>
         <div class="modal-actions">
           <button type="submit" class="btn-modal btn-modal-primary"><i class="bx bx-save"></i> Guardar producto</button>
@@ -411,10 +428,11 @@
   {{ marcas_alta_list|json_script:"marcas-alta-data" }}
 
   <script>
-    const PRODUCTOS = {{ productos_json }};
+    const PRODUCTOS = [];
     const HAY_PROVEEDORES = {% if proveedores %}true{% else %}false{% endif %};
     const CATEGORIAS_OK = new Set(JSON.parse(document.getElementById('categorias-alta-data').textContent));
     const MARCAS_OK = new Set(JSON.parse(document.getElementById('marcas-alta-data').textContent));
+    const TECHNOVA_ADMIN_PRODUCTO_CREAR_URL = "{% url 'web_admin_producto_crear' %}";
 
     function setFieldStateProd(fieldId, state, text) {
       var feed = document.getElementById('feed-' + fieldId);
@@ -630,11 +648,12 @@
       if (!validatePrecioVentaProd()) ok = false;
       if (!validateDescripcionProd()) ok = false;
       if (!validateImagenProd()) ok = false;
+      if (!validarImagenesAdicionales()) ok = false;
       return ok;
     }
 
     function resetValidacionProducto() {
-      ['codigo', 'nombre', 'proveedor_id', 'categoria', 'marca', 'color', 'stock', 'costo_unitario', 'margen_pct', 'precio_venta', 'descripcion', 'imagen_url'].forEach(function (id) {
+      ['codigo', 'nombre', 'proveedor_id', 'categoria', 'marca', 'color', 'stock', 'costo_unitario', 'margen_pct', 'precio_venta', 'descripcion', 'imagen_url', 'imagenes_adicionales'].forEach(function (id) {
         setFieldStateProd(id, 'neutral', '');
       });
     }
@@ -807,7 +826,16 @@
         '<div class="detail-item"><strong>Precio venta</strong><br>' + escapeHtml(String(precioVenta)) + '</div>' +
         '</div>' +
         '<p style="margin-top:12px;"><strong>Descripción:</strong><br>' + escapeHtml(c.descripcion || '—') + '</p>' +
-        (p.imagen ? '<p><a href="' + escapeAttr(p.imagen) + '" target="_blank" rel="noopener">Abrir imagen</a></p>' : '');
+        '<div style="margin-top:12px;"><strong>Imágenes:</strong><br>' +
+        '<div class="imagenes-container" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">' +
+        (p.imagen ? '<div class="imagen-item"><img src="' + escapeAttr(p.imagen) + '" alt="Imagen principal" style="width:80px;height:80px;object-fit:cover;border-radius:4px;cursor:pointer;" onclick="window.open(\'' + escapeAttr(p.imagen) + '\', \'_blank\')" title="Imagen principal"></div>' : '') +
+        (p.imagenes_adicionales && p.imagenes_adicionales.length > 0 ? 
+          p.imagenes_adicionales.map(function(img, index) {
+            return '<div class="imagen-item"><img src="' + escapeAttr(img.url) + '" alt="Imagen adicional ' + (index + 1) + '" style="width:80px;height:80px;object-fit:cover;border-radius:4px;cursor:pointer;" onclick="window.open(\'' + escapeAttr(img.url) + '\', \'_blank\')" title="Imagen adicional ' + (index + 1) + '"></div>';
+          }).join('') : '') +
+        '</div>' +
+        (!p.imagen && (!p.imagenes_adicionales || p.imagenes_adicionales.length === 0) ? '<p style="color:#888;font-style:italic;">Sin imágenes</p>' : '') +
+        '</div>';
       document.getElementById('modalProducto').classList.add('show');
       document.body.style.overflow = 'hidden';
     }

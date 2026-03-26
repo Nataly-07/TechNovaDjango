@@ -13,11 +13,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const formData = new FormData(form);
 
+            // Agregar imágenes adicionales al FormData
+            const imagenesAdicionales = obtenerImagenesAdicionales();
+            imagenesAdicionales.forEach((imagen, index) => {
+                formData.append(`imagenes_adicionales[${index}]`, imagen);
+            });
+
             try {
-                const response = await fetch("/productos", {
+                const response = await fetch(window.TECHNOVA_ADMIN_PRODUCTO_CREAR_URL || "/admin/productos/crear/", {
                     method: "POST",
                     headers: {
-                        "X-CSRF-TOKEN": document.querySelector('input[name="_token"]').value,
+                        "X-CSRF-TOKEN": document.querySelector('[name="csrfmiddlewaretoken"]').value,
                         "Accept": "application/json",
                         "X-Requested-With": "XMLHttpRequest"
                     },
@@ -109,6 +115,126 @@ document.addEventListener("DOMContentLoaded", () => {
         // Calcular al cargar la página si ya hay valores
         calcularPrecioVenta();
     }
+
+    // ---------- Funciones para manejar imágenes adicionales ----------
+    let indiceImagenActual = 1;
+
+    function agregarCampoImagen() {
+        const contenedor = document.getElementById('contenedorImagenesAdicionales');
+        const nuevoDiv = document.createElement('div');
+        nuevoDiv.className = 'imagen-adicional-row';
+        nuevoDiv.setAttribute('data-imagen-index', indiceImagenActual);
+        
+        nuevoDiv.innerHTML = `
+            <input type="url" name="imagenes_adicionales[]" maxlength="500" 
+                   placeholder="https://ejemplo.com/imagen${indiceImagenActual}.jpg" 
+                   class="imagen-adicional-input">
+            <button type="button" class="btn-eliminar-imagen" 
+                    onclick="eliminarImagenAdicional(${indiceImagenActual})" 
+                    title="Eliminar imagen">
+                <i class="bx bx-trash"></i>
+            </button>
+        `;
+        
+        contenedor.appendChild(nuevoDiv);
+        indiceImagenActual++;
+        
+        // Agregar animación
+        setTimeout(() => {
+            nuevoDiv.style.animation = 'slideIn 0.3s ease-out';
+        }, 10);
+    }
+
+    function eliminarImagenAdicional(indice) {
+        const fila = document.querySelector(`[data-imagen-index="${indice}"]`);
+        if (fila) {
+            // Animación de salida
+            fila.style.transition = 'all 0.3s ease-out';
+            fila.style.opacity = '0';
+            fila.style.transform = 'translateX(-20px)';
+            
+            setTimeout(() => {
+                fila.remove();
+                // Reordenar los índices restantes
+                reordenarIndicesImagenes();
+            }, 300);
+        }
+    }
+
+    function reordenarIndicesImagenes() {
+        const filas = document.querySelectorAll('.imagen-adicional-row');
+        filas.forEach((fila, index) => {
+            const input = fila.querySelector('.imagen-adicional-input');
+            const boton = fila.querySelector('.btn-eliminar-imagen');
+            
+            fila.setAttribute('data-imagen-index', index);
+            input.placeholder = `https://ejemplo.com/imagen${index + 1}.jpg`;
+            boton.setAttribute('onclick', `eliminarImagenAdicional(${index})`);
+        });
+        indiceImagenActual = filas.length;
+    }
+
+    function obtenerImagenesAdicionales() {
+        const inputs = document.querySelectorAll('.imagen-adicional-input');
+        const imagenes = [];
+        
+        inputs.forEach(input => {
+            const url = input.value.trim();
+            if (url) {
+                imagenes.push(url);
+            }
+        });
+        
+        return imagenes;
+    }
+
+    // Validación para imágenes adicionales
+    function validarImagenesAdicionales() {
+        const imagenes = obtenerImagenesAdicionales();
+        const feedbackElement = document.getElementById('feed-imagenes_adicionales');
+        const fieldWrap = document.querySelector('[data-field-wrap="imagenes_adicionales"]');
+        
+        // Limpiar estado anterior
+        fieldWrap.classList.remove('field-ok', 'field-err');
+        feedbackElement.textContent = '';
+        feedbackElement.className = 'field-feedback';
+        
+        if (imagenes.length === 0) {
+            return true; // Las imágenes adicionales son opcionales
+        }
+        
+        // Validar que cada URL sea válida
+        for (let imagen of imagenes) {
+            try {
+                new URL(imagen);
+            } catch (e) {
+                fieldWrap.classList.add('field-err');
+                feedbackElement.textContent = 'URL de imagen inválida: ' + imagen;
+                feedbackElement.classList.add('is-err');
+                return false;
+            }
+        }
+        
+        // Validar duplicados
+        const imagenesUnicas = [...new Set(imagenes)];
+        if (imagenesUnicas.length !== imagenes.length) {
+            fieldWrap.classList.add('field-err');
+            feedbackElement.textContent = 'Hay URLs de imagen duplicadas';
+            feedbackElement.classList.add('is-err');
+            return false;
+        }
+        
+        // Todo válido
+        fieldWrap.classList.add('field-ok');
+        feedbackElement.textContent = `${imagenes.length} imagen(es) válida(s)`;
+        feedbackElement.classList.add('is-ok');
+        return true;
+    }
+
+    // Hacer las funciones globales para que puedan ser llamadas desde los onclick del HTML
+    window.agregarCampoImagen = agregarCampoImagen;
+    window.eliminarImagenAdicional = eliminarImagenAdicional;
+    window.validarImagenesAdicionales = validarImagenesAdicionales;
 
     console.log("JavaScript de inventario cargado correctamente");
 });

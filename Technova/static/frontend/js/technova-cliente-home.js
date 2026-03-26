@@ -529,7 +529,16 @@
           document.dispatchEvent(new CustomEvent("technova:carrito-preview-synced"));
         }
         if (window.TechnovaUi) {
-          await window.TechnovaUi.toastOk("Producto agregado al carrito");
+          var pid = parseInt(productoId, 10);
+          var prod = (catalogoItemsCache || []).find(function (p) {
+            return Number(p.id) === pid;
+          });
+          var nombre = (prod && prod.nombre) || "Producto agregado al carrito";
+          if (window.CarritoAlerts && typeof window.CarritoAlerts.success === "function") {
+            await window.CarritoAlerts.success(nombre);
+          } else {
+            await window.TechnovaUi.toastOk("Producto agregado al carrito");
+          }
         }
       } catch (e) {
         if (window.TechnovaUi) {
@@ -553,7 +562,16 @@
         cantidad: 1,
       });
       if (window.TechnovaUi) {
-        await window.TechnovaUi.toastOk("Producto agregado al carrito");
+        var pid2 = parseInt(productoId, 10);
+        var prod2 = (catalogoItemsCache || []).find(function (p) {
+          return Number(p.id) === pid2;
+        });
+        var nombre2 = (prod2 && prod2.nombre) || "Producto agregado al carrito";
+        if (window.CarritoAlerts && typeof window.CarritoAlerts.success === "function") {
+          await window.CarritoAlerts.success(nombre2);
+        } else {
+          await window.TechnovaUi.toastOk("Producto agregado al carrito");
+        }
       }
     } catch (e) {
       if (window.TechnovaUi) {

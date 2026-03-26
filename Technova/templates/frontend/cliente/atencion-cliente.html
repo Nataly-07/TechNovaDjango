@@ -1,0 +1,428 @@
+{% extends "frontend/base_cliente.html" %}
+{% load static %}
+{% block title %}Atención al Cliente — Technova{% endblock %}
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'frontend/css/atencion.css' %}?v=2">
+<style>
+  .welcome-section{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:30px;border-radius:15px;margin-bottom:30px;text-align:center}
+  .welcome-section h1{margin:0 0 10px 0;font-size:2rem;display:flex;align-items:center;justify-content:center;gap:15px}
+  .welcome-section p{margin:0;opacity:.92;font-size:1.05rem}
+  .tabs-container{background:#fff;border-radius:15px;margin-bottom:25px;box-shadow:0 8px 25px rgba(0,0,0,.1);overflow:hidden}
+  .tabs-header{display:flex;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)}
+  .tab-button{flex:1;background:none;border:none;color:rgba(255,255,255,.85);padding:18px 16px;cursor:pointer;font-size:1rem;font-weight:700;transition:.2s ease;display:flex;align-items:center;justify-content:center;gap:8px}
+  .tab-button:hover{background:rgba(255,255,255,.12);color:#fff}
+  .tab-button.active{background:rgba(255,255,255,.2);color:#fff;border-bottom:3px solid #fff}
+  .tab-content{display:none;padding:24px}
+  .tab-content.active{display:block}
+  .consultas-section,.mensajes-directos-container{background:#fff;border-radius:15px;padding:26px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+  .consultas-header,.mensajes-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #f1f5f9;gap:10px;flex-wrap:wrap}
+  .consultas-title,.mensajes-title{font-size:1.45rem;color:#111827;display:flex;align-items:center;gap:10px;margin:0;font-weight:900}
+  .btn-new-consulta,.btn-new-message{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:800;display:flex;align-items:center;gap:8px;transition:.2s ease;box-shadow:0 6px 18px rgba(102,126,234,.25)}
+  .btn-new-consulta:hover,.btn-new-message:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(102,126,234,.32)}
+  .consulta-form,.message-form{background:#f8fafc;border-radius:12px;padding:18px;border:1px solid #e2e8f0;display:none;margin-bottom:18px}
+  .consulta-form.active,.message-form.active{display:block}
+  .form-group{margin-bottom:12px}
+  .form-group label{display:block;margin-bottom:6px;font-weight:800;color:#334155;font-size:.92rem}
+  .form-group input,.form-group textarea,.form-group select{width:100%;padding:10px 12px;border:1px solid #dbe5f7;border-radius:10px;font-size:.95rem;box-sizing:border-box;background:#fff}
+  .form-group textarea{min-height:110px;resize:vertical}
+  .btn-enviar{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;padding:12px 18px;border-radius:10px;cursor:pointer;font-size:.92rem;font-weight:900;display:inline-flex;align-items:center;gap:8px}
+  .btn-enviar:disabled{opacity:.6;cursor:not-allowed}
+  .ticket-card,.message-item{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px;cursor:pointer;transition:.2s ease;box-shadow:0 2px 10px rgba(2,6,23,.04)}
+  .ticket-card:hover,.message-item:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(2,6,23,.10);border-color:#c7d2fe}
+  .ticket-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #eef2f7}
+  .ticket-header h3{margin:0;font-size:1.08rem;font-weight:900;color:#0f172a}
+  .status-badge{padding:6px 12px;border-radius:999px;font-size:.78rem;font-weight:900;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .status-badge.status-en_proceso{background:#dbeafe;color:#1e40af}
+  .status-badge.status-resuelto{background:#dcfce7;color:#166534}
+  .ticket-body p{margin:0;color:#475569;line-height:1.6}
+  .ticket-meta{margin-top:10px;display:flex;gap:12px;flex-wrap:wrap;color:#64748b;font-size:.85rem;font-weight:700}
+  .ticket-meta span{display:inline-flex;align-items:center;gap:6px}
+  .empty-state{text-align:center;padding:40px 18px;color:#64748b}
+  .empty-state i{font-size:3.2rem;opacity:.45;display:block;margin-bottom:10px}
+  /* Modales */
+  .consulta-modal,.conversation-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);z-index:10000;align-items:center;justify-content:center}
+  .consulta-modal.active,.conversation-modal.active{display:flex}
+  .consulta-modal-content,.conversation-modal-content{background:#fff;border-radius:16px;width:min(880px,92vw);max-height:90vh;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.35);display:flex;flex-direction:column}
+  .consulta-modal-header,.conversation-header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:18px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .consulta-modal-header h3,.conversation-title{margin:0;font-size:1.1rem;font-weight:900}
+  .consulta-modal-close,.conversation-close{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;width:40px;height:40px;border-radius:999px;display:flex;align-items:center;justify-content:center}
+  .consulta-modal-close:hover,.conversation-close:hover{background:rgba(255,255,255,.16)}
+  .consulta-modal-body{padding:20px;overflow:auto}
+  .conversation-body{display:flex;flex-direction:column;overflow:hidden}
+  .conversation-messages{flex:1;padding:18px;overflow:auto;background:#f8fafc}
+  .message-bubble{display:flex;gap:10px;margin-bottom:12px;align-items:flex-end}
+  .message-bubble.sent{flex-direction:row-reverse}
+  .message-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex:0 0 auto}
+  .message-bubble.sent .message-avatar{background:#667eea;color:#fff}
+  .message-bubble.received .message-avatar{background:#10b981;color:#fff}
+  .message-content{max-width:min(70%,520px);padding:12px 14px;border-radius:16px}
+  .message-bubble.sent .message-content{background:#667eea;color:#fff;border-bottom-right-radius:6px}
+  .message-bubble.received .message-content{background:#fff;border:1px solid #e2e8f0;color:#0f172a;border-bottom-left-radius:6px}
+  .message-time{font-size:.72rem;opacity:.8;margin-top:6px}
+  .conversation-input{padding:14px;background:#fff;border-top:1px solid #e2e8f0}
+  .conversation-input-form{display:flex;gap:10px;align-items:flex-end}
+  .conversation-input textarea{flex:1;border:2px solid #e2e8f0;border-radius:18px;padding:10px 12px;font-size:.95rem;resize:none;min-height:42px;max-height:140px}
+  .conversation-input textarea:focus{outline:none;border-color:#667eea}
+  .conversation-send-btn{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:18px;padding:12px 16px;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+  .conversation-send-btn:disabled{opacity:.6;cursor:not-allowed}
+  @media (max-width:768px){.tabs-header{flex-direction:column}}
+</style>
+{% endblock %}
+
+{% block cliente_content %}
+<div class="welcome-section">
+  <h1><i class="bx bx-headphone"></i> Atención al Cliente</h1>
+  <p>Estamos aquí para ayudarte. Envíanos tu consulta y te responderemos lo antes posible.</p>
+  <p style="margin-top:10px;">
+    <a href="{% url 'web_cliente_reclamos' %}" class="btn-enviar" style="display:inline-flex;text-decoration:none;">
+      <i class="bx bx-error-circle"></i> Ir a Reclamos
+    </a>
+  </p>
+</div>
+
+<div class="tabs-container">
+  <div class="tabs-header">
+    <button class="tab-button active" data-tab="consultas"><i class="bx bx-clipboard"></i> Mis Consultas</button>
+    <button class="tab-button" data-tab="mensajes"><i class="bx bx-envelope"></i> Mensajes Directos</button>
+  </div>
+
+  <div id="consultas-tab" class="tab-content active">
+    <div class="consultas-section">
+      <div class="consultas-header">
+        <h2 class="consultas-title"><i class="bx bx-clipboard"></i> Mis Consultas</h2>
+        <button type="button" class="btn-new-consulta"><i class="bx bx-plus"></i> Nueva Consulta</button>
+      </div>
+
+      <div class="consulta-form" id="consultaForm">
+        <form id="newConsultaForm">
+          <div class="form-group">
+            <label for="tema">Tema de la consulta</label>
+            <input type="text" id="tema" name="tema" required placeholder="Ej: Problema con mi pedido #12345">
+          </div>
+          <div class="form-group">
+            <label for="descripcion">Descripción detallada</label>
+            <textarea id="descripcion" name="descripcion" required placeholder="Describe tu consulta o problema de manera detallada..."></textarea>
+          </div>
+          <button type="submit" class="btn-enviar" id="btnEnviarConsulta"><i class="bx bx-send"></i> Enviar Consulta</button>
+        </form>
+      </div>
+
+      {% if tickets %}
+      <div class="consultas-list" id="consultasList">
+        {% for ticket in tickets %}
+        <div class="ticket-card" data-ticket-id="{{ ticket.id }}">
+          <div class="ticket-header">
+            <h3>{{ ticket.tema|default:"Sin tema" }}</h3>
+            {% if ticket.respuesta %}
+            <span class="status-badge status-resuelto"><i class="bx bx-check-circle"></i> Resuelto</span>
+            {% else %}
+            <span class="status-badge status-en_proceso"><i class="bx bx-loader"></i> En Proceso</span>
+            {% endif %}
+          </div>
+          <div class="ticket-body">
+            <p>{{ ticket.descripcion|default:"Sin descripción" }}</p>
+            <div class="ticket-meta">
+              <span><i class="bx bx-calendar"></i> <span>{{ ticket.fechaConsulta|default:"N/A" }}</span></span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <i class="bx bx-clipboard"></i>
+        <h3>No tienes consultas</h3>
+        <p>Crea tu primera consulta para recibir soporte especializado</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div id="mensajes-directos-tab" class="tab-content">
+    <div class="mensajes-directos-container">
+      <div class="mensajes-header">
+        <h2 class="mensajes-title"><i class="bx bx-envelope"></i> Mensajes Directos</h2>
+        <button type="button" class="btn-new-message"><i class="bx bx-plus"></i> Nuevo Mensaje</button>
+      </div>
+
+      <div class="message-form" id="messageForm">
+        <form id="newMessageForm">
+          <div class="form-group">
+            <label for="asunto">Asunto</label>
+            <input type="text" id="asunto" name="asunto" required maxlength="200" placeholder="Describe brevemente tu consulta">
+          </div>
+          <div class="form-group">
+            <label for="prioridad">Prioridad</label>
+            <select id="prioridad" name="prioridad" required>
+              <option value="normal">Normal</option>
+              <option value="baja">Baja</option>
+              <option value="alta">Alta</option>
+              <option value="urgente">Urgente</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="mensaje">Mensaje</label>
+            <textarea id="mensaje" name="mensaje" required maxlength="2000" placeholder="Describe detalladamente tu consulta o problema..."></textarea>
+          </div>
+          <button type="submit" class="btn-enviar" id="btnEnviarMensaje"><i class="bx bx-send"></i> Enviar Mensaje</button>
+        </form>
+      </div>
+
+      {% if conversaciones %}
+      <div id="messagesList">
+        {% for conversacion in conversaciones %}
+        <div class="message-item"
+             data-conversation-id="{{ conversacion.conversationId }}"
+             data-message-id="{{ conversacion.id }}">
+          <div class="ticket-header" style="border-bottom:1px solid #eef2f7;padding-bottom:10px;">
+            <h3 style="margin:0;font-size:1rem;">{{ conversacion.asunto|default:"Sin asunto" }}</h3>
+            <span class="status-badge" style="background:#f1f5f9;color:#334155;">
+              {% if conversacion.senderType == 'cliente' %}Tú{% else %}Soporte{% endif %}
+            </span>
+          </div>
+          <div class="ticket-body">
+            <p style="margin:0;color:#64748b;">{{ conversacion.mensaje|default:"Sin mensaje" }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <i class="bx bx-message-square-x"></i>
+        <h3>No tienes mensajes</h3>
+        <p>Envía tu primer mensaje directo al equipo de soporte</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal detalle consulta -->
+<div id="consultaModal" class="consulta-modal" aria-hidden="true">
+  <div class="consulta-modal-content">
+    <div class="consulta-modal-header">
+      <h3 id="consultaModalTitle">Detalle de Consulta</h3>
+      <button type="button" class="consulta-modal-close" id="btnCerrarModalConsulta"><i class="bx bx-x"></i></button>
+    </div>
+    <div class="consulta-modal-body" id="consultaModalBody"></div>
+  </div>
+</div>
+
+<!-- Modal conversación -->
+<div id="conversationModal" class="conversation-modal" aria-hidden="true">
+  <div class="conversation-modal-content">
+    <div class="conversation-header">
+      <h3 class="conversation-title" id="conversationTitle">Conversación</h3>
+      <button type="button" class="conversation-close" id="btnCerrarModalConversacion"><i class="bx bx-x"></i></button>
+    </div>
+    <div class="conversation-body">
+      <div class="conversation-messages" id="conversationMessages">
+        <div class="empty-state"><i class="bx bx-loader-alt bx-spin"></i><p>Cargando conversación...</p></div>
+      </div>
+      <div class="conversation-input">
+        <form class="conversation-input-form" id="conversationReplyForm">
+          <textarea id="conversationReplyText" placeholder="Escribe tu respuesta..." rows="1" maxlength="2000"></textarea>
+          <button type="submit" class="conversation-send-btn" id="conversationSendBtn"><i class="bx bx-send"></i> Enviar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+  (function () {
+    var usuarioId = {{ usuario_id|default:"null" }};
+    var conversacionActual = null;
+    var mensajeActual = null;
+
+    function q(sel) { return document.querySelector(sel); }
+    function qa(sel) { return Array.from(document.querySelectorAll(sel)); }
+    function escapeHtml(t){ var d=document.createElement('div'); d.textContent=String(t||''); return d.innerHTML; }
+    function formatearFecha(fecha){ try{ return new Date(fecha).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){ return 'N/A'; } }
+
+    function setTab(tab) {
+      qa('.tab-button[data-tab]').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-tab') === tab); });
+      q('#consultas-tab')?.classList.toggle('active', tab === 'consultas');
+      q('#mensajes-directos-tab')?.classList.toggle('active', tab === 'mensajes');
+    }
+
+    function show(el){ if(el) el.classList.add('active'); }
+    function hide(el){ if(el) el.classList.remove('active'); }
+
+    function openConsultaModal(ticketId) {
+      var modal = q('#consultaModal');
+      var body = q('#consultaModalBody');
+      var title = q('#consultaModalTitle');
+      if (!modal || !body) return;
+      show(modal);
+      body.innerHTML = '<div style="text-align:center;padding:34px;"><i class="bx bx-loader-alt bx-spin" style="font-size:2.2rem;color:#667eea;"></i><p style="margin-top:10px;color:#64748b;font-weight:700;">Cargando detalles...</p></div>';
+      fetch('/api/atencion-cliente/' + ticketId)
+        .then(function(r){ if(!r.ok) throw new Error('Error al cargar la consulta'); return r.json(); })
+        .then(function(resp){
+          var t = resp.data || resp; // success_response wrapper
+          if (t && t.ok === false) throw new Error(t.message || 'Error');
+          var ticket = t.data || t;
+          var tema = ticket.tema || 'Detalle de Consulta';
+          if (title) title.textContent = tema;
+          var fecha = formatearFecha(ticket.fechaConsulta || ticket.fecha_consulta);
+          var tieneRespuesta = !!(ticket.respuesta && String(ticket.respuesta).trim());
+          var estadoTexto = tieneRespuesta ? 'Resuelto' : 'En Proceso';
+          var estadoClass = tieneRespuesta ? 'resuelto' : 'en_proceso';
+          body.innerHTML =
+            '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;color:#64748b;font-weight:800;">' +
+              '<span style="display:inline-flex;align-items:center;gap:6px;"><i class="bx bx-calendar"></i>' + escapeHtml(fecha) + '</span>' +
+              '<span class="status-badge status-' + estadoClass + '"><i class="bx ' + (tieneRespuesta ? 'bx-check-circle' : 'bx-loader') + '"></i>' + estadoTexto + '</span>' +
+            '</div>' +
+            '<div style="margin-bottom:16px;">' +
+              '<h4 style="margin:0 0 8px 0;color:#0f172a;font-weight:900;">Descripción</h4>' +
+              '<p style="margin:0;background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #667eea;padding:12px 14px;border-radius:12px;line-height:1.6;color:#334155;">' + escapeHtml(ticket.descripcion || '') + '</p>' +
+            '</div>' +
+            (tieneRespuesta
+              ? '<div style="margin-top:12px;background:#ecfdf5;border:1px solid #a7f3d0;border-left:4px solid #10b981;padding:12px 14px;border-radius:12px;">' +
+                  '<h4 style="margin:0 0 8px 0;color:#065f46;font-weight:900;display:flex;align-items:center;gap:8px;"><i class="bx bx-message-check"></i> Respuesta</h4>' +
+                  '<p style="margin:0;color:#064e3b;line-height:1.6;font-weight:700;">' + escapeHtml(ticket.respuesta) + '</p>' +
+                '</div>'
+              : '<div style="margin-top:12px;background:#f8fafc;border:2px dashed #e2e8f0;padding:16px;border-radius:12px;text-align:center;color:#64748b;font-weight:800;">Tu consulta está siendo revisada. Te responderemos pronto.</div>'
+            );
+        })
+        .catch(function(err){
+          body.innerHTML = '<div style="text-align:center;padding:34px;color:#dc2626;font-weight:900;"><i class="bx bx-error" style="font-size:2.3rem;"></i><p style="margin-top:10px;">' + escapeHtml(err.message) + '</p></div>';
+        });
+    }
+
+    function openConversacion(conversationId) {
+      conversacionActual = conversationId;
+      var modal = q('#conversationModal');
+      show(modal);
+      loadConversacion(conversationId);
+    }
+
+    function loadConversacion(conversationId) {
+      var cont = q('#conversationMessages');
+      if (!cont) return;
+      cont.innerHTML = '<div class="empty-state"><i class="bx bx-loader-alt bx-spin"></i><p>Cargando conversación...</p></div>';
+      fetch('/api/mensajes-directos/conversacion/' + conversationId)
+        .then(function(r){ if(!r.ok) throw new Error('Error al cargar la conversación'); return r.json(); })
+        .then(function(resp){
+          var payload = resp.data || resp;
+          var items = payload.items || payload;
+          if (!Array.isArray(items)) items = [];
+          if (items.length) mensajeActual = items[items.length - 1].id;
+          cont.innerHTML = '';
+          if (!items.length) {
+            cont.innerHTML = '<div class="empty-state"><i class="bx bx-message-square-dots"></i><p>No hay mensajes en esta conversación</p></div>';
+            return;
+          }
+          items.forEach(function(m){
+            var esEnviado = (m.senderType || m.tipo_remitente) === 'cliente';
+            var nombre = esEnviado ? 'Tú' : 'Soporte';
+            var fecha = formatearFecha(m.createdAt || m.creado_en);
+            var texto = m.message || m.mensaje || '';
+            var wrap = document.createElement('div');
+            wrap.className = 'message-bubble ' + (esEnviado ? 'sent' : 'received');
+            wrap.innerHTML =
+              '<div class="message-avatar">' + (esEnviado ? '👤' : '👨‍💼') + '</div>' +
+              '<div class="message-content">' +
+                '<div style="font-size:.75rem;opacity:.85;margin-bottom:4px;font-weight:900;">' + escapeHtml(nombre) + '</div>' +
+                '<div class="message-text" style="font-weight:700;">' + escapeHtml(texto) + '</div>' +
+                '<div class="message-time">' + escapeHtml(fecha) + '</div>' +
+              '</div>';
+            cont.appendChild(wrap);
+          });
+          cont.scrollTop = cont.scrollHeight;
+        })
+        .catch(function(err){
+          cont.innerHTML = '<div class="empty-state"><i class="bx bx-error"></i><p>' + escapeHtml(err.message) + '</p></div>';
+        });
+    }
+
+    function postForm(url, data) {
+      return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+        body: new URLSearchParams(data).toString()
+      }).then(function(r){
+        var ct = r.headers.get('content-type') || '';
+        if (!r.ok) {
+          if (ct.includes('application/json')) return r.json().then(function(j){ throw new Error(j.message || 'Error'); });
+          return r.text().then(function(t){ throw new Error(t || 'Error'); });
+        }
+        return ct.includes('application/json') ? r.json() : {};
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      qa('.tab-button[data-tab]').forEach(function (b) {
+        b.addEventListener('click', function () { setTab(b.getAttribute('data-tab')); });
+      });
+
+      q('.btn-new-consulta')?.addEventListener('click', function(){ q('#consultaForm')?.classList.toggle('active'); });
+      q('.btn-new-message')?.addEventListener('click', function(){ q('#messageForm')?.classList.toggle('active'); });
+
+      qa('.ticket-card[data-ticket-id]').forEach(function(card){
+        card.addEventListener('click', function(){
+          var id = card.getAttribute('data-ticket-id');
+          if (id) openConsultaModal(parseInt(id,10));
+        });
+      });
+
+      qa('.message-item[data-conversation-id]').forEach(function(card){
+        card.addEventListener('click', function(){
+          var cid = card.getAttribute('data-conversation-id');
+          if (cid) openConversacion(cid);
+        });
+      });
+
+      q('#btnCerrarModalConsulta')?.addEventListener('click', function(){ hide(q('#consultaModal')); });
+      q('#consultaModal')?.addEventListener('click', function(e){ if (e.target === q('#consultaModal')) hide(q('#consultaModal')); });
+
+      q('#btnCerrarModalConversacion')?.addEventListener('click', function(){ hide(q('#conversationModal')); });
+      q('#conversationModal')?.addEventListener('click', function(e){ if (e.target === q('#conversationModal')) hide(q('#conversationModal')); });
+
+      q('#newConsultaForm')?.addEventListener('submit', function(e){
+        e.preventDefault();
+        var tema = q('#tema')?.value?.trim();
+        var descripcion = q('#descripcion')?.value?.trim();
+        if (!tema || !descripcion) return;
+        var btn = q('#btnEnviarConsulta');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Enviando...'; }
+        postForm('/api/atencion-cliente', { usuarioId: usuarioId, tema: tema, descripcion: descripcion })
+          .then(function(){ location.reload(); })
+          .catch(function(err){ if (window.TechnovaUi) window.TechnovaUi.error(err.message); else alert(err.message); })
+          .finally(function(){ if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bx bx-send"></i> Enviar Consulta'; } });
+      });
+
+      q('#newMessageForm')?.addEventListener('submit', function(e){
+        e.preventDefault();
+        var asunto = q('#asunto')?.value?.trim();
+        var prioridad = q('#prioridad')?.value?.trim() || 'normal';
+        var mensaje = q('#mensaje')?.value?.trim();
+        if (!asunto || !mensaje) return;
+        var btn = q('#btnEnviarMensaje');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Enviando...'; }
+        postForm('/api/mensajes-directos/conversacion', { userId: usuarioId, asunto: asunto, mensaje: mensaje, prioridad: prioridad })
+          .then(function(){ location.reload(); })
+          .catch(function(err){ if (window.TechnovaUi) window.TechnovaUi.error(err.message); else alert(err.message); })
+          .finally(function(){ if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bx bx-send"></i> Enviar Mensaje'; } });
+      });
+
+      q('#conversationReplyForm')?.addEventListener('submit', function(e){
+        e.preventDefault();
+        var txt = q('#conversationReplyText')?.value?.trim();
+        if (!txt || !mensajeActual) return;
+        var btn = q('#conversationSendBtn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Enviando...'; }
+        postForm('/api/mensajes-directos/' + mensajeActual + '/responder', { senderId: usuarioId, senderType: 'cliente', mensaje: txt })
+          .then(function(){ q('#conversationReplyText').value = ''; loadConversacion(conversacionActual); })
+          .catch(function(err){ if (window.TechnovaUi) window.TechnovaUi.error(err.message); else alert(err.message); })
+          .finally(function(){ if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bx bx-send"></i> Enviar'; } });
+      });
+    });
+  })();
+</script>
+{% endblock %}
+

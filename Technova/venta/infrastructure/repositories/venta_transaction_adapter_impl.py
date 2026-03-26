@@ -9,6 +9,8 @@ from envio.models import Envio
 from mensajeria.services.notificaciones_admin import (
     notificar_checkout_completado,
     notificar_pedido_anulado,
+    notificar_pago_registrado,
+    notificar_stock_disminuido,
 )
 from pago.models import MedioPago, Pago
 from producto.models import Producto
@@ -89,6 +91,7 @@ class VentaTransactionAdapter(CheckoutPort, VentaAnulacionPort):
                 raise ValueError(f"Producto no disponible: {item.producto_id}")
             if producto.stock < item.cantidad:
                 raise ValueError(f"Stock insuficiente para {producto.nombre}.")
+            stock_anterior = int(producto.stock)
 
             precio_unitario = (
                 producto.precio_venta
@@ -108,6 +111,18 @@ class VentaTransactionAdapter(CheckoutPort, VentaAnulacionPort):
 
             producto.stock -= item.cantidad
             producto.save(update_fields=["stock", "actualizado_en"])
+            stock_actual = int(producto.stock)
+
+            def _notificar_stock(pid=producto.id, nombre=producto.nombre, prev=stock_anterior, cur=stock_actual) -> None:
+                notificar_stock_disminuido(
+                    producto_id=pid,
+                    nombre=nombre,
+                    stock_anterior=prev,
+                    stock_actual=cur,
+                    motivo="venta",
+                )
+
+            transaction.on_commit(_notificar_stock)
 
         total_final = total_productos + costo_envio
         Dinero.crear(total_final)
@@ -121,6 +136,15 @@ class VentaTransactionAdapter(CheckoutPort, VentaAnulacionPort):
             monto=total_final,
             estado_pago=Pago.EstadoPago.APROBADO,
         )
+
+        def _notificar_pago() -> None:
+            notificar_pago_registrado(
+                pago_id=pago.id,
+                monto=pago.monto,
+                numero_factura=pago.numero_factura,
+            )
+
+        transaction.on_commit(_notificar_pago)
 
         for detalle in detalles_venta:
             MedioPago.objects.create(

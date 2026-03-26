@@ -79,14 +79,23 @@
         </div>
 
         <div class="tabs" style="margin-bottom: 16px;">
+          <a class="tab {% if tipo == 'ventas' %}active{% endif %}" href="{% url 'web_admin_reportes' %}?tipo=ventas">Ventas</a>
           <a class="tab {% if tipo == 'productos' %}active{% endif %}" href="{% url 'web_admin_reportes' %}?tipo=productos">Productos</a>
           <a class="tab {% if tipo == 'usuarios' %}active{% endif %}" href="{% url 'web_admin_reportes' %}?tipo=usuarios">Usuarios</a>
-          <a class="tab {% if tipo == 'ventas' %}active{% endif %}" href="{% url 'web_admin_reportes' %}?tipo=ventas">Ventas</a>
+          <a class="tab {% if tipo == 'pagos' %}active{% endif %}" href="{% url 'web_admin_reportes' %}?tipo=pagos">Pagos</a>
         </div>
 
         {% if tipo == 'productos' %}
         <form class="filtros" method="get" action="{% url 'web_admin_reportes' %}">
           <input type="hidden" name="tipo" value="productos">
+          <div class="filtro-group">
+            <label for="fechaDesdeP">Desde</label>
+            <input id="fechaDesdeP" type="date" name="fechaDesde" value="{{ fecha_desde }}" required>
+          </div>
+          <div class="filtro-group">
+            <label for="fechaHastaP">Hasta</label>
+            <input id="fechaHastaP" type="date" name="fechaHasta" value="{{ fecha_hasta }}" required>
+          </div>
           <div class="filtro-group">
             <label for="categoria">Categoría</label>
             <select id="categoria" name="categoria">
@@ -117,13 +126,13 @@
             <button class="btn-buscar" type="submit"><i class="bx bx-search"></i> Filtrar</button>
           </div>
           <div class="filtro-group filtro-accion">
-            <a class="btn-ver" href="{% url 'web_admin_reportes_preview' 'productos' %}?categoria={{ categoria }}&marca={{ marca }}&precioMin={{ precio_min }}&precioMax={{ precio_max }}" target="_blank" rel="noopener">
+            <a class="btn-ver" href="{% url 'web_admin_reportes_preview' 'productos' %}?fechaDesde={{ fecha_desde }}&fechaHasta={{ fecha_hasta }}&categoria={{ categoria }}&marca={{ marca }}&precioMin={{ precio_min }}&precioMax={{ precio_max }}" target="_blank" rel="noopener">
               <i class="bx bx-show"></i> Vista previa
             </a>
           </div>
           <div class="filtro-group filtro-accion">
-            <a class="btn-ver" href="{% url 'web_admin_reportes_pdf' 'productos' %}?categoria={{ categoria }}&marca={{ marca }}&precioMin={{ precio_min }}&precioMax={{ precio_max }}">
-              <i class="bx bx-file"></i> Descargar PDF
+            <a class="btn-ver" href="{% url 'web_admin_reportes_pdf' 'productos' %}?fechaDesde={{ fecha_desde }}&fechaHasta={{ fecha_hasta }}&categoria={{ categoria }}&marca={{ marca }}&precioMin={{ precio_min }}&precioMax={{ precio_max }}">
+              <i class="bx bx-file"></i> Generar PDF
             </a>
           </div>
         </form>
@@ -154,6 +163,14 @@
         <form class="filtros" method="get" action="{% url 'web_admin_reportes' %}">
           <input type="hidden" name="tipo" value="usuarios">
           <div class="filtro-group">
+            <label for="fechaDesdeU">Desde</label>
+            <input id="fechaDesdeU" type="date" name="fechaDesde" value="{{ fecha_desde }}" required>
+          </div>
+          <div class="filtro-group">
+            <label for="fechaHastaU">Hasta</label>
+            <input id="fechaHastaU" type="date" name="fechaHasta" value="{{ fecha_hasta }}" required>
+          </div>
+          <div class="filtro-group">
             <label for="rol">Rol</label>
             <select id="rol" name="rol">
               <option value="">Todos</option>
@@ -170,13 +187,13 @@
             <button class="btn-buscar" type="submit"><i class="bx bx-search"></i> Filtrar</button>
           </div>
           <div class="filtro-group filtro-accion">
-            <a class="btn-ver" href="{% url 'web_admin_reportes_preview' 'usuarios' %}?rol={{ rol }}&busqueda={{ busqueda }}" target="_blank" rel="noopener">
+            <a class="btn-ver" href="{% url 'web_admin_reportes_preview' 'usuarios' %}?fechaDesde={{ fecha_desde }}&fechaHasta={{ fecha_hasta }}&rol={{ rol }}&busqueda={{ busqueda|urlencode }}" target="_blank" rel="noopener">
               <i class="bx bx-show"></i> Vista previa
             </a>
           </div>
           <div class="filtro-group filtro-accion">
-            <a class="btn-ver" href="{% url 'web_admin_reportes_pdf' 'usuarios' %}?rol={{ rol }}&busqueda={{ busqueda }}">
-              <i class="bx bx-file"></i> Descargar PDF
+            <a class="btn-ver" href="{% url 'web_admin_reportes_pdf' 'usuarios' %}?fechaDesde={{ fecha_desde }}&fechaHasta={{ fecha_hasta }}&rol={{ rol }}&busqueda={{ busqueda }}">
+              <i class="bx bx-file"></i> Generar PDF
             </a>
           </div>
         </form>
@@ -201,6 +218,63 @@
             </tbody>
           </table>
         </div>
+        {% elif tipo == 'pagos' %}
+        <form class="filtros" method="get" action="{% url 'web_admin_reportes' %}">
+          <input type="hidden" name="tipo" value="pagos">
+          <div class="filtro-group">
+            <label for="fechaDesdePg">Desde</label>
+            <input id="fechaDesdePg" type="date" name="fechaDesde" value="{{ fecha_desde }}" required>
+          </div>
+          <div class="filtro-group">
+            <label for="fechaHastaPg">Hasta</label>
+            <input id="fechaHastaPg" type="date" name="fechaHasta" value="{{ fecha_hasta }}" required>
+          </div>
+          <div class="filtro-group">
+            <label for="estadoPago">Estado</label>
+            <select id="estadoPago" name="estadoPago">
+              <option value="" {% if not estado_pago %}selected{% endif %}>Todos</option>
+              <option value="pendiente" {% if estado_pago == "pendiente" %}selected{% endif %}>Pendiente</option>
+              <option value="aprobado" {% if estado_pago == "aprobado" %}selected{% endif %}>Aprobado</option>
+              <option value="rechazado" {% if estado_pago == "rechazado" %}selected{% endif %}>Rechazado</option>
+              <option value="reembolsado" {% if estado_pago == "reembolsado" %}selected{% endif %}>Reembolsado</option>
+            </select>
+          </div>
+          <div class="filtro-group filtro-accion">
+            <button class="btn-buscar" type="submit"><i class="bx bx-search"></i> Filtrar</button>
+          </div>
+          <div class="filtro-group filtro-accion">
+            <a class="btn-ver" href="{% url 'web_admin_reportes_preview' 'pagos' %}?fechaDesde={{ fecha_desde }}&fechaHasta={{ fecha_hasta }}&estadoPago={{ estado_pago }}" target="_blank" rel="noopener">
+              <i class="bx bx-show"></i> Vista previa
+            </a>
+          </div>
+          <div class="filtro-group filtro-accion">
+            <a class="btn-ver" href="{% url 'web_admin_reportes_pdf' 'pagos' %}?fechaDesde={{ fecha_desde }}&fechaHasta={{ fecha_hasta }}&estadoPago={{ estado_pago }}">
+              <i class="bx bx-file"></i> Generar PDF
+            </a>
+          </div>
+        </form>
+
+        <div class="table-container">
+          <table class="table-inventario">
+            <thead>
+              <tr><th>ID</th><th>Factura</th><th>Fecha pago</th><th>Estado</th><th>Monto</th></tr>
+            </thead>
+            <tbody>
+              {% for p in preview_pagos %}
+              <tr>
+                <td>#{{ p.id }}</td>
+                <td>{{ p.numero_factura }}</td>
+                <td>{{ p.fecha_pago }}</td>
+                <td>{{ p.get_estado_pago_display }}</td>
+                <td>${{ p.monto|floatformat:0 }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5">No hay datos para este filtro.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
         {% else %}
         <form class="filtros" method="get" action="{% url 'web_admin_reportes' %}">
           <input type="hidden" name="tipo" value="ventas">
@@ -215,11 +289,11 @@
           </div>
           <div class="filtro-group">
             <label for="fechaDesde">Desde</label>
-            <input id="fechaDesde" type="date" name="fechaDesde" value="{{ fecha_desde }}">
+            <input id="fechaDesde" type="date" name="fechaDesde" value="{{ fecha_desde }}" required>
           </div>
           <div class="filtro-group">
             <label for="fechaHasta">Hasta</label>
-            <input id="fechaHasta" type="date" name="fechaHasta" value="{{ fecha_hasta }}">
+            <input id="fechaHasta" type="date" name="fechaHasta" value="{{ fecha_hasta }}" required>
           </div>
           <div class="filtro-group filtro-accion">
             <button class="btn-buscar" type="submit"><i class="bx bx-search"></i> Filtrar</button>
@@ -231,7 +305,7 @@
           </div>
           <div class="filtro-group filtro-accion">
             <a class="btn-ver" href="{% url 'web_admin_reportes_pdf' 'ventas' %}?estado={{ estado }}&fechaDesde={{ fecha_desde }}&fechaHasta={{ fecha_hasta }}">
-              <i class="bx bx-file"></i> Descargar PDF
+              <i class="bx bx-file"></i> Generar PDF
             </a>
           </div>
         </form>

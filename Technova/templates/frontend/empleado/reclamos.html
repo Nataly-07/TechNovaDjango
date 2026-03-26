@@ -1,0 +1,81 @@
+{% load static %}
+<style>
+  .re-wrap{max-width:1300px;margin:0 auto}
+  .re-banner{background:linear-gradient(135deg,#dc3545 0%,#b91c1c 100%);border-radius:16px;padding:22px;color:#fff;text-align:center;margin-bottom:16px}
+  .re-filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .re-filtros a{padding:8px 12px;border-radius:999px;border:1px solid #d1d5db;background:#fff;color:#111827;text-decoration:none;font-weight:700}
+  .re-filtros a.activo{background:#111827;color:#fff;border-color:#111827}
+  .re-search{display:flex;gap:8px;margin-bottom:16px}
+  .re-search input{flex:1;padding:10px;border:1px solid #d1d5db;border-radius:10px}
+  .re-search button{padding:10px 14px;border:none;border-radius:10px;background:#111827;color:#fff;font-weight:700;cursor:pointer}
+  .re-list{display:grid;gap:12px}
+  .re-card{background:#fff;border-radius:12px;border-left:4px solid #dc3545;padding:14px}
+  .re-top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .re-pill{font-size:.75rem;padding:4px 9px;border-radius:999px;font-weight:700}
+  .st-pendiente{background:#fff3cd;color:#856404}
+  .st-en_revision{background:#d1ecf1;color:#0c5460}
+  .st-resuelto,.st-cerrado{background:#d4edda;color:#155724}
+</style>
+
+<section class="re-wrap">
+  <div class="re-banner">
+    <h2 style="margin:0;"><i class="bx bx-error-circle"></i> Gestion de Reclamos</h2>
+    <p style="margin:8px 0 0 0;">Administra los reclamos de clientes</p>
+  </div>
+
+  <div class="re-filtros">
+    <a href="?estado=todos&busqueda={{ busqueda|urlencode }}" class="{% if estado == 'todos' %}activo{% endif %}">Todos</a>
+    <a href="?estado=pendiente&busqueda={{ busqueda|urlencode }}" class="{% if estado == 'pendiente' %}activo{% endif %}">Pendientes</a>
+    <a href="?estado=en_revision&busqueda={{ busqueda|urlencode }}" class="{% if estado == 'en_revision' %}activo{% endif %}">En revision</a>
+    <a href="?estado=resuelto&busqueda={{ busqueda|urlencode }}" class="{% if estado == 'resuelto' %}activo{% endif %}">Resueltos</a>
+  </div>
+
+  <form class="re-search" method="get" action="{% url 'web_empleado_seccion' seccion='reclamos' %}">
+    <input type="hidden" name="estado" value="{{ estado|default:'todos' }}">
+    <input type="text" name="busqueda" value="{{ busqueda }}" placeholder="Buscar por cliente, titulo o descripcion">
+    <button type="submit"><i class="bx bx-search"></i> Buscar</button>
+  </form>
+
+  {% if reclamos %}
+  <div class="re-list">
+    {% for r in reclamos %}
+    <article class="re-card">
+      <div class="re-top">
+        <h3 style="margin:0;">{{ r.titulo|default:"Sin titulo" }}</h3>
+        <span class="re-pill st-{{ r.estado|default:'pendiente' }}">{{ r.estado|default:"pendiente"|capfirst }}</span>
+      </div>
+      <p style="margin:8px 0 6px 0;">{{ r.descripcion|default:"Sin descripcion" }}</p>
+      <small style="color:#64748b;">Cliente: {{ r.clienteNombre|default:"N/A" }}</small>
+      {% if r.respuesta %}
+      <div style="margin-top:8px;background:#f8fafc;border-left:3px solid #22c55e;padding:8px;border-radius:8px;">
+        <strong>Respuesta:</strong> {{ r.respuesta }}
+      </div>
+      {% else %}
+      <div style="margin-top:10px;">
+        <button type="button" onclick="responderReclamo({{ r.id }})" style="border:none;background:#dc3545;color:#fff;border-radius:8px;padding:8px 12px;cursor:pointer;">
+          <i class="bx bx-reply"></i> Responder
+        </button>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="background:#fff;border-radius:12px;padding:24px;text-align:center;color:#64748b;">No hay reclamos con estos filtros.</div>
+  {% endif %}
+</section>
+
+<script>
+async function responderReclamo(id){
+  const respuesta = prompt('Ingresa la respuesta al reclamo:');
+  if(!respuesta || !respuesta.trim()) return;
+  const resp = await fetch('/api/reclamos/' + id + '/responder', {
+    method:'PUT',
+    credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({respuesta: respuesta.trim()})
+  });
+  if(resp.ok) location.reload();
+  else alert('No se pudo responder el reclamo.');
+}
+</script>

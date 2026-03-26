@@ -208,7 +208,7 @@ def admin_inventario(request):
     categoria = (request.GET.get("categoria") or "").strip()
     busqueda = (request.GET.get("busqueda") or "").strip()
 
-    qs = Producto.objects.select_related("proveedor").order_by("id")
+    qs = Producto.objects.select_related("proveedor").prefetch_related("imagenes").order_by("id")
     if categoria:
         qs = qs.filter(categoria__iexact=categoria)
     if busqueda:
@@ -316,6 +316,10 @@ def admin_producto_crear(request):
     color = (request.POST.get("color") or "").strip()
     descripcion = (request.POST.get("descripcion") or "").strip()
     imagen_url = (request.POST.get("imagen_url") or "").strip()
+    
+    # Procesar imágenes adicionales
+    imagenes_adicionales = request.POST.getlist("imagenes_adicionales[]")
+    imagenes_adicionales = [img.strip() for img in imagenes_adicionales if img.strip()]
 
     if not codigo or len(codigo) > 50:
         messages.error(request, "El código es obligatorio (máximo 50 caracteres).")
@@ -375,6 +379,18 @@ def admin_producto_crear(request):
                 "La imagen debe ser una URL que comience con http:// o https://",
             )
             return redirect("web_admin_inventario")
+            
+    # Validar imágenes adicionales
+    for imagen in imagenes_adicionales:
+        if len(imagen) > 500:
+            messages.error(request, "Una URL de imagen adicional es demasiado larga.")
+            return redirect("web_admin_inventario")
+        if not (imagen.startswith("http://") or imagen.startswith("https://")):
+            messages.error(
+                request,
+                "Las imágenes adicionales deben ser URLs que comiencen con http:// o https://",
+            )
+            return redirect("web_admin_inventario")
 
     entidad = ProductoEntidad(
         id=None,
@@ -394,6 +410,23 @@ def admin_producto_crear(request):
     service = get_producto_service()
     try:
         creado = service.crear(entidad)
+        
+        # Guardar imágenes adicionales si existen
+        if imagenes_adicionales:
+            from producto.models import ProductoImagen
+            
+            # Eliminar imágenes existentes para este producto (si las hubiera)
+            ProductoImagen.objects.filter(producto_id=creado.id).delete()
+            
+            # Crear nuevas imágenes adicionales
+            for orden, url in enumerate(imagenes_adicionales):
+                ProductoImagen.objects.create(
+                    producto_id=creado.id,
+                    url=url,
+                    orden=orden + 1,  # Empezar desde 1 para el usuario
+                    activa=True
+                )
+                
     except IntegrityError:
         messages.error(request, "Ya existe un producto con ese código.")
         return redirect("web_admin_inventario")

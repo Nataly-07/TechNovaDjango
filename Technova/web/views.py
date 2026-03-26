@@ -3,18 +3,22 @@ import logging
 import re
 import uuid
 import base64
+from collections import Counter
 from io import BytesIO
+from pathlib import Path
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 from urllib import error as urllib_error
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
+from xml.sax.saxutils import escape as _xml_escape
 
 from django.contrib import messages
 from django.conf import settings
 from django.db import IntegrityError
-from django.db.models import Count, Prefetch, Q, Sum
+from django.db.models import Count, DecimalField, ExpressionWrapper, F, Prefetch, Q, Sum
+from django.db.models.functions import TruncDay, TruncMonth, TruncWeek
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -23,10 +27,13 @@ from django.utils.safestring import mark_safe
 from django.urls import reverse
 
 from carrito.models import Carrito, Favorito
+from atencion_cliente.models import AtencionCliente
 from common.container import (
+    get_atencion_query_service,
     get_carrito_lineas_service,
     get_carrito_query_service,
     get_checkout_service,
+    get_mensajeria_query_service,
     get_producto_service,
     get_proveedor_service,
     get_venta_query_service,
@@ -44,6 +51,7 @@ from usuario.application.registro_usuario_service import registrar_usuario_desde
 from usuario.application.use_cases.autenticacion_usecases import credenciales_coinciden
 from usuario.infrastructure.models.usuario_model import Usuario
 from venta.models import Venta
+from venta.models import DetalleVenta
 
 logger = logging.getLogger(__name__)
 
@@ -588,6 +596,7 @@ EMPLEADO_SECCIONES: dict[str, str] = {
     "pedidos": "Pedidos",
     "venta-punto-fisico": "Venta punto físico",
     "atencion-cliente": "Atención al cliente",
+    "reclamos": "Reclamos",
     "notificaciones": "Notificaciones",
 }
 
@@ -627,6 +636,168 @@ def empleado_dashboard(request, seccion: str = "inicio"):
                 "clientes_inactivos": Usuario.objects.filter(
                     rol=Usuario.Rol.CLIENTE, activo=False
                 ).count(),
+            }
+        )
+    elif seccion == "atencion-cliente":
+        estado = (request.GET.get("estado") or "todas").strip().lower()
+        busqueda = (request.GET.get("busqueda") or "").strip()
+
+        # Tickets (todas las solicitudes; filtros como Java)
+        tickets_raw = get_atencion_query_service().listar_solicitudes(None) or []
+
+        # Mapa de nombres por usuario_id (para mostrar "cliente" en empleado)
+        user_ids = sorted({int(t.get("usuario_id")) for t in tickets_raw if t.get("usuario_id")})
+        usuarios_map = {
+            u.id: f"{u.nombres} {u.apellidos}".strip()
+            for u in Usuario.objects.filter(id__in=user_ids).only("id", "nombres", "apellidos")
+        }
+
+        def ticket_resuelto(t: dict) -> bool:
+            return bool((t.get("respuesta") or "").strip())
+
+        # aplicar filtros
+        tickets_filtrados = []
+        for t in tickets_raw:
+            uid_t = t.get("usuario_id")
+            nombre = usuarios_map.get(uid_t, f"Usuario ID: {uid_t}" if uid_t else "Usuario desconocido")
+            if busqueda and busqueda.lower() not in nombre.lower():
+                continue
+            est = (t.get("estado") or "").lower()
+            if estado == "todas":
+                pass
+            elif estado == "pendientes":
+                if est not in ("abierta", "en_proceso"):
+                    continue
+            elif estado == "en_proceso":
+                if est != "en_proceso" or ticket_resuelto(t):
+                    continue
+            elif estado == "resuelto":
+                if not ticket_resuelto(t):
+                    continue
+            elif estado == "cerrado":
+                if est != "cerrada":
+                    continue
+            tickets_filtrados.append(
+                {
+                    "id": t.get("id"),
+                    "usuarioId": uid_t,
+                    "tema": t.get("tema") or "",
+                    "descripcion": t.get("descripcion") or "",
+                    "fechaConsulta": t.get("fecha_consulta") or t.get("fechaConsulta"),
+                    "respuesta": t.get("respuesta") or "",
+                    "clienteNombre": nombre,
+                }
+            )
+
+        # Stats (consultas)
+        total_consultas = AtencionCliente.objects.count()
+        pendientes = AtencionCliente.objects.filter(
+            estado__in=[AtencionCliente.Estado.ABIERTA, AtencionCliente.Estado.EN_PROCESO]
+        ).count()
+
+        # Conversaciones (último mensaje por conversación)
+        md_items = get_mensajeria_query_service().listar_mensajes_directos_todos() or []
+        por_conv: dict[str, dict] = {}
+        for m in md_items:
+            cid = m.get("conversationId")
+            if not cid:
+                continue
+            prev = por_conv.get(cid)
+            if prev is None or (m.get("createdAt") or "") > (prev.get("createdAt") or ""):
+                por_conv[cid] = m
+        conversaciones = sorted(por_conv.values(), key=lambda x: x.get("createdAt") or "", reverse=True)
+
+        # nombres para conversaciones (del remitente cliente)
+        conv_user_ids = sorted(
+            {
+                int(c.get("senderId"))
+                for c in conversaciones
+                if c.get("senderType") == "cliente" and c.get("senderId")
+            }
+        )
+        conv_usuarios_map = {
+            u.id: f"{u.nombres} {u.apellidos}".strip()
+            for u in Usuario.objects.filter(id__in=conv_user_ids).only("id", "nombres", "apellidos")
+        }
+
+        conversaciones_norm = []
+        for c in conversaciones:
+            user_id = c.get("senderId")
+            nombre_c = conv_usuarios_map.get(user_id, f"Usuario ID: {user_id}" if user_id else "Usuario desconocido")
+            if busqueda and busqueda.lower() not in nombre_c.lower():
+                continue
+            conversaciones_norm.append(
+                {
+                    "conversationId": c.get("conversationId"),
+                    "id": c.get("id"),
+                    "userId": user_id,
+                    "asunto": c.get("subject") or "",
+                    "mensaje": c.get("message") or "",
+                    "prioridad": c.get("priority") or "normal",
+                    "estado": c.get("state") or "enviado",
+                    "isRead": bool(c.get("isRead")),
+                    "senderType": c.get("senderType"),
+                    "createdAt": c.get("createdAt"),
+                    "clienteNombre": nombre_c,
+                }
+            )
+
+        md_stats = get_mensajeria_query_service().estadisticas_mensajes_directos()
+        mensajes = md_stats.get("mensajes", 0)
+        no_leidos = md_stats.get("noLeidos", 0)
+
+        ctx.update(
+            {
+                "estado": estado,
+                "busqueda": busqueda,
+                "tickets": tickets_filtrados,
+                "conversaciones": conversaciones_norm,
+                "totalConsultas": total_consultas,
+                "pendientes": pendientes,
+                "mensajes": mensajes,
+                "noLeidos": no_leidos,
+                "nombresUsuarios": usuarios_map,
+            }
+        )
+    elif seccion == "reclamos":
+        estado = (request.GET.get("estado") or "todos").strip().lower()
+        busqueda = (request.GET.get("busqueda") or "").strip()
+
+        reclamos_raw = get_atencion_query_service().listar_reclamos(None) or []
+        user_ids = sorted(
+            {
+                int(r.get("usuarioId") or r.get("usuario_id"))
+                for r in reclamos_raw
+                if (r.get("usuarioId") or r.get("usuario_id"))
+            }
+        )
+        usuarios_map = {
+            u.id: f"{u.nombres} {u.apellidos}".strip()
+            for u in Usuario.objects.filter(id__in=user_ids).only("id", "nombres", "apellidos")
+        }
+
+        reclamos_filtrados = []
+        for r in reclamos_raw:
+            uid_r = r.get("usuarioId") or r.get("usuario_id")
+            nombre = usuarios_map.get(
+                uid_r, f"Usuario ID: {uid_r}" if uid_r else "Usuario desconocido"
+            )
+            texto = f"{nombre} {r.get('titulo','')} {r.get('descripcion','')}".lower()
+            if busqueda and busqueda.lower() not in texto:
+                continue
+            est = (r.get("estado") or "").lower()
+            if estado != "todos" and est != estado:
+                continue
+            item = dict(r)
+            item["clienteNombre"] = nombre
+            reclamos_filtrados.append(item)
+
+        ctx.update(
+            {
+                "estado": estado,
+                "busqueda": busqueda,
+                "reclamos": reclamos_filtrados,
+                "nombresUsuarios": usuarios_map,
             }
         )
     elif seccion == "productos":
@@ -739,9 +910,23 @@ def empleado_perfil_editar(request):
         if not credenciales_coinciden(current_password, usuario.contrasena_hash):
             messages.error(request, "La contraseña actual no es correcta.")
             return redirect("web_empleado_perfil_editar")
+        cambios = []
+        if usuario.telefono != telefono:
+            cambios.append("teléfono")
+        if usuario.direccion != direccion:
+            cambios.append("dirección")
         usuario.telefono = telefono
         usuario.direccion = direccion
         usuario.save(update_fields=["telefono", "direccion", "actualizado_en"])
+        if cambios:
+            from mensajeria.services.notificaciones_admin import notificar_usuario_actualizado
+
+            notificar_usuario_actualizado(
+                usuario_id=usuario.id,
+                correo=usuario.correo_electronico,
+                cambios=cambios,
+                origen="empleado_perfil",
+            )
         messages.success(request, "Perfil actualizado correctamente.")
         return redirect("web_empleado_seccion", seccion="perfil")
 
@@ -981,6 +1166,7 @@ def admin_notificaciones_poll(request):
             "titulo": n.titulo,
             "mensaje": n.mensaje,
             "tipo": n.tipo,
+            "icono": n.icono,
             "leida": n.leida,
             "fecha_creacion": n.fecha_creacion.isoformat(),
         }
@@ -1456,8 +1642,17 @@ def admin_producto_estado(request, producto_id: int):
     _admin_usuario_sesion(request)
     activar = request.POST.get("activar") == "true"
     p = get_object_or_404(Producto, pk=producto_id)
+    estado_anterior = p.activo
     p.activo = activar
     p.save(update_fields=["activo", "actualizado_en"])
+    if estado_anterior != activar:
+        from mensajeria.services.notificaciones_admin import notificar_producto_actualizado
+
+        notificar_producto_actualizado(
+            producto_id=p.id,
+            nombre=p.nombre,
+            cambios=["activado" if activar else "desactivado"],
+        )
     messages.success(
         request,
         "Producto activado correctamente." if activar else "Producto desactivado correctamente.",
@@ -1962,6 +2157,330 @@ def _reporte_filtrar_ventas(*, estado: str = "", fecha_desde: str = "", fecha_ha
     return qs
 
 
+def _reporte_rango_default(request) -> tuple[str, str, date | None, date | None]:
+    """
+    Rango de fechas para reportes.
+    - Si el usuario no envía rango, se usa por defecto: inicio del mes actual → hoy.
+    - Devuelve: (raw_desde, raw_hasta, date_desde, date_hasta)
+    """
+    raw_desde = (request.GET.get("fechaDesde") or "").strip()
+    raw_hasta = (request.GET.get("fechaHasta") or "").strip()
+    fd = _parse_date_param(raw_desde) if raw_desde else None
+    fh = _parse_date_param(raw_hasta) if raw_hasta else None
+    if fd is None or fh is None:
+        hoy = timezone.localdate()
+        fd = hoy.replace(day=1)
+        fh = hoy
+        raw_desde = fd.isoformat()
+        raw_hasta = fh.isoformat()
+    return raw_desde, raw_hasta, fd, fh
+
+
+def _reporte_rango_label(raw_desde: str, raw_hasta: str) -> str:
+    return f"Rango: {raw_desde} → {raw_hasta}"
+
+
+def _cop(valor: Decimal | int | float | None) -> str:
+    if valor is None:
+        return "$0"
+    try:
+        # COP sin decimales para reportes
+        return f"${Decimal(str(valor)):,.0f}"
+    except Exception:  # noqa: BLE001
+        return f"${valor}"
+
+
+def _reporte_logo_path() -> Path | None:
+    """Resuelve logo para PDF: BASE_DIR suele ser la carpeta Technova del proyecto."""
+    base = Path(getattr(settings, "BASE_DIR", Path.cwd()))
+    for parts in (
+        ("static", "frontend", "imagenes", "logo-technova.png"),
+        ("Technova", "static", "frontend", "imagenes", "logo-technova.png"),
+    ):
+        p = base.joinpath(*parts)
+        if p.is_file():
+            return p
+    return None
+
+
+def _metodo_pago_label(clave: str) -> str:
+    for k, label in MedioPago.Metodo.choices:
+        if k == clave:
+            return str(label)
+    return clave
+
+
+def _reporte_label_corta(texto: str, max_len: int = 14) -> str:
+    t = (texto or "").strip()
+    if len(t) <= max_len:
+        return t
+    return t[: max_len - 1] + "…"
+
+
+# Paleta alineada con factura cliente (cyan → índigo / violeta)
+_REPORTE_CHART_COLORS_HEX = (
+    "#06b6d4",
+    "#6366f1",
+    "#8b5cf6",
+    "#14b8a6",
+    "#22d3ee",
+    "#a78bfa",
+    "#0d9488",
+    "#4f46e5",
+)
+
+
+def _reporte_pdf_graficas_flowables(
+    graficas: list[dict],
+    *,
+    h2_style,
+    muted_style,
+) -> list:
+    """
+    Construye flowables de gráficas (barras / líneas / pastel) para el PDF.
+    Cada ítem de graficas: { "titulo", "tipo": "barras"|"lineas"|"pastel", "labels": [...], "valores": [float,...] }
+    """
+    if not graficas:
+        return []
+    try:
+        from reportlab.graphics import renderPDF
+        from reportlab.graphics.charts.barcharts import VerticalBarChart
+        from reportlab.graphics.charts.legends import Legend
+        from reportlab.graphics.charts.linecharts import HorizontalLineChart
+        from reportlab.graphics.charts.piecharts import Pie
+        from reportlab.graphics.shapes import Drawing
+        from reportlab.graphics.widgets.markers import makeMarker
+        from reportlab.lib import colors
+        from reportlab.platypus import Flowable, Paragraph, Spacer, Table, TableStyle
+    except Exception:  # noqa: BLE001
+        return []
+
+    out: list = []
+    chart_canvas_w = 488  # ancho útil para centrar en A4 con márgenes del doc
+
+    class _DrawingFlowable(Flowable):
+        def __init__(self, drawing: Drawing):
+            self.drawing = drawing
+            self.h = float(drawing.height)
+            self.w = float(drawing.width)
+
+        def wrap(self, availWidth, availHeight):  # noqa: ANN001
+            return self.w, self.h
+
+        def draw(self):
+            renderPDF.draw(self.drawing, self.canv, 0, 0)
+
+    def _wrap_centered(drawing: Drawing) -> Table:
+        df = _DrawingFlowable(drawing)
+        tbl = Table([[df]], colWidths=[chart_canvas_w])
+        tbl.setStyle(
+            TableStyle(
+                [
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                    ("TOPPADDING", (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ]
+            )
+        )
+        return tbl
+
+    def _palette_color(i: int):
+        return colors.HexColor(_REPORTE_CHART_COLORS_HEX[i % len(_REPORTE_CHART_COLORS_HEX)])
+
+    def _draw_bar(labels: list[str], vals: list[float]) -> Drawing | None:
+        if not vals or len(labels) != len(vals):
+            return None
+        d = Drawing(460, 218)
+        bc = VerticalBarChart()
+        bc.x = 48
+        bc.y = 52
+        bc.height = 118
+        bc.width = 364
+        bc.data = [vals]
+        bc.categoryAxis.categoryNames = labels
+        bc.categoryAxis.strokeColor = colors.HexColor("#cbd5e1")
+        bc.categoryAxis.strokeWidth = 0.5
+        bc.categoryAxis.labels.fontName = "Helvetica"
+        bc.categoryAxis.labels.fontSize = 8
+        bc.categoryAxis.labels.fillColor = colors.HexColor("#334155")
+        if len(labels) > 6:
+            bc.categoryAxis.labels.angle = 35
+
+        va = bc.valueAxis
+        va.valueMin = 0
+        m = max(vals) if vals else 0
+        va.valueMax = None if m <= 0 else m * 1.12
+        va.visibleGrid = 1
+        va.gridStrokeColor = colors.HexColor("#e2e8f0")
+        va.gridStrokeWidth = 0.6
+        va.strokeColor = colors.HexColor("#94a3b8")
+        va.strokeWidth = 0.5
+        va.labels.fontName = "Helvetica"
+        va.labels.fontSize = 8
+        va.labels.fillColor = colors.HexColor("#64748b")
+
+        for i in range(len(vals)):
+            bc.bars[(0, i)].fillColor = _palette_color(i)
+            bc.bars[(0, i)].strokeColor = colors.white
+            bc.bars[(0, i)].strokeWidth = 0.35
+
+        bc.barLabelFormat = "%.0f"
+        bc.barLabels.fontName = "Helvetica"
+        bc.barLabels.fontSize = 7
+        bc.barLabels.fillColor = colors.HexColor("#1e293b")
+        d.add(bc)
+        return d
+
+    def _draw_line(labels: list[str], vals: list[float]) -> Drawing | None:
+        if not vals or len(labels) != len(vals):
+            return None
+        d = Drawing(460, 218)
+        lc = HorizontalLineChart()
+        lc.x = 48
+        lc.y = 48
+        lc.height = 118
+        lc.width = 364
+        lc.categoryNames = labels
+        lc.data = [tuple(vals)]
+        lc.joinedLines = 1
+        lc.lines[0].strokeColor = _palette_color(0)
+        lc.lines[0].strokeWidth = 2.25
+        lc.lines[0].symbol = makeMarker("Circle", size=4)
+        lc.lines[0].symbol.fillColor = _palette_color(0)
+        lc.lines[0].symbol.strokeColor = colors.white
+        lc.lines[0].symbol.strokeWidth = 0.75
+
+        lc.categoryAxis.strokeColor = colors.HexColor("#cbd5e1")
+        lc.categoryAxis.labels.fontName = "Helvetica"
+        lc.categoryAxis.labels.fontSize = 8
+        lc.categoryAxis.labels.fillColor = colors.HexColor("#334155")
+        if len(labels) > 6:
+            lc.categoryAxis.labels.angle = 35
+
+        va = lc.valueAxis
+        va.valueMin = 0
+        m = max(vals) if vals else 0
+        va.valueMax = None if m <= 0 else m * 1.15
+        va.visibleGrid = 1
+        va.gridStrokeColor = colors.HexColor("#e2e8f0")
+        va.gridStrokeWidth = 0.6
+        va.strokeColor = colors.HexColor("#94a3b8")
+        va.labels.fontName = "Helvetica"
+        va.labels.fontSize = 8
+        va.labels.fillColor = colors.HexColor("#64748b")
+
+        lc.lineLabelFormat = "%.0f"
+        lc.lineLabels.fontName = "Helvetica"
+        lc.lineLabels.fontSize = 7
+        lc.lineLabels.fillColor = colors.HexColor("#1e293b")
+        d.add(lc)
+        return d
+
+    def _draw_pie(labels: list[str], vals: list[float]) -> Drawing | None:
+        pairs = [(str(l).strip(), float(v)) for l, v in zip(labels, vals) if float(v) > 0]
+        if not pairs:
+            return None
+        names = [p[0] for p in pairs]
+        vals2 = [p[1] for p in pairs]
+        total = sum(vals2)
+        if total <= 0:
+            return None
+
+        d_w, d_h = 460, 268
+        d = Drawing(d_w, d_h)
+        pie_w = 128
+        pc = Pie()
+        pc.x = (d_w - pie_w) / 2
+        pc.y = 118
+        pc.width = pie_w
+        pc.height = pie_w
+        pc.sameRadii = True
+        pc.startAngle = 90
+        pc.data = vals2
+        pc.labels = [f"{100.0 * v / total:.0f}%" for v in vals2]
+        pc.simpleLabels = 1
+        pc.slices.strokeWidth = 0.75
+        pc.slices.strokeColor = colors.white
+        pc.slices.fontName = "Helvetica-Bold"
+        pc.slices.fontSize = 8
+        pc.slices.fontColor = colors.HexColor("#0f172a")
+        for i in range(len(vals2)):
+            pc.slices[i].fillColor = _palette_color(i)
+            pc.slices[i].strokeColor = colors.white
+            pc.slices[i].strokeWidth = 0.75
+
+        leg = Legend()
+        leg.x = 40
+        leg.y = 12
+        leg.boxAnchor = "sw"
+        leg.fontName = "Helvetica"
+        leg.fontSize = 8
+        leg.leading = 10
+        leg.dx = 9
+        leg.dy = 9
+        leg.dxTextSpace = 5
+        leg.deltax = 215
+        leg.deltay = 11
+        leg.columnMaximum = 3
+        leg.strokeWidth = 0
+        leg.strokeColor = None
+        leg.colorNamePairs = [
+            (
+                _palette_color(i),
+                f"{_reporte_label_corta(names[i], 34)}  ({100.0 * vals2[i] / total:.1f}%)",
+            )
+            for i in range(len(vals2))
+        ]
+        d.add(pc)
+        d.add(leg)
+        return d
+
+    out.append(Paragraph("Análisis visual (gráficas)", h2_style))
+    out.append(
+        Paragraph(
+            "Tendencias, comparaciones y rankings. Valores en el eje vertical; categorías en el horizontal.",
+            muted_style,
+        )
+    )
+    out.append(Spacer(1, 6))
+
+    for spec in graficas:
+        titulo = (spec.get("titulo") or "Gráfica").strip()
+        tipo = (spec.get("tipo") or "barras").strip().lower()
+        raw_labels = [str(x) for x in (spec.get("labels") or [])]
+        try:
+            vals = [float(x) for x in (spec.get("valores") or [])]
+        except (TypeError, ValueError):
+            continue
+        if tipo in ("pastel", "pie", "piechart"):
+            labels = raw_labels
+        else:
+            labels = [_reporte_label_corta(x, 20) for x in raw_labels]
+        if len(labels) != len(vals):
+            continue
+        drawing = None
+        if tipo in ("barras", "bar"):
+            drawing = _draw_bar(labels, vals)
+        elif tipo in ("lineas", "linea", "line"):
+            drawing = _draw_line(labels, vals)
+        elif tipo in ("pastel", "pie", "piechart"):
+            drawing = _draw_pie(labels, vals)
+        else:
+            drawing = _draw_bar(labels, vals)
+        if drawing is None:
+            out.append(Paragraph(f"<i>{titulo}</i> — sin datos suficientes para graficar.", muted_style))
+            out.append(Spacer(1, 6))
+            continue
+        out.append(Paragraph(f"<b>{titulo}</b>", muted_style))
+        out.append(Spacer(1, 4))
+        out.append(_wrap_centered(drawing))
+        out.append(Spacer(1, 10))
+    return out
+
+
 def _reporte_build_pdf(titulo: str, filtros: list[str], headers: list[str], rows: list[list[str]]) -> bytes:
     try:
         from reportlab.lib import colors
@@ -2012,10 +2531,328 @@ def _reporte_build_pdf(titulo: str, filtros: list[str], headers: list[str], rows
     return buffer.getvalue()
 
 
+def _reporte_build_pdf_v2(
+    *,
+    titulo: str,
+    subtitulo: str,
+    rango: str,
+    kpis: list[tuple[str, str]],
+    secciones: list[tuple[str, list[str], list[list[str]]]],
+    graficas: list[dict] | None = None,
+) -> bytes:
+    """
+    PDF mejorado: logo + encabezado + KPIs + gráficas + secciones con tablas + footer con paginado.
+    """
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.lib.units import mm
+        from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    except Exception as exc:
+        raise RuntimeError("No se encontró la librería 'reportlab'.") from exc
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=14 * mm,
+        rightMargin=14 * mm,
+        topMargin=18 * mm,
+        bottomMargin=16 * mm,
+        title=titulo,
+    )
+
+    styles = getSampleStyleSheet()
+    # Inspiración: factura_compra.html — gradiente 135deg cyan → índigo, bloques redondeados, verde en totales
+    c_slate = colors.HexColor("#334155")
+    c_muted = colors.HexColor("#64748b")
+    c_line = colors.HexColor("#e2e8f0")
+    c_head_tbl = colors.HexColor("#f1f5f9")
+    c_row_alt = colors.HexColor("#f8fafc")
+    c_green = colors.HexColor("#16a34a")
+    c_cyan = colors.HexColor("#06b6d4")
+    c_indigo = colors.HexColor("#6366f1")
+    c_violet = colors.HexColor("#7c3aed")
+    c_teal = colors.HexColor("#0d9488")
+
+    h2 = ParagraphStyle(
+        "t_h2_rep",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=12,
+        textColor=c_teal,
+        spaceBefore=14,
+        spaceAfter=8,
+    )
+    muted = ParagraphStyle(
+        "t_muted_rep",
+        parent=styles["Normal"],
+        fontSize=9.5,
+        textColor=c_muted,
+        leading=12,
+    )
+
+    st_kpi_lbl = ParagraphStyle(
+        "kpi_lbl_rep",
+        parent=styles["Normal"],
+        fontSize=9,
+        textColor=c_muted,
+        leading=11,
+    )
+    st_kpi_val = ParagraphStyle(
+        "kpi_val_rep",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=14,
+        textColor=c_green,
+        leading=16,
+    )
+
+    # Logo directamente sobre el gradiente (sin caja blanca)
+    logo_path = _reporte_logo_path()
+    logo_cell = Paragraph("", muted)
+    if logo_path is not None:
+        try:
+            logo_cell = Image(str(logo_path), width=22 * mm, height=22 * mm)
+        except Exception:  # noqa: BLE001
+            logo_cell = Paragraph("", muted)
+
+    gen_txt = timezone.localtime().strftime("%d/%m/%Y %H:%M")
+    st_hdr_brand = ParagraphStyle(
+        "hdr_brand_rep",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=14,
+        textColor=colors.white,
+        leading=16,
+        spaceAfter=2,
+    )
+    st_hdr_doc = ParagraphStyle(
+        "hdr_doc_rep",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=10.5,
+        textColor=colors.white,
+        leading=13,
+        alignment=2,  # derecha
+        spaceShrinkage=0.05,
+    )
+
+    # rango ya viene como "Rango: fecha → fecha" desde pdf_v2; no repetir el prefijo
+    rango_txt = (rango or "").strip()
+    if rango_txt.lower().startswith("rango:"):
+        rango_display = rango_txt
+    else:
+        rango_display = f"Rango: {rango_txt}" if rango_txt else "—"
+
+    left_hdr = Paragraph(
+        f"<b>TECHNOVA</b><br/><font name='Helvetica' size='9' color='#cffafe'>{_xml_escape(str(subtitulo or ''))}</font>",
+        st_hdr_brand,
+    )
+    right_hdr = Paragraph(
+        f"<font name='Helvetica-Bold' size='10' color='white'>{_xml_escape(str(titulo or ''))}</font><br/>"
+        f"<font name='Helvetica' size='8' color='#e0e7ff'>{_xml_escape(rango_display)}<br/>"
+        f"Generado: {_xml_escape(gen_txt)}</font>",
+        st_hdr_doc,
+    )
+
+    # La celda del banner tiene LEFTPADDING/RIGHTPADDING 14 mm: el ancho útil es 180 − 28 mm.
+    # Si la tabla interior suma 180 mm, el texto se sale del cabecero (clip a la derecha).
+    _hdr_pad_h = 14 * mm
+    _hdr_outer_w = 180 * mm
+    _hdr_inner_w = _hdr_outer_w - 2 * _hdr_pad_h
+    _s = _hdr_inner_w / (180 * mm)
+    _w_logo = 24 * mm * _s
+    _w_brand = 68 * mm * _s
+    _w_meta = 88 * mm * _s
+
+    hdr_inner = Table([[logo_cell, left_hdr, right_hdr]], colWidths=[_w_logo, _w_brand, _w_meta])
+    hdr_inner.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (1, 0), (1, 0), 4),
+                ("RIGHTPADDING", (1, 0), (1, 0), 4),
+                ("LEFTPADDING", (2, 0), (2, 0), 0),
+                ("RIGHTPADDING", (2, 0), (2, 0), 10),
+            ]
+        )
+    )
+
+    encabezado_tbl = Table([[hdr_inner]], colWidths=[_hdr_outer_w])
+    encabezado_tbl.setStyle(
+        TableStyle(
+            [
+                ("ROUNDEDCORNERS", [16, 16, 16, 16]),
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, -1),
+                    [
+                        "LINEARGRADIENT",
+                        (0, 1),
+                        (1, 0),
+                        True,
+                        [
+                            colors.HexColor("#22d3ee"),
+                            colors.HexColor("#06b6d4"),
+                            colors.HexColor("#4f46e5"),
+                            colors.HexColor("#7c3aed"),
+                        ],
+                        [0.0, 0.3, 0.65, 1.0],
+                    ],
+                ),
+                ("LEFTPADDING", (0, 0), (-1, -1), 14),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 14),
+                ("TOPPADDING", (0, 0), (-1, -1), 14),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 14),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]
+        )
+    )
+
+    kpi_rows = []
+    for i in range(0, len(kpis), 2):
+        left = kpis[i]
+        right = kpis[i + 1] if i + 1 < len(kpis) else ("", "")
+        kpi_rows.append([left, right])
+
+    def _kpi_cell(label: str, value: str, accent: colors.Color) -> Table:
+        t = Table(
+            [
+                [Paragraph(f"<b>{label}</b>", st_kpi_lbl)],
+                [Paragraph(f"{value}", st_kpi_val)],
+            ],
+            colWidths=[84 * mm],
+        )
+        t.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fafcff")),
+                    ("BOX", (0, 0), (-1, -1), 0.55, c_line),
+                    ("ROUNDEDCORNERS", [12, 12, 12, 12]),
+                    ("LINEBEFORE", (0, 0), (0, -1), 4, accent),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 10),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                ]
+            )
+        )
+        return t
+
+    kpi_tbl_data = []
+    accents = [c_cyan, c_indigo, c_violet, c_teal]
+    for r_i, row in enumerate(kpi_rows):
+        l = row[0]
+        r = row[1]
+        kpi_tbl_data.append(
+            [
+                _kpi_cell(l[0], l[1], accents[(r_i * 2) % len(accents)]),
+                _kpi_cell(r[0], r[1], accents[(r_i * 2 + 1) % len(accents)]) if r[0] else "",
+            ]
+        )
+
+    kpi_tbl = Table(kpi_tbl_data, colWidths=[90 * mm, 90 * mm])
+    kpi_tbl.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
+
+    def _tabla(headers: list[str], rows: list[list[str]], _idx: int) -> Table:
+        del _idx  # reservado por si se alternan acentos en el futuro
+        data = [headers] + rows
+        t = Table(data, repeatRows=1)
+        t.setStyle(
+            TableStyle(
+                [
+                    ("ROUNDEDCORNERS", [10, 10, 10, 10]),
+                    ("BOX", (0, 0), (-1, -1), 0.65, c_line),
+                    ("BACKGROUND", (0, 0), (-1, 0), c_head_tbl),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), c_slate),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, 0), 9),
+                    ("BOTTOMPADDING", (0, 0), (-1, 0), 9),
+                    ("TOPPADDING", (0, 0), (-1, 0), 9),
+                    ("LINEBELOW", (0, 0), (-1, 0), 1.5, c_cyan),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, c_row_alt]),
+                    ("TEXTCOLOR", (0, 1), (-1, -1), c_slate),
+                    ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 1), (-1, -1), 8.5),
+                    ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#f1f5f9")),
+                    ("LINEBELOW", (0, 1), (-1, -2), 0.25, c_line),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("TOPPADDING", (0, 1), (-1, -1), 7),
+                    ("BOTTOMPADDING", (0, 1), (-1, -1), 7),
+                ]
+            )
+        )
+        return t
+
+    elements: list = []
+    elements.append(encabezado_tbl)
+    elements.append(Spacer(1, 16))
+    elements.append(Paragraph("Resumen general", h2))
+    elements.append(Spacer(1, 4))
+    elements.append(kpi_tbl)
+
+    g_specs = list(graficas or [])
+    if g_specs:
+        elements.extend(_reporte_pdf_graficas_flowables(g_specs, h2_style=h2, muted_style=muted))
+
+    elements.append(Paragraph("Detalle y tablas", h2))
+    elements.append(Spacer(1, 6))
+
+    for idx, (sec_title, headers, rows) in enumerate(secciones):
+        elements.append(Spacer(1, 6))
+        elements.append(Paragraph(sec_title, h2))
+        if not rows:
+            elements.append(Paragraph("Sin datos en este período.", muted))
+            continue
+        elements.append(Spacer(1, 4))
+        elements.append(_tabla(headers, rows, idx))
+
+    def _on_page(canvas, doc_):  # noqa: ANN001
+        canvas.saveState()
+        pw = doc_.pagesize[0]
+        y_line = 14 * mm
+        y_txt = 8 * mm
+        canvas.setStrokeColor(colors.HexColor("#cbd5e1"))
+        canvas.setLineWidth(0.6)
+        canvas.line(doc_.leftMargin, y_line, pw - doc_.rightMargin, y_line)
+        canvas.setFillColor(c_muted)
+        canvas.setFont("Helvetica", 8)
+        canvas.drawString(
+            doc_.leftMargin,
+            y_txt,
+            f"Technova — Generado el {timezone.localtime().strftime('%d/%m/%Y %H:%M')}",
+        )
+        canvas.drawRightString(pw - doc_.rightMargin, y_txt, f"Página {canvas.getPageNumber()}")
+        canvas.setFont("Helvetica-Oblique", 7.5)
+        canvas.setFillColor(colors.HexColor("#94a3b8"))
+        canvas.drawCentredString(pw / 2, y_txt + 3.2 * mm, "Gracias por confiar en TECHNOVA.")
+        canvas.restoreState()
+
+    doc.build(elements, onFirstPage=_on_page, onLaterPages=_on_page)
+    return buffer.getvalue()
+
+
 def _reporte_dataset_from_request(request, tipo: str) -> dict:
     tipo = (tipo or "").strip().lower()
-    if tipo not in {"productos", "usuarios", "ventas"}:
+    if tipo not in {"productos", "usuarios", "ventas", "pagos"}:
         raise ValueError("Tipo de reporte no válido.")
+
+    raw_desde, raw_hasta, fd, fh = _reporte_rango_default(request)
+    rango_label = _reporte_rango_label(raw_desde, raw_hasta)
 
     if tipo == "productos":
         categoria = (request.GET.get("categoria") or "").strip()
@@ -2027,7 +2864,8 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
         items = list(
             _reporte_filtrar_productos(
                 categoria=categoria, marca=marca, precio_min=precio_min, precio_max=precio_max
-            ).select_related("proveedor")[:1000]
+            )
+            .select_related("proveedor")[:1000]
         )
         rows = [
             [
@@ -2036,22 +2874,88 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
                 p.nombre,
                 p.categoria or "—",
                 p.marca or "—",
-                f"${(p.precio_venta if p.precio_venta is not None else p.costo_unitario):,.0f}",
+                _cop(p.precio_venta if p.precio_venta is not None else p.costo_unitario),
                 str(p.stock),
             ]
             for p in items
         ]
+
+        # Productos más vendidos (según detalle de venta en el rango)
+        top_vendidos = []
+        if fd and fh:
+            top_vendidos = list(
+                DetalleVenta.objects.filter(venta__fecha_venta__gte=fd, venta__fecha_venta__lte=fh)
+                .values("producto__id", "producto__nombre")
+                .annotate(cantidad=Sum("cantidad"))
+                .order_by("-cantidad")[:10]
+            )
+        top_rows = [[str(x["producto__id"]), x["producto__nombre"], str(x["cantidad"])] for x in top_vendidos]
+
+        stock_bajo = list(
+            Producto.objects.filter(activo=True, stock__lte=5).order_by("stock", "nombre")[:25]
+        )
+        stock_rows = [[str(p.id), p.nombre, str(p.stock)] for p in stock_bajo]
+
+        graficas_prod: list[dict] = []
+        if top_vendidos:
+            t = top_vendidos[:10]
+            graficas_prod.append(
+                {
+                    "titulo": "Ranking — cantidad vendida por producto (unidades)",
+                    "tipo": "barras",
+                    "labels": [x["producto__nombre"] for x in t],
+                    "valores": [float(x["cantidad"]) for x in t],
+                }
+            )
+            tp_pie = [x for x in top_vendidos[:6] if float(x["cantidad"] or 0) > 0]
+            if tp_pie and sum(float(x["cantidad"]) for x in tp_pie) > 0:
+                graficas_prod.append(
+                    {
+                        "titulo": "Participación top productos (unidades)",
+                        "tipo": "pastel",
+                        "labels": [x["producto__nombre"] for x in tp_pie],
+                        "valores": [float(x["cantidad"]) for x in tp_pie],
+                    }
+                )
+        if stock_bajo:
+            s = stock_bajo[:8]
+            graficas_prod.append(
+                {
+                    "titulo": "Nivel de stock más bajo (unidades)",
+                    "tipo": "lineas",
+                    "labels": [p.nombre for p in s],
+                    "valores": [float(p.stock) for p in s],
+                }
+            )
+
         return {
-            "titulo": "Reporte Estadístico de Productos",
+            "titulo": "Reporte de Productos",
             "headers": ["ID", "Código", "Nombre", "Categoría", "Marca", "Precio", "Stock"],
             "rows": rows,
             "filtros": [
+                rango_label,
                 f"Categoría: {categoria or 'Todas'}",
                 f"Marca: {marca or 'Todas'}",
                 f"Precio min: {precio_min_raw or '—'}",
                 f"Precio max: {precio_max_raw or '—'}",
                 f"Total registros: {len(rows)}",
             ],
+            "pdf_v2": {
+                "subtitulo": "Sistema de Gestión",
+                "rango": rango_label,
+                "kpis": [
+                    ("Total productos (catálogo)", str(Producto.objects.count())),
+                    ("Productos stock bajo (≤ 5)", str(Producto.objects.filter(activo=True, stock__lte=5).count())),
+                    ("Productos en reporte", str(len(rows))),
+                    ("Categoría/Marca", f"{categoria or 'Todas'} · {marca or 'Todas'}"),
+                ],
+                "graficas": graficas_prod,
+                "secciones": [
+                    ("Productos más vendidos (rango)", ["ID", "Producto", "Cantidad"], top_rows),
+                    ("Productos con bajo stock", ["ID", "Producto", "Stock"], stock_rows),
+                    ("Listado (filtros de catálogo)", ["ID", "Código", "Nombre", "Categoría", "Marca", "Precio", "Stock"], rows[:80]),
+                ],
+            },
         }
 
     if tipo == "usuarios":
@@ -2069,41 +2973,370 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
             ]
             for u in items
         ]
+
+        nuevos = 0
+        activos = Usuario.objects.filter(activo=True).count()
+        recurrentes = 0
+        top_gasto_rows: list[list[str]] = []
+        graficas_usu: list[dict] = []
+        if items:
+            ctr = Counter((u.get_rol_display() or "?") for u in items)
+            if ctr:
+                graficas_usu.append(
+                    {
+                        "titulo": "Distribución por rol (listado filtrado)",
+                        "tipo": "pastel",
+                        "labels": list(ctr.keys()),
+                        "valores": [float(v) for v in ctr.values()],
+                    }
+                )
+        if fd and fh:
+            nuevos = Usuario.objects.filter(
+                creado_en__date__gte=fd, creado_en__date__lte=fh
+            ).count()
+            recurrentes = (
+                Venta.objects.filter(fecha_venta__gte=fd, fecha_venta__lte=fh)
+                .values("usuario_id")
+                .annotate(n=Count("id"))
+                .filter(n__gte=2)
+                .count()
+            )
+            top_gasto = list(
+                Venta.objects.filter(fecha_venta__gte=fd, fecha_venta__lte=fh)
+                .values("usuario__id", "usuario__nombres", "usuario__apellidos", "usuario__correo_electronico")
+                .annotate(total=Sum("total"), pedidos=Count("id"))
+                .order_by("-total")[:10]
+            )
+            top_gasto_rows = [
+                [
+                    str(x["usuario__id"]),
+                    f'{(x["usuario__nombres"] or "").strip()} {(x["usuario__apellidos"] or "").strip()}'.strip(),
+                    x["usuario__correo_electronico"] or "—",
+                    str(x["pedidos"]),
+                    _cop(x["total"]),
+                ]
+                for x in top_gasto
+            ]
+            if top_gasto:
+                tg = top_gasto[:10]
+                graficas_usu.append(
+                    {
+                        "titulo": "Clientes con mayor gasto (COP)",
+                        "tipo": "barras",
+                        "labels": [
+                            _reporte_label_corta(
+                                f'{(x["usuario__nombres"] or "").strip()} {(x["usuario__apellidos"] or "").strip()}'.strip()
+                                or "—",
+                                12,
+                            )
+                            for x in tg
+                        ],
+                        "valores": [float(x["total"] or 0) for x in tg],
+                    }
+                )
+            nu_mes = list(
+                Usuario.objects.filter(creado_en__date__gte=fd, creado_en__date__lte=fh)
+                .annotate(m=TruncMonth("creado_en"))
+                .values("m")
+                .annotate(n=Count("id"))
+                .order_by("m")
+            )
+            if nu_mes:
+                graficas_usu.append(
+                    {
+                        "titulo": "Nuevos usuarios por mes (altas)",
+                        "tipo": "lineas",
+                        "labels": [x["m"].strftime("%m/%Y") if x.get("m") else "—" for x in nu_mes],
+                        "valores": [float(x["n"]) for x in nu_mes],
+                    }
+                )
+
         return {
-            "titulo": "Reporte Estadístico de Usuarios",
+            "titulo": "Reporte de Usuarios",
             "headers": ["ID", "Nombre", "Correo", "Rol", "Estado", "Documento"],
             "rows": rows,
             "filtros": [
+                rango_label,
                 f"Rol: {rol or 'Todos'}",
                 f"Búsqueda: {busqueda or '—'}",
                 f"Total registros: {len(rows)}",
             ],
+            "pdf_v2": {
+                "subtitulo": "Sistema de Gestión",
+                "rango": rango_label,
+                "kpis": [
+                    ("Nuevos usuarios (rango)", str(nuevos)),
+                    ("Usuarios activos", str(activos)),
+                    ("Clientes recurrentes (≥2 compras)", str(recurrentes)),
+                    ("Usuarios en reporte", str(len(rows))),
+                ],
+                "graficas": graficas_usu,
+                "secciones": [
+                    ("Clientes con mayor gasto (rango)", ["ID", "Cliente", "Correo", "Pedidos", "Total"], top_gasto_rows),
+                    ("Listado (filtros)", ["ID", "Nombre", "Correo", "Rol", "Estado", "Documento"], rows[:100]),
+                ],
+            },
         }
 
+    if tipo == "pagos":
+        estado_pago = (request.GET.get("estadoPago") or "").strip().lower()
+        qs = Pago.objects.all().order_by("-fecha_pago", "-id")
+        if fd:
+            qs = qs.filter(fecha_pago__gte=fd)
+        if fh:
+            qs = qs.filter(fecha_pago__lte=fh)
+        if estado_pago in {
+            Pago.EstadoPago.PENDIENTE,
+            Pago.EstadoPago.APROBADO,
+            Pago.EstadoPago.RECHAZADO,
+            Pago.EstadoPago.REEMBOLSADO,
+        }:
+            qs = qs.filter(estado_pago=estado_pago)
+        pagos = list(qs[:1000])
+        rows = [
+            [
+                str(p.id),
+                p.numero_factura,
+                str(p.fecha_pago),
+                p.get_estado_pago_display(),
+                _cop(p.monto),
+            ]
+            for p in pagos
+        ]
+
+        total_pagos = qs.aggregate(s=Sum("monto"))["s"] or Decimal("0")
+        ok = qs.filter(estado_pago=Pago.EstadoPago.APROBADO).count()
+        fail = qs.filter(estado_pago=Pago.EstadoPago.RECHAZADO).count()
+        line_sub = ExpressionWrapper(
+            F("detalle_venta__cantidad") * F("detalle_venta__precio_unitario"),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        )
+        metodos = list(
+            MedioPago.objects.filter(pago__in=qs)
+            .values("metodo_pago")
+            .annotate(pagos_distintos=Count("pago_id", distinct=True))
+            .order_by("-pagos_distintos")
+        )
+        metodos_rows = [[_metodo_pago_label(m["metodo_pago"]), str(m["pagos_distintos"])] for m in metodos]
+        monto_por_metodo = list(
+            MedioPago.objects.filter(pago__in=qs)
+            .annotate(line_sub=line_sub)
+            .values("metodo_pago")
+            .annotate(total=Sum("line_sub"))
+            .order_by("-total")
+        )
+        monto_met_rows = [[_metodo_pago_label(m["metodo_pago"]), _cop(m["total"])] for m in monto_por_metodo]
+
+        lbl_estado = dict(Pago.EstadoPago.choices)
+        graficas_pg: list[dict] = []
+        est_rows = list(qs.values("estado_pago").annotate(n=Count("id")))
+        if est_rows:
+            graficas_pg.append(
+                {
+                    "titulo": "Distribución de pagos por estado",
+                    "tipo": "pastel",
+                    "labels": [str(lbl_estado.get(x["estado_pago"], x["estado_pago"])) for x in est_rows],
+                    "valores": [float(x["n"]) for x in est_rows],
+                }
+            )
+        if monto_por_metodo:
+            mm = monto_por_metodo[:8]
+            graficas_pg.append(
+                {
+                    "titulo": "Monto por método de pago (COP)",
+                    "tipo": "barras",
+                    "labels": [_metodo_pago_label(x["metodo_pago"]) for x in mm],
+                    "valores": [float(x["total"] or 0) for x in mm],
+                }
+            )
+        daily_pg = list(
+            qs.annotate(d=TruncDay("fecha_pago")).values("d").annotate(n=Count("id")).order_by("d")[:60]
+        )
+        if daily_pg:
+            graficas_pg.append(
+                {
+                    "titulo": "Volumen de pagos por día (cantidad)",
+                    "tipo": "lineas",
+                    "labels": [x["d"].strftime("%d/%m") if x.get("d") else "—" for x in daily_pg],
+                    "valores": [float(x["n"]) for x in daily_pg],
+                }
+            )
+
+        return {
+            "titulo": "Reporte de Pagos",
+            "headers": ["ID", "Factura", "Fecha pago", "Estado", "Monto (COP)"],
+            "rows": rows,
+            "filtros": [
+                rango_label,
+                f"Estado: {estado_pago or 'Todos'}",
+                f"Total registros: {len(rows)}",
+            ],
+            "pdf_v2": {
+                "subtitulo": "Sistema de Gestión",
+                "rango": rango_label,
+                "kpis": [
+                    ("Total pagos (COP)", _cop(total_pagos)),
+                    ("Pagos exitosos", str(ok)),
+                    ("Pagos fallidos", str(fail)),
+                    ("Métodos de pago", str(len(metodos_rows))),
+                ],
+                "graficas": graficas_pg,
+                "secciones": [
+                    ("Métodos de pago más usados", ["Método", "Cantidad"], metodos_rows),
+                    ("Monto total por método", ["Método", "Monto (COP)"], monto_met_rows),
+                    ("Listado de pagos", ["ID", "Factura", "Fecha pago", "Estado", "Monto (COP)"], rows[:120]),
+                ],
+            },
+        }
+
+    # Ventas
     estado = (request.GET.get("estado") or "").strip().lower()
-    fecha_desde = (request.GET.get("fechaDesde") or "").strip()
-    fecha_hasta = (request.GET.get("fechaHasta") or "").strip()
-    items = list(_reporte_filtrar_ventas(estado=estado, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)[:1000])
+    items = list(_reporte_filtrar_ventas(estado=estado, fecha_desde=raw_desde, fecha_hasta=raw_hasta)[:1000])
     rows = [
         [
             str(v.id),
             f"{v.usuario.nombres} {v.usuario.apellidos}".strip() if v.usuario_id else "—",
             str(v.fecha_venta),
             v.get_estado_display(),
-            f"${v.total:,.0f}",
+            _cop(v.total),
         ]
         for v in items
     ]
+
+    total_ventas = sum((v.total for v in items), Decimal("0"))
+    pedidos = len(items)
+    ticket = (total_ventas / pedidos) if pedidos else Decimal("0")
+
+    ventas_por_dia_rows: list[list[str]] = []
+    ventas_por_semana_rows: list[list[str]] = []
+    ventas_por_mes_rows: list[list[str]] = []
+    top_prod_rows: list[list[str]] = []
+    top_cli_rows: list[list[str]] = []
+    graficas_v: list[dict] = []
+    if fd and fh:
+        ventas_por_dia = list(
+            Venta.objects.filter(fecha_venta__gte=fd, fecha_venta__lte=fh)
+            .values("fecha_venta")
+            .annotate(total=Sum("total"), pedidos=Count("id"))
+            .order_by("fecha_venta")[:120]
+        )
+        ventas_por_dia_rows = [
+            [str(x["fecha_venta"]), str(x["pedidos"]), _cop(x["total"])] for x in ventas_por_dia
+        ]
+        ventas_por_semana = list(
+            Venta.objects.filter(fecha_venta__gte=fd, fecha_venta__lte=fh)
+            .annotate(periodo=TruncWeek("fecha_venta"))
+            .values("periodo")
+            .annotate(total=Sum("total"), pedidos=Count("id"))
+            .order_by("periodo")[:52]
+        )
+        ventas_por_semana_rows = [
+            [
+                x["periodo"].strftime("%d/%m/%Y") if x.get("periodo") else "—",
+                str(x["pedidos"]),
+                _cop(x["total"]),
+            ]
+            for x in ventas_por_semana
+        ]
+        ventas_por_mes = list(
+            Venta.objects.filter(fecha_venta__gte=fd, fecha_venta__lte=fh)
+            .annotate(periodo=TruncMonth("fecha_venta"))
+            .values("periodo")
+            .annotate(total=Sum("total"), pedidos=Count("id"))
+            .order_by("periodo")[:36]
+        )
+        ventas_por_mes_rows = [
+            [
+                x["periodo"].strftime("%m/%Y") if x.get("periodo") else "—",
+                str(x["pedidos"]),
+                _cop(x["total"]),
+            ]
+            for x in ventas_por_mes
+        ]
+        top_prod = list(
+            DetalleVenta.objects.filter(venta__fecha_venta__gte=fd, venta__fecha_venta__lte=fh)
+            .values("producto__id", "producto__nombre")
+            .annotate(cantidad=Sum("cantidad"))
+            .order_by("-cantidad")[:10]
+        )
+        top_prod_rows = [[str(x["producto__id"]), x["producto__nombre"], str(x["cantidad"])] for x in top_prod]
+        top_cli = list(
+            Venta.objects.filter(fecha_venta__gte=fd, fecha_venta__lte=fh)
+            .values("usuario__id", "usuario__nombres", "usuario__apellidos", "usuario__correo_electronico")
+            .annotate(total=Sum("total"), pedidos=Count("id"))
+            .order_by("-total")[:10]
+        )
+        top_cli_rows = [
+            [
+                str(x["usuario__id"]),
+                f'{(x["usuario__nombres"] or "").strip()} {(x["usuario__apellidos"] or "").strip()}'.strip(),
+                x["usuario__correo_electronico"] or "—",
+                str(x["pedidos"]),
+                _cop(x["total"]),
+            ]
+            for x in top_cli
+        ]
+
+        if ventas_por_dia:
+            vd = ventas_por_dia[-25:]
+            lab_d = [x["fecha_venta"].strftime("%d/%m") if x.get("fecha_venta") else "—" for x in vd]
+            val_d = [float(x["total"] or 0) for x in vd]
+            graficas_v.append(
+                {"titulo": "Ventas diarias (COP)", "tipo": "barras", "labels": lab_d, "valores": val_d}
+            )
+            graficas_v.append(
+                {"titulo": "Tendencia de ventas diarias (COP)", "tipo": "lineas", "labels": lab_d, "valores": val_d}
+            )
+        if ventas_por_mes:
+            vm = ventas_por_mes[-12:]
+            graficas_v.append(
+                {
+                    "titulo": "Ventas por mes (COP)",
+                    "tipo": "lineas",
+                    "labels": [x["periodo"].strftime("%m/%Y") if x.get("periodo") else "—" for x in vm],
+                    "valores": [float(x["total"] or 0) for x in vm],
+                }
+            )
+        if top_prod:
+            tp_chart = [x for x in top_prod[:6] if float(x["cantidad"] or 0) > 0]
+            if tp_chart:
+                graficas_v.append(
+                    {
+                        "titulo": "Participación top productos (unidades)",
+                        "tipo": "pastel",
+                        "labels": [x["producto__nombre"] for x in tp_chart],
+                        "valores": [float(x["cantidad"]) for x in tp_chart],
+                    }
+                )
+
     return {
-        "titulo": "Reporte Estadístico de Ventas",
-        "headers": ["ID", "Cliente", "Fecha", "Estado", "Total"],
+        "titulo": "Reporte de Ventas",
+        "headers": ["ID", "Cliente", "Fecha", "Estado", "Total (COP)"],
         "rows": rows,
         "filtros": [
+            rango_label,
             f"Estado: {estado or 'Todos'}",
-            f"Desde: {fecha_desde or '—'}",
-            f"Hasta: {fecha_hasta or '—'}",
             f"Total registros: {len(rows)}",
         ],
+        "pdf_v2": {
+            "subtitulo": "Sistema de Gestión",
+            "rango": rango_label,
+            "kpis": [
+                ("Total ventas (COP)", _cop(total_ventas)),
+                ("Número de pedidos", str(pedidos)),
+                ("Ticket promedio (COP)", _cop(ticket)),
+                ("Productos top", str(len(top_prod_rows))),
+            ],
+            "graficas": graficas_v,
+            "secciones": [
+                ("Ventas por día", ["Fecha", "Pedidos", "Monto (COP)"], ventas_por_dia_rows),
+                ("Ventas por semana", ["Inicio semana", "Pedidos", "Monto (COP)"], ventas_por_semana_rows),
+                ("Ventas por mes", ["Mes", "Pedidos", "Monto (COP)"], ventas_por_mes_rows),
+                ("Productos más vendidos", ["ID", "Producto", "Cantidad"], top_prod_rows),
+                ("Clientes que más compraron", ["ID", "Cliente", "Correo", "Pedidos", "Total (COP)"], top_cli_rows),
+                ("Listado de ventas", ["ID", "Cliente", "Fecha", "Estado", "Total (COP)"], rows[:120]),
+            ],
+        },
     }
 
 
@@ -2112,7 +3345,7 @@ def admin_reportes(request):
     usuario = _admin_usuario_sesion(request)
 
     tipo = (request.GET.get("tipo") or "productos").strip().lower()
-    if tipo not in {"productos", "usuarios", "ventas"}:
+    if tipo not in {"productos", "usuarios", "ventas", "pagos"}:
         tipo = "productos"
 
     categoria = (request.GET.get("categoria") or "").strip()
@@ -2122,8 +3355,8 @@ def admin_reportes(request):
     rol = (request.GET.get("rol") or "").strip().lower()
     busqueda = (request.GET.get("busqueda") or "").strip()
     estado = (request.GET.get("estado") or "").strip().lower()
-    fecha_desde = (request.GET.get("fechaDesde") or "").strip()
-    fecha_hasta = (request.GET.get("fechaHasta") or "").strip()
+    estado_pago = (request.GET.get("estadoPago") or "").strip().lower()
+    fecha_desde, fecha_hasta, fd, fh = _reporte_rango_default(request)
 
     precio_min = _decimal_desde_post(precio_min_raw) if precio_min_raw else None
     precio_max = _decimal_desde_post(precio_max_raw) if precio_max_raw else None
@@ -2136,6 +3369,18 @@ def admin_reportes(request):
     )
     usuarios_qs = _reporte_filtrar_usuarios(rol=rol, busqueda=busqueda)
     ventas_qs = _reporte_filtrar_ventas(estado=estado, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)
+    pagos_qs = Pago.objects.all().order_by("-fecha_pago", "-id")
+    if fd:
+        pagos_qs = pagos_qs.filter(fecha_pago__gte=fd)
+    if fh:
+        pagos_qs = pagos_qs.filter(fecha_pago__lte=fh)
+    if estado_pago in {
+        Pago.EstadoPago.PENDIENTE,
+        Pago.EstadoPago.APROBADO,
+        Pago.EstadoPago.RECHAZADO,
+        Pago.EstadoPago.REEMBOLSADO,
+    }:
+        pagos_qs = pagos_qs.filter(estado_pago=estado_pago)
 
     usuarios_por_rol = {
         "admin": Usuario.objects.filter(rol=Usuario.Rol.ADMIN).count(),
@@ -2171,11 +3416,13 @@ def admin_reportes(request):
         "rol": rol,
         "busqueda": busqueda,
         "estado": estado,
+        "estado_pago": estado_pago,
         "fecha_desde": fecha_desde,
         "fecha_hasta": fecha_hasta,
         "productos_count": Producto.objects.count(),
         "usuarios_count": Usuario.objects.count(),
         "ventas_count": Venta.objects.count(),
+        "pagos_count": Pago.objects.count(),
         "monto_ventas_total": Venta.objects.aggregate(s=Sum("total"))["s"] or Decimal("0"),
         "categorias": sorted(
             set(Producto.objects.exclude(categoria="").values_list("categoria", flat=True).distinct()), key=str.lower
@@ -2189,6 +3436,7 @@ def admin_reportes(request):
         "preview_productos": list(productos_qs[:50]),
         "preview_usuarios": list(usuarios_qs[:50]),
         "preview_ventas": list(ventas_qs[:50]),
+        "preview_pagos": list(pagos_qs[:50]),
     }
     return render(request, "frontend/admin/reportes.html", ctx)
 
@@ -2210,6 +3458,7 @@ def admin_reportes_preview(request, tipo: str):
             "headers": data["headers"],
             "rows": data["rows"],
             "filtros": data["filtros"],
+            "pdf_v2": data.get("pdf_v2") or {},
         },
     )
 
@@ -2218,24 +3467,20 @@ def admin_reportes_preview(request, tipo: str):
 def admin_reportes_pdf(request, tipo: str):
     _admin_usuario_sesion(request)
     tipo = (tipo or "").strip().lower()
-    if tipo not in {"productos", "usuarios", "ventas"}:
+    if tipo not in {"productos", "usuarios", "ventas", "pagos"}:
         messages.error(request, "Tipo de reporte no válido.")
         return redirect("web_admin_reportes")
 
     try:
         data = _reporte_dataset_from_request(request, tipo)
-        rows = data["rows"]
-        if not rows:
-            fila_vacia = [""] * max(len(data["headers"]), 1)
-            fila_vacia[0] = "—"
-            if len(fila_vacia) > 1:
-                fila_vacia[1] = "Sin datos"
-            rows = [fila_vacia]
-        pdf = _reporte_build_pdf(
-            data["titulo"],
-            data["filtros"],
-            data["headers"],
-            rows,
+        v2 = data.get("pdf_v2") or {}
+        pdf = _reporte_build_pdf_v2(
+            titulo=data["titulo"],
+            subtitulo=str(v2.get("subtitulo") or "Sistema de Gestión"),
+            rango=str(v2.get("rango") or ""),
+            kpis=list(v2.get("kpis") or []),
+            secciones=list(v2.get("secciones") or []),
+            graficas=list(v2.get("graficas") or []),
         )
     except RuntimeError:
         messages.error(
@@ -2317,9 +3562,23 @@ def perfil_editar(request):
         if not credenciales_coinciden(current_password, usuario.contrasena_hash):
             messages.error(request, "La contraseña actual no es correcta.")
             return redirect("web_cliente_perfil_editar")
+        cambios = []
+        if usuario.telefono != telefono:
+            cambios.append("teléfono")
+        if usuario.direccion != direccion:
+            cambios.append("dirección")
         usuario.telefono = telefono
         usuario.direccion = direccion
         usuario.save(update_fields=["telefono", "direccion", "actualizado_en"])
+        if cambios:
+            from mensajeria.services.notificaciones_admin import notificar_usuario_actualizado
+
+            notificar_usuario_actualizado(
+                usuario_id=usuario.id,
+                correo=usuario.correo_electronico,
+                cambios=cambios,
+                origen="cliente_perfil",
+            )
         messages.success(request, "Perfil actualizado correctamente.")
         return redirect("web_cliente_perfil")
 
@@ -2965,7 +4224,78 @@ def cliente_factura_compra(request, venta_id: int):
 
 @_cliente_login_required
 def atencion_cliente(request):
-    return render(request, "frontend/cliente/atencion.html")
+    uid = request.session.get(SESSION_USUARIO_ID)
+    usuario = Usuario.objects.get(pk=uid)
+
+    # Tickets (solicitudes)
+    tickets_raw = get_atencion_query_service().listar_solicitudes(uid)
+    tickets = [
+        {
+            "id": t.get("id"),
+            "tema": t.get("tema") or "",
+            "descripcion": t.get("descripcion") or "",
+            "fechaConsulta": t.get("fecha_consulta") or t.get("fechaConsulta"),
+            "respuesta": t.get("respuesta") or "",
+        }
+        for t in (tickets_raw or [])
+    ]
+
+    # Conversaciones (tomar el último mensaje por conversación)
+    md_items = get_mensajeria_query_service().listar_mensajes_directos(uid) or []
+    por_conv: dict[str, dict] = {}
+    for m in md_items:
+        cid = m.get("conversationId") or m.get("conversacion_id")
+        if not cid:
+            continue
+        prev = por_conv.get(cid)
+        if prev is None or (m.get("createdAt") or "") > (prev.get("createdAt") or ""):
+            por_conv[cid] = m
+    conversaciones = sorted(por_conv.values(), key=lambda x: x.get("createdAt") or "", reverse=True)
+
+    # Normalizar keys a lo que usa el HTML/JS de referencia (Java)
+    conversaciones_norm = []
+    for c in conversaciones:
+        conversaciones_norm.append(
+            {
+                "conversationId": c.get("conversationId"),
+                "id": c.get("id"),
+                "asunto": c.get("subject") or c.get("asunto") or "",
+                "mensaje": c.get("message") or c.get("mensaje") or "",
+                "prioridad": c.get("priority") or c.get("prioridad") or "normal",
+                "estado": c.get("state") or c.get("estado") or "enviado",
+                "isRead": bool(c.get("isRead") or c.get("leido")),
+                "senderType": c.get("senderType") or c.get("tipo_remitente") or "cliente",
+                "createdAt": c.get("createdAt"),
+            }
+        )
+
+    return render(
+        request,
+        "frontend/cliente/atencion-cliente.html",
+        {
+            "usuario": usuario,
+            "tickets": tickets,
+            "conversaciones": conversaciones_norm,
+            "usuario_id": uid,
+        },
+    )
+
+
+@_cliente_login_required
+def cliente_reclamos(request):
+    uid = request.session.get(SESSION_USUARIO_ID)
+    usuario = Usuario.objects.get(pk=uid)
+    reclamos_raw = get_atencion_query_service().listar_reclamos(uid) or []
+    reclamos = sorted(reclamos_raw, key=lambda x: x.get("fechaReclamo") or "", reverse=True)
+    return render(
+        request,
+        "frontend/cliente/reclamos.html",
+        {
+            "usuario": usuario,
+            "usuario_id": uid,
+            "reclamos": reclamos,
+        },
+    )
 
 
 def producto_detalle(request, producto_id: int):

@@ -1,76 +1,197 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ titulo }} - Vista previa</title>
+  <title>{{ titulo }} — Vista previa</title>
+  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}">
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; }
-    h1 { margin: 0 0 8px; color: #312e81; }
-    .meta { margin-bottom: 14px; font-size: 13px; color: #475569; }
-    .filtros { margin-bottom: 16px; font-size: 13px; color: #334155; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    thead th {
+    body { font-family: system-ui, Segoe UI, Arial, sans-serif; margin: 0; color: #0f172a; background: #f8fafc; }
+    .rp-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
+    .rp-header {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 16px;
+      align-items: center;
+      background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 20px;
+    }
+    .rp-header img { width: 64px; height: 64px; object-fit: contain; }
+    .rp-brand { font-size: 13px; color: #475569; margin: 0 0 4px; }
+    .rp-title { font-size: 1.35rem; font-weight: 700; color: #312e81; margin: 0 0 6px; }
+    .rp-meta { font-size: 13px; color: #64748b; margin: 0; }
+    .rp-filtros {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 22px;
+      font-size: 13px;
+      color: #334155;
+    }
+    .rp-filtros strong { color: #0f172a; }
+    .rp-filtros div + div { margin-top: 4px; }
+    h2.rp-h2 {
+      font-size: 1rem;
+      color: #312e81;
+      margin: 0 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #c7d2fe;
+    }
+    .rp-kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .rp-kpi {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid #667eea;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .rp-kpi:nth-child(4n+2) { border-left-color: #764ba2; }
+    .rp-kpi:nth-child(4n+3) { border-left-color: #14b8a6; }
+    .rp-kpi:nth-child(4n+4) { border-left-color: #f59e0b; }
+    .rp-kpi label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .rp-kpi .val { font-size: 1.15rem; font-weight: 700; color: #0f172a; }
+    .rp-section { margin-bottom: 26px; }
+    .rp-section h3 {
+      font-size: 0.95rem;
+      color: #312e81;
+      margin: 0 0 10px;
+    }
+    table.rp-table { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #cbd5e1; }
+    table.rp-table thead th {
       background: #4f46e5;
       color: #fff;
-      border: 1px solid #cbd5e1;
-      padding: 8px;
+      padding: 9px 8px;
       text-align: left;
+      font-weight: 600;
     }
-    tbody td {
-      border: 1px solid #cbd5e1;
-      padding: 7px;
-      vertical-align: top;
-    }
-    tbody tr:nth-child(even) { background: #eef2ff; }
-    .acciones { margin-top: 14px; display: flex; gap: 10px; }
+    table.rp-table tbody td { border-top: 1px solid #e2e8f0; padding: 8px; vertical-align: top; }
+    table.rp-table tbody tr:nth-child(even) { background: #eef2ff; }
+    .rp-empty { color: #64748b; font-size: 13px; padding: 8px 0; }
+    .acciones { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; }
     .btn {
       display: inline-block;
       background: #4f46e5;
-      color: #fff;
+      color: #fff !important;
       text-decoration: none;
-      padding: 8px 12px;
+      padding: 10px 14px;
       border-radius: 8px;
       font-size: 13px;
+      font-weight: 600;
     }
     .btn.secondary { background: #475569; }
+    .rp-fallback { margin-top: 20px; }
   </style>
 </head>
 <body>
-  <h1>{{ titulo }}</h1>
-  <div class="meta">Generado: {% now "d/m/Y H:i" %}</div>
-  <div class="filtros">
-    {% for f in filtros %}
+  <div class="rp-wrap">
+    <header class="rp-header">
+      <div>
+        <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Technova" width="64" height="64"
+             onerror="this.style.display='none'">
+      </div>
+      <div>
+        <p class="rp-brand"><strong>TECHNOVA</strong> — {{ pdf_v2.subtitulo|default:"Sistema de Gestión" }}</p>
+        <h1 class="rp-title">{{ titulo }}</h1>
+        <p class="rp-meta">{{ pdf_v2.rango|default:"" }}</p>
+        <p class="rp-meta">Generado: {% now "d/m/Y H:i" %}</p>
+      </div>
+    </header>
+
+    <div class="rp-filtros">
+      <strong>Filtros aplicados</strong>
+      {% for f in filtros %}
       <div>{{ f }}</div>
-    {% endfor %}
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        {% for h in headers %}
-        <th>{{ h }}</th>
-        {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in rows %}
-      <tr>
-        {% for col in row %}
-        <td>{{ col }}</td>
-        {% endfor %}
-      </tr>
       {% empty %}
-      <tr>
-        <td colspan="{{ headers|length }}">Sin datos.</td>
-      </tr>
+      <div>Sin filtros adicionales.</div>
       {% endfor %}
-    </tbody>
-  </table>
+    </div>
 
-  <div class="acciones">
-    <a class="btn" href="{% url 'web_admin_reportes_pdf' tipo %}?{{ request.GET.urlencode }}">Descargar PDF</a>
-    <a class="btn secondary" href="{% url 'web_admin_reportes' %}?tipo={{ tipo }}">Volver a Reportes</a>
+    {% if pdf_v2.kpis %}
+    <h2 class="rp-h2">Resumen general</h2>
+    <div class="rp-kpis">
+      {% for label, valor in pdf_v2.kpis %}
+      <div class="rp-kpi">
+        <label>{{ label }}</label>
+        <div class="val">{{ valor }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if pdf_v2.graficas %}
+    <h2 class="rp-h2">Análisis visual (gráficas)</h2>
+    <p class="rp-meta" style="margin-bottom:10px;">Las gráficas (barras, líneas, pastel) se generan en el PDF descargado. Resumen de lo incluido:</p>
+    <ul style="margin:0 0 20px 18px; font-size:13px; color:#334155;">
+      {% for g in pdf_v2.graficas %}
+      <li style="margin-bottom:6px;"><strong>{{ g.titulo }}</strong> <span style="color:#64748b;">({{ g.tipo|default:"barras" }})</span></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <h2 class="rp-h2">Detalle y tablas</h2>
+
+    {% if pdf_v2.secciones %}
+      {% for titulo_sec, headers_sec, filas in pdf_v2.secciones %}
+      <section class="rp-section">
+        <h3>{{ titulo_sec }}</h3>
+        {% if filas %}
+        <table class="rp-table">
+          <thead>
+            <tr>
+              {% for h in headers_sec %}<th>{{ h }}</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for fila in filas %}
+            <tr>
+              {% for celda in fila %}<td>{{ celda }}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="rp-empty">Sin datos en este período.</p>
+        {% endif %}
+      </section>
+      {% endfor %}
+    {% else %}
+    <div class="rp-fallback">
+      <h2 class="rp-h2">Detalle</h2>
+      <table class="rp-table">
+        <thead>
+          <tr>
+            {% for h in headers %}<th>{{ h }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            {% for col in row %}<td>{{ col }}</td>{% endfor %}
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="{{ headers|length }}">Sin datos.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="acciones">
+      <a class="btn" href="{% url 'web_admin_reportes_pdf' tipo %}?{{ request.GET.urlencode }}">Descargar PDF</a>
+      <a class="btn secondary" href="{% url 'web_admin_reportes' %}?tipo={{ tipo }}">Volver a Reportes</a>
+    </div>
   </div>
 </body>
 </html>

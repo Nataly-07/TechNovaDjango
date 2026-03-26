@@ -1,0 +1,535 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'frontend/css/atencion.css' %}?v=2">
+<style>
+  body.empleado-page{background:#e8f0f8}
+  .atencion-container{max-width:1400px;margin:0 auto;width:100%;padding:8px 10px}
+  .header-banner{background:linear-gradient(135deg,#764ba2 0%,#4a5568 100%);border-radius:20px;padding:28px 28px;margin-bottom:22px;box-shadow:0 8px 24px rgba(118,75,162,.22);position:relative;overflow:hidden;text-align:center}
+  .header-banner::before{content:'';position:absolute;top:-50%;right:-50%;width:200%;height:200%;background:radial-gradient(circle,rgba(255,255,255,.10) 0%,transparent 70%);animation:pulse 8s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:.55}50%{transform:scale(1.1);opacity:.85}}
+  .header-banner h1{color:#fff;font-size:1.9rem;font-weight:900;margin:0 0 10px 0;display:flex;align-items:center;justify-content:center;gap:14px;position:relative;z-index:1;text-shadow:0 2px 10px rgba(0,0,0,.2)}
+  .header-banner .divider{height:2px;background:linear-gradient(90deg,transparent 0%,#00d4ff 20%,#00d4ff 80%,transparent 100%);width:70%;margin:10px auto 8px auto;border-radius:2px;position:relative;z-index:1;box-shadow:0 0 10px rgba(0,212,255,.45)}
+  .header-banner p{color:#fff;font-size:.98rem;margin:0;position:relative;z-index:1;opacity:.96}
+
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .stat-card{background:#fff;border-radius:16px;padding:16px 14px;box-shadow:0 4px 12px rgba(0,0,0,.08);border-left:4px solid;transition:.2s ease;cursor:pointer;text-align:center}
+  .stat-card:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(0,0,0,.14)}
+  .stat-card.active-filter{border-left-width:6px;box-shadow:0 10px 26px rgba(0,0,0,.14);transform:translateY(-1px)}
+  .stat-card.total{border-left-color:#00cc44}
+  .stat-card.pendientes{border-left-color:#ef4444}
+  .stat-card.mensajes{border-left-color:#fbbf24}
+  .stat-card.no-leidos{border-left-color:#ef4444}
+  .stat-card .number{font-size:2.05rem;font-weight:900;color:#0f172a;margin:0 0 4px 0;line-height:1}
+  .stat-card .label{font-size:.72rem;color:#334155;margin:0;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+
+  .search-container{display:flex;justify-content:center;margin:0 0 18px 0}
+  .search-box{position:relative;width:100%;max-width:620px}
+  .search-box input{width:100%;padding:14px 18px 14px 48px;border:1px solid #e2e8f0;border-radius:999px;font-size:15px;background:#fff;color:#0f172a;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+  .search-box i{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:20px}
+
+  .main-content-area{background:#fff;border-radius:16px;padding:22px 22px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+  .tabs-container{display:flex;gap:0;margin-bottom:18px;border-bottom:2px solid #e2e8f0}
+  .tab{flex:1;padding:12px 18px;background:none;border:none;font-size:.95rem;font-weight:900;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s ease;border-bottom:3px solid transparent;margin-bottom:-2px}
+  .tab:hover{color:#667eea;background:#f8fafc}
+  .tab.active{color:#667eea;background:#f8fafc;border-bottom-color:#90cdf4}
+  .filters-container{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+  .filter-btn{padding:10px 18px;border:2px solid #e2e8f0;background:#fff;border-radius:999px;font-size:.9rem;font-weight:800;color:#0f172a;cursor:pointer;transition:.2s ease}
+  .filter-btn:hover{border-color:#667eea;color:#667eea;transform:translateY(-1px);box-shadow:0 8px 18px rgba(102,126,234,.12)}
+  .filter-btn.active{background:linear-gradient(135deg,#764ba2 0%,#667eea 100%);border-color:#764ba2;color:#fff;box-shadow:0 10px 24px rgba(118,75,162,.28)}
+
+  .tickets-list{display:flex;flex-direction:column;gap:14px}
+  .ticket-card{background:#f8fafc;border-radius:14px;padding:18px;border-left:4px solid #667eea;transition:.2s ease;position:relative;overflow:hidden;cursor:pointer}
+  .ticket-card:hover{box-shadow:0 10px 26px rgba(102,126,234,.18);transform:translateX(4px) translateY(-1px);background:#fff}
+  .ticket-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px}
+  .ticket-header h3{margin:0;color:#0f172a;font-size:1.08rem;font-weight:900}
+  .ticket-status{padding:6px 12px;border-radius:10px;font-size:.82rem;font-weight:900;display:flex;align-items:center;gap:6px}
+  .ticket-status.en_proceso{background:#fef3c7;color:#92400e}
+  .ticket-status.resuelto{background:#d1fae5;color:#065f46}
+  .ticket-body{color:#475569;margin-bottom:10px}
+  .ticket-meta{display:flex;gap:16px;font-size:.88rem;color:#64748b;font-weight:800;flex-wrap:wrap}
+  .ticket-meta span{display:flex;align-items:center;gap:6px}
+  .empty-state{text-align:center;padding:50px 18px;color:#64748b}
+  .empty-state i{font-size:3.3rem;opacity:.5;margin-bottom:10px}
+
+  /* Modales */
+  .modal,.conversation-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:11000}
+  .modal-content,.conversation-modal-content{background:#fff;border-radius:16px;width:min(900px,92vw);max-height:85vh;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+  .modal-header,.conversation-header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:18px;display:flex;justify-content:space-between;align-items:center}
+  .close-modal,.conversation-close{background:none;border:none;color:#fff;font-size:24px;cursor:pointer;padding:6px;border-radius:999px}
+  .close-modal:hover,.conversation-close:hover{background:rgba(255,255,255,.16)}
+  .modal-body{padding:20px;max-height:60vh;overflow:auto}
+  .conversation-body{display:flex;flex-direction:column;height:calc(85vh - 80px);overflow:hidden}
+  .conversation-messages{flex:1;overflow:auto;padding:18px;background:#f8fafc}
+  .message-bubble{display:flex;gap:10px;margin-bottom:12px;align-items:flex-end}
+  .message-bubble.sent{flex-direction:row-reverse}
+  .message-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .message-content{max-width:70%;background:#fff;padding:12px 14px;border-radius:14px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+  .message-bubble.sent .message-content{background:#667eea;color:#fff}
+  .message-time{font-size:.72rem;opacity:.75;margin-top:6px}
+  .conversation-input{padding:14px;background:#fff;border-top:1px solid #e2e8f0}
+  .conversation-input-form{display:flex;gap:10px;align-items:flex-end}
+  .conversation-input-form textarea{flex:1;padding:12px;border:2px solid #e2e8f0;border-radius:14px;resize:none;font-family:inherit;font-size:.95rem;min-height:48px;max-height:140px}
+  .conversation-input-form textarea:focus{outline:none;border-color:#667eea}
+  .conversation-send-btn{padding:12px 18px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:14px;cursor:pointer;font-weight:900;display:flex;align-items:center;gap:8px}
+  .conversation-send-btn:disabled{opacity:.6;cursor:not-allowed}
+  @media (max-width:1024px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:560px){.stats-grid{grid-template-columns:1fr}}
+</style>
+
+<div class="atencion-container">
+  <div class="header-banner">
+    <h1><i class="bx bx-headphone"></i> Atención al Cliente</h1>
+    <div class="divider"></div>
+    <p>Gestiona las consultas y mensajes de los clientes de manera eficiente</p>
+    <p style="margin-top:12px;">
+      <a href="{% url 'web_empleado_seccion' seccion='reclamos' %}" class="filter-btn active" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">
+        <i class="bx bx-error-circle"></i> Ir a Reclamos
+      </a>
+    </p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card total" data-tab="consultas" data-filtro="todas">
+      <p class="number">{{ totalConsultas|default:0 }}</p>
+      <p class="label">TOTAL CONSULTAS</p>
+    </div>
+    <div class="stat-card pendientes" data-tab="consultas" data-filtro="pendientes">
+      <p class="number">{{ pendientes|default:0 }}</p>
+      <p class="label">PENDIENTES</p>
+    </div>
+    <div class="stat-card mensajes" data-tab="mensajes" data-filtro="todos">
+      <p class="number">{{ mensajes|default:0 }}</p>
+      <p class="label">MENSAJES</p>
+    </div>
+    <div class="stat-card no-leidos" data-tab="mensajes" data-filtro="no-leidos">
+      <p class="number">{{ noLeidos|default:0 }}</p>
+      <p class="label">NO LEÍDOS</p>
+    </div>
+  </div>
+
+  <div class="search-container">
+    <div class="search-box">
+      <i class="bx bx-search"></i>
+      <input type="text" id="searchInput" placeholder="Buscar por nombre de cliente..." value="{{ busqueda|default:'' }}">
+    </div>
+  </div>
+
+  <div class="main-content-area">
+    <div class="tabs-container">
+      <button class="tab active"><i class="bx bx-file-blank"></i> Consultas</button>
+      <button class="tab"><i class="bx bx-envelope"></i> Mensajes Directos</button>
+    </div>
+
+    <div class="filters-container" id="consultasFilters">
+      <button class="filter-btn {% if estado == 'todas' %}active{% endif %}" data-estado="todas">Todas</button>
+      <button class="filter-btn {% if estado == 'pendientes' %}active{% endif %}" data-estado="pendientes">Pendientes</button>
+      <button class="filter-btn {% if estado == 'en_proceso' %}active{% endif %}" data-estado="en_proceso">En Proceso</button>
+      <button class="filter-btn {% if estado == 'resuelto' %}active{% endif %}" data-estado="resuelto">Resueltas</button>
+      <button class="filter-btn {% if estado == 'cerrado' %}active{% endif %}" data-estado="cerrado">Cerradas</button>
+    </div>
+
+    <div class="tickets-list" id="ticketsList">
+      {% if tickets %}
+        {% for ticket in tickets %}
+        <div class="ticket-card" data-ticket-id="{{ ticket.id }}">
+          <div class="ticket-header">
+            <h3>{{ ticket.tema|default:"Sin tema" }}</h3>
+            {% if ticket.respuesta %}
+            <span class="ticket-status resuelto"><i class="bx bx-check-circle"></i> Resuelto</span>
+            {% else %}
+            <span class="ticket-status en_proceso"><i class="bx bx-loader"></i> En Proceso</span>
+            {% endif %}
+          </div>
+          <div class="ticket-body">
+            <p>{{ ticket.descripcion|default:"Sin descripción" }}</p>
+            {% if ticket.respuesta %}
+            <div style="margin-top:10px;padding:12px;background:#ecfdf5;border:1px solid #a7f3d0;border-left:4px solid #10b981;border-radius:12px;">
+              <strong style="color:#065f46;">Respuesta:</strong>
+              <p style="margin:6px 0 0 0;color:#064e3b;font-weight:700;">{{ ticket.respuesta }}</p>
+            </div>
+            {% endif %}
+          </div>
+          <div class="ticket-meta">
+            <span><i class="bx bx-calendar"></i> <span>{{ ticket.fechaConsulta|default:"N/A" }}</span></span>
+            <span><i class="bx bx-user"></i> <span>{{ ticket.clienteNombre }}</span></span>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="empty-state">
+        <i class="bx bx-inbox"></i>
+        <h3>No hay consultas</h3>
+        <p>No se encontraron consultas con los filtros seleccionados.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="tickets-list" id="mensajesList" style="display:none;">
+      {% if conversaciones %}
+        {% for conv in conversaciones %}
+        <div class="ticket-card"
+             data-conversation-id="{{ conv.conversationId }}"
+             data-message-id="{{ conv.id }}"
+             data-no-leido="{% if not conv.isRead and conv.senderType != 'empleado' and conv.estado != 'respondido' %}true{% else %}false{% endif %}">
+          <div class="ticket-header">
+            <h3>{{ conv.asunto|default:"Sin asunto" }}</h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span class="ticket-status" style="font-size:.75rem;background:#f1f5f9;color:#334155;">
+                {{ conv.prioridad|default:"normal"|capfirst }}
+              </span>
+              {% if conv.isRead or conv.estado == 'respondido' or conv.senderType == 'empleado' %}
+              <span class="ticket-status" style="font-size:.75rem;background:#d1ecf1;color:#0c5460;"><i class="bx bx-check-circle"></i> Leído</span>
+              {% else %}
+              <span class="ticket-status" style="font-size:.75rem;background:#fff3cd;color:#856404;"><i class="bx bx-time-five"></i> Pendiente</span>
+              <span style="width:10px;height:10px;background:#ef4444;border-radius:50%;display:inline-block;"></span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="ticket-body">
+            <p>{{ conv.mensaje|default:"Sin mensaje" }}</p>
+          </div>
+          <div class="ticket-meta">
+            <span><i class="bx bx-calendar"></i> <span>{{ conv.createdAt|default:"N/A" }}</span></span>
+            <span><i class="bx bx-user"></i> <span>{{ conv.clienteNombre }}</span></span>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="empty-state">
+        <i class="bx bx-envelope"></i>
+        <h3>No hay mensajes directos</h3>
+        <p>No se encontraron mensajes directos.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal detalle ticket -->
+<div id="ticketModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modalTicketTitle">Detalle de Consulta</h3>
+      <button class="close-modal" type="button"><i class="bx bx-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="modalTicketContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal conversación -->
+<div id="conversationModal" class="conversation-modal">
+  <div class="conversation-modal-content">
+    <div class="conversation-header">
+      <h3 class="conversation-title" id="conversationTitle">Conversación</h3>
+      <button class="conversation-close" type="button"><i class="bx bx-x"></i></button>
+    </div>
+    <div class="conversation-body">
+      <div class="conversation-messages" id="conversationMessages">
+        <div class="empty-state"><i class="bx bx-loader-alt bx-spin"></i><p>Cargando conversación...</p></div>
+      </div>
+      <div class="conversation-input">
+        <form class="conversation-input-form" id="conversationReplyForm">
+          <textarea id="conversationReplyText" placeholder="Escribe tu respuesta..." rows="1" maxlength="2000"></textarea>
+          <button type="submit" class="conversation-send-btn" id="conversationSendBtn"><i class="bx bx-send"></i> Enviar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ nombresUsuarios|json_script:"nombresUsuariosData" }}
+
+<script>
+  (function(){
+    var datosIniciales = {
+      estadoActual: "{{ estado|default:'todas' }}",
+      busquedaActual: "{{ busqueda|default:''|escapejs }}",
+      usuarioId: {{ usuario.id|default:"null" }},
+      nombresUsuarios: JSON.parse(document.getElementById('nombresUsuariosData')?.textContent || '{}')
+    };
+
+    var state = {
+      tabActual: 'consultas',
+      estadoFiltro: datosIniciales.estadoActual || 'todas',
+      busqueda: datosIniciales.busquedaActual || '',
+      conversacionActual: null,
+      mensajeActual: null,
+      filtrarNoLeidos: false,
+      nombresUsuarios: datosIniciales.nombresUsuarios || {},
+      usuarioId: datosIniciales.usuarioId
+    };
+
+    function q(sel){ return document.querySelector(sel); }
+    function qa(sel){ return Array.from(document.querySelectorAll(sel)); }
+    function escapeHtml(t){ var d=document.createElement('div'); d.textContent=String(t||''); return d.innerHTML; }
+    function formatearFecha(fecha){ try{ return new Date(fecha).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){ return 'N/A'; } }
+    function postForm(url, data){
+      return fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'XMLHttpRequest'},body:new URLSearchParams(data).toString()})
+        .then(function(r){
+          var ct=r.headers.get('content-type')||'';
+          if(!r.ok){
+            if(ct.includes('application/json')) return r.json().then(function(j){ throw new Error(j.message||'Error');});
+            return r.text().then(function(t){ throw new Error(t||'Error');});
+          }
+          return ct.includes('application/json') ? r.json() : {};
+        });
+    }
+
+    function cambiarTab(tab){
+      state.tabActual = tab;
+      var tabs = qa('.tab');
+      if (tab === 'consultas') {
+        tabs[0]?.classList.add('active'); tabs[1]?.classList.remove('active');
+        q('#consultasFilters').style.display = 'flex';
+        q('#ticketsList').style.display = 'flex';
+        q('#mensajesList').style.display = 'none';
+        state.filtrarNoLeidos = false;
+      } else {
+        tabs[0]?.classList.remove('active'); tabs[1]?.classList.add('active');
+        q('#consultasFilters').style.display = 'none';
+        q('#ticketsList').style.display = 'none';
+        q('#mensajesList').style.display = 'flex';
+        if (state.filtrarNoLeidos) filtrarMensajesNoLeidos(); else mostrarTodosLosMensajes();
+      }
+      marcarTarjetaActiva();
+    }
+
+    function marcarTarjetaActiva(){
+      qa('.stat-card').forEach(function(card){
+        card.classList.remove('active-filter');
+        var tab = card.getAttribute('data-tab');
+        var filtro = card.getAttribute('data-filtro');
+        if (tab !== state.tabActual) return;
+        if (tab === 'consultas') {
+          if ((state.estadoFiltro === 'todas' && filtro === 'todas') || (state.estadoFiltro === 'pendientes' && filtro === 'pendientes')) {
+            card.classList.add('active-filter');
+          }
+        } else {
+          if ((state.filtrarNoLeidos && filtro === 'no-leidos') || (!state.filtrarNoLeidos && filtro === 'todos')) {
+            card.classList.add('active-filter');
+          }
+        }
+      });
+    }
+
+    function filtrarPorEstado(estado){
+      state.estadoFiltro = estado;
+      var url = '/empleado/atencion-cliente?estado=' + encodeURIComponent(estado);
+      var busq = q('#searchInput')?.value?.trim();
+      if (busq) url += '&busqueda=' + encodeURIComponent(busq);
+      window.location.href = url;
+    }
+
+    function filtrarMensajesNoLeidos(){
+      var list = q('#mensajesList');
+      var cards = qa('#mensajesList .ticket-card[data-conversation-id]');
+      var visibles = 0;
+      cards.forEach(function(c){
+        var isNo = c.getAttribute('data-no-leido') === 'true';
+        c.style.display = isNo ? 'block' : 'none';
+        if (isNo) visibles++;
+      });
+      if (visibles === 0) {
+        if (!list.querySelector('.empty-state.__noLeidos')) {
+          var e = document.createElement('div');
+          e.className = 'empty-state __noLeidos';
+          e.innerHTML = "<i class='bx bx-envelope'></i><h3>No hay mensajes no leídos</h3><p>No se encontraron mensajes directos sin leer.</p>";
+          list.appendChild(e);
+        }
+      } else {
+        list.querySelectorAll('.empty-state.__noLeidos').forEach(function(el){ el.remove(); });
+      }
+    }
+
+    function mostrarTodosLosMensajes(){
+      qa('#mensajesList .ticket-card[data-conversation-id]').forEach(function(c){ c.style.display='block'; });
+      q('#mensajesList')?.querySelectorAll('.empty-state.__noLeidos').forEach(function(el){ el.remove(); });
+    }
+
+    function mostrarDetalleTicket(ticketId){
+      fetch('/api/atencion-cliente/' + ticketId)
+        .then(function(r){ if(!r.ok) throw new Error('Error al cargar el ticket'); return r.json(); })
+        .then(function(resp){
+          var payload = resp.data || resp;
+          var ticket = payload.data || payload;
+          q('#modalTicketTitle').textContent = ticket.tema || 'Sin tema';
+          var nombre = state.nombresUsuarios[ticket.usuarioId] || ('Usuario ID: ' + ticket.usuarioId);
+          var fecha = formatearFecha(ticket.fechaConsulta);
+          var tieneRespuesta = !!(ticket.respuesta && String(ticket.respuesta).trim());
+          var estadoTexto = tieneRespuesta ? 'Resuelto' : 'En Proceso';
+          var estadoClass = tieneRespuesta ? 'resuelto' : 'en_proceso';
+          var respuestaHtml = tieneRespuesta
+            ? '<div style="background:#ecfdf5;padding:14px;border-radius:12px;border-left:4px solid #10b981;"><h4 style="color:#065f46;margin:0 0 8px 0;display:flex;align-items:center;gap:8px;"><i class="bx bx-check-circle"></i> Respuesta</h4><p style="margin:0;color:#064e3b;font-weight:700;line-height:1.6;">'+ escapeHtml(ticket.respuesta) +'</p></div>'
+            : '<div style="background:#f8fafc;padding:18px;border-radius:12px;border:2px dashed #e2e8f0;text-align:center;"><i class="bx bx-time" style="font-size:2rem;color:#64748b;display:block;margin-bottom:8px;"></i><p style="margin:0;color:#64748b;font-weight:900;">Esta consulta aún no tiene respuesta.</p><button type="button" id="btnResponderTicket" style="margin-top:12px;padding:10px 16px;background:#667eea;color:#fff;border:none;border-radius:12px;font-weight:900;cursor:pointer;"><i class="bx bx-reply"></i> Responder</button></div>';
+
+          q('#modalTicketContent').innerHTML =
+            '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;color:#64748b;font-weight:900;">' +
+              '<span style="display:flex;align-items:center;gap:6px;"><i class="bx bx-calendar"></i>' + escapeHtml(fecha) + '</span>' +
+              '<span style="display:flex;align-items:center;gap:6px;"><i class="bx bx-user"></i>' + escapeHtml(nombre) + '</span>' +
+              '<span class="ticket-status ' + estadoClass + '"><i class="bx ' + (tieneRespuesta ? 'bx-check-circle' : 'bx-loader') + '"></i>' + estadoTexto + '</span>' +
+            '</div>' +
+            '<div style="margin-bottom:14px;"><h4 style="margin:0 0 8px 0;color:#0f172a;font-weight:900;">Descripción</h4><p style="margin:0;background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #667eea;padding:12px 14px;border-radius:12px;color:#334155;line-height:1.6;">'+ escapeHtml(ticket.descripcion || '') +'</p></div>' +
+            respuestaHtml;
+
+          q('#ticketModal').style.display = 'flex';
+          var btnResp = q('#btnResponderTicket');
+          if (btnResp) {
+            btnResp.addEventListener('click', function(){
+              var respuesta = prompt('Ingresa tu respuesta:');
+              if (!respuesta || !respuesta.trim()) return;
+              fetch('/api/atencion-cliente/' + ticket.id + '/responder', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With':'XMLHttpRequest' },
+                body: JSON.stringify({ respuesta: respuesta.trim() })
+              }).then(function(r){
+                if(!r.ok) return r.text().then(function(t){ throw new Error(t || 'Error');});
+                return r.json();
+              }).then(function(){
+                if (window.TechnovaUi) window.TechnovaUi.toastOk('Respuesta enviada correctamente');
+                q('#ticketModal').style.display = 'none';
+                setTimeout(function(){ location.reload(); }, 500);
+              }).catch(function(err){
+                if (window.TechnovaUi) window.TechnovaUi.error(err.message);
+                else alert(err.message);
+              });
+            });
+          }
+        })
+        .catch(function(err){ if(window.TechnovaUi) window.TechnovaUi.error(err.message); else alert(err.message); });
+    }
+
+    function mostrarConversacion(conversationId){
+      state.conversacionActual = conversationId;
+      q('#conversationModal').style.display = 'flex';
+      cargarConversacion(conversationId);
+    }
+
+    function cargarConversacion(conversationId){
+      var cont = q('#conversationMessages');
+      cont.innerHTML = '<div class="empty-state"><i class="bx bx-loader-alt bx-spin"></i><p>Cargando conversación...</p></div>';
+      fetch('/api/mensajes-directos/conversacion/' + conversationId)
+        .then(function(r){ if(!r.ok) throw new Error('Error al cargar la conversación'); return r.json(); })
+        .then(function(resp){
+          var payload = resp.data || resp;
+          var items = payload.items || payload;
+          if(!Array.isArray(items)) items = [];
+          if (items.length) state.mensajeActual = items[items.length - 1].id;
+          cont.innerHTML = '';
+          if(!items.length){
+            cont.innerHTML = '<div class="empty-state"><i class="bx bx-message-square-dots"></i><p>No hay mensajes en esta conversación</p></div>';
+            return;
+          }
+          items.forEach(function(m){
+            var sent = (m.senderType || m.tipo_remitente) === 'empleado';
+            var nombre = sent ? 'Tú' : (state.nombresUsuarios[m.senderId] || 'Cliente');
+            var fecha = formatearFecha(m.createdAt);
+            var texto = m.message || '';
+            var wrap = document.createElement('div');
+            wrap.className = 'message-bubble ' + (sent ? 'sent' : 'received');
+            wrap.innerHTML =
+              '<div class="message-avatar">' + (sent ? '👨‍💼' : '👤') + '</div>' +
+              '<div class="message-content">' +
+                '<div style="font-size:.75rem;opacity:.85;margin-bottom:4px;font-weight:900;">' + escapeHtml(nombre) + '</div>' +
+                '<div class="message-text" style="font-weight:700;">' + escapeHtml(texto) + '</div>' +
+                '<div class="message-time">' + escapeHtml(fecha) + '</div>' +
+              '</div>';
+            cont.appendChild(wrap);
+          });
+          cont.scrollTop = cont.scrollHeight;
+        })
+        .catch(function(err){ cont.innerHTML = '<div class="empty-state"><i class="bx bx-error"></i><p>'+ escapeHtml(err.message) +'</p></div>'; });
+    }
+
+    document.addEventListener('DOMContentLoaded', function(){
+      // tarjetas stats
+      qa('.stat-card').forEach(function(card){
+        card.addEventListener('click', function(){
+          var tab = card.getAttribute('data-tab');
+          var filtro = card.getAttribute('data-filtro');
+          if (tab === 'mensajes') {
+            cambiarTab('mensajes');
+            state.filtrarNoLeidos = (filtro === 'no-leidos');
+            if (state.filtrarNoLeidos) filtrarMensajesNoLeidos(); else mostrarTodosLosMensajes();
+            marcarTarjetaActiva();
+            return;
+          }
+          cambiarTab('consultas');
+          if (filtro === 'pendientes') return filtrarPorEstado('pendientes');
+          return filtrarPorEstado('todas');
+        });
+      });
+
+      // tabs
+      var tabs = qa('.tab');
+      tabs[0]?.addEventListener('click', function(){ cambiarTab('consultas'); });
+      tabs[1]?.addEventListener('click', function(){ cambiarTab('mensajes'); });
+
+      // filtros
+      qa('.filter-btn[data-estado]').forEach(function(btn){
+        btn.addEventListener('click', function(){ filtrarPorEstado(btn.getAttribute('data-estado')); });
+      });
+
+      // búsqueda
+      q('#searchInput')?.addEventListener('keyup', function(e){
+        if (e.key === 'Enter') {
+          filtrarPorEstado(state.estadoFiltro || 'todas');
+        }
+      });
+      q('#searchInput')?.addEventListener('blur', function(){
+        if ((q('#searchInput').value || '').trim() !== (state.busqueda || '')) {
+          filtrarPorEstado(state.estadoFiltro || 'todas');
+        }
+      });
+
+      // tarjetas tickets / conversaciones
+      qa('.ticket-card[data-ticket-id]').forEach(function(card){
+        card.addEventListener('click', function(){
+          var id = card.getAttribute('data-ticket-id');
+          if (id) mostrarDetalleTicket(parseInt(id,10));
+        });
+      });
+      qa('.ticket-card[data-conversation-id]').forEach(function(card){
+        card.addEventListener('click', function(){
+          var cid = card.getAttribute('data-conversation-id');
+          if (cid) mostrarConversacion(cid);
+        });
+      });
+
+      // cerrar modales
+      q('#ticketModal .close-modal')?.addEventListener('click', function(){ q('#ticketModal').style.display='none'; });
+      q('#ticketModal')?.addEventListener('click', function(e){ if(e.target === q('#ticketModal')) q('#ticketModal').style.display='none'; });
+      q('#conversationModal .conversation-close')?.addEventListener('click', function(){ q('#conversationModal').style.display='none'; });
+      q('#conversationModal')?.addEventListener('click', function(e){ if(e.target === q('#conversationModal')) q('#conversationModal').style.display='none'; });
+
+      // responder conversación
+      q('#conversationReplyForm')?.addEventListener('submit', function(e){
+        e.preventDefault();
+        if (!state.mensajeActual) return;
+        var msg = q('#conversationReplyText')?.value?.trim();
+        if (!msg) return;
+        var btn = q('#conversationSendBtn');
+        if(btn){ btn.disabled=true; btn.innerHTML='<i class="bx bx-loader-alt bx-spin"></i> Enviando...'; }
+        postForm('/api/mensajes-directos/' + state.mensajeActual + '/responder', {
+          senderId: state.usuarioId,
+          senderType: 'empleado',
+          mensaje: msg
+        }).then(function(){
+          q('#conversationReplyText').value = '';
+          cargarConversacion(state.conversacionActual);
+          if (window.TechnovaUi) window.TechnovaUi.toastOk('Mensaje enviado correctamente');
+        }).catch(function(err){
+          if (window.TechnovaUi) window.TechnovaUi.error(err.message);
+          else alert(err.message);
+        }).finally(function(){
+          if(btn){ btn.disabled=false; btn.innerHTML='<i class="bx bx-send"></i> Enviar'; }
+        });
+      });
+
+      // estado inicial
+      cambiarTab('consultas');
+      marcarTarjetaActiva();
+    });
+  })();
+</script>
+

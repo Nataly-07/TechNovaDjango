@@ -143,5 +143,6 @@ urlpatterns = [
         name="web_cliente_factura_compra",
     ),
     path("cliente/atencion-cliente/", views.atencion_cliente, name="web_cliente_atencion"),
+    path("cliente/reclamos/", views.cliente_reclamos, name="web_cliente_reclamos"),
     path("producto/<int:producto_id>/", views.producto_detalle, name="web_producto_detalle"),
 ]

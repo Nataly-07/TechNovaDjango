@@ -76,15 +76,40 @@ document.addEventListener("DOMContentLoaded", () => {
       guardarCarrito();
       actualizarCarrito();
 
-      // confirmación visual
-      if (typeof Swal !== 'undefined') {
+      // confirmación visual mejorada
+      if (typeof CarritoAlerts !== 'undefined') {
+        CarritoAlerts.success(nombre);
+      } else if (typeof Swal !== 'undefined') {
         Swal.fire({
-          icon: "success",
-          title: "¡Agregado al carrito!",
-          text: nombre,
-          confirmButtonColor: "#00cc44",
-          timer: 1500,
+          icon: false,
+          html: `
+            <div style="text-align: center; padding: 20px 0;">
+              <div style="margin-bottom: 15px;">
+                <div style="width: 80px; height: 80px; margin: 0 auto; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: scaleIn 0.5s ease-out;">
+                  <i class="bx bx-check" style="font-size: 40px; color: white;"></i>
+                </div>
+              </div>
+              <h3 style="color: #0f172a; font-size: 1.5rem; font-weight: 700; margin-bottom: 8px;">¡Agregado al carrito!</h3>
+              <p style="color: #64748b; font-size: 1rem; margin: 0; font-weight: 500;">${nombre}</p>
+              <div style="margin-top: 15px; display: flex; justify-content: center; gap: 8px;">
+                <span style="background: #f1f5f9; color: #334155; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
+                  <i class="bx bx-cart" style="margin-right: 4px;"></i>Carrito actualizado
+                </span>
+              </div>
+            </div>
+          `,
           showConfirmButton: false,
+          timer: 2000,
+          customClass: {
+            popup: 'custom-swal-popup'
+          },
+          backdrop: false,
+          showClass: {
+            popup: 'animate__animated animate__fadeInRight'
+          },
+          hideClass: {
+            popup: 'animate__animated animate__fadeOutRight'
+          }
         });
       }
     });

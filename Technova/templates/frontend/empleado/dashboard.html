@@ -182,6 +182,10 @@
   <div class="empty-state"><i class="bx bx-package" style="font-size:3rem;opacity:.5;"></i><h3>No hay productos</h3><p>Ajusta filtros para visualizar artículos.</p></div>
   {% endif %}
 </div>
+{% elif seccion == 'atencion-cliente' %}
+{% include "frontend/empleado/atencion-cliente.html" %}
+{% elif seccion == 'reclamos' %}
+{% include "frontend/empleado/reclamos.html" %}
 {% elif seccion == 'pedidos' %}
 <div class="stats-bar stats-bar--empleado-pedidos">
   <div class="stat-card total">

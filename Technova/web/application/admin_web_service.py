@@ -69,6 +69,19 @@ def usuario_modal_dict(u: Usuario) -> dict:
 
 def producto_modal_dict(p: Producto) -> dict:
     precio = p.precio_venta if p.precio_venta is not None else p.costo_unitario
+    
+    # Obtener imágenes adicionales
+    imagenes_adicionales = []
+    if hasattr(p, 'imagenes'):
+        imagenes_adicionales = [
+            {
+                "url": img.url,
+                "orden": img.orden,
+                "activa": img.activa
+            }
+            for img in p.imagenes.filter(activa=True).order_by('orden')
+        ]
+    
     return {
         "id": p.id,
         "codigo": p.codigo,
@@ -76,6 +89,7 @@ def producto_modal_dict(p: Producto) -> dict:
         "stock": p.stock,
         "estado": p.activo,
         "imagen": p.imagen_url or "",
+        "imagenes_adicionales": imagenes_adicionales,
         "proveedor": p.proveedor.nombre if p.proveedor_id else "",
         "caracteristica": {
             "categoria": p.categoria,

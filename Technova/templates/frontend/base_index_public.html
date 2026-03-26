@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/producto.css' %}?v=6">
   <link rel="stylesheet" href="{% static 'frontend/css/technova-swal.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'frontend/css/technova-home.css' %}?v=5">
   <link rel="stylesheet" href="{% static 'frontend/css/index-home.css' %}?v=10">
   {% block extra_css %}{% endblock %}
@@ -21,7 +22,10 @@
   window.TECHNOVA_API_PREFIX = "{{ TECHNOVA_API_PREFIX|default:'/api/v1' }}";
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="{% static 'frontend/js/technova-swal.js' %}?v=2"></script>
+<script src="{% static 'frontend/js/technova-swal.js' %}?v=3"></script>
+<script src="{% static 'frontend/js/carrito-alerts.js' %}?v=2"></script>
+<script src="{% static 'frontend/js/carrito-mejorado.js' %}?v=1"></script>
+<script src="{% static 'frontend/js/carrito-inline.js' %}?v=1"></script>
 <script src="{% static 'frontend/js/technova-api.js' %}"></script>
 <script src="{% static 'frontend/js/technova-auth.js' %}"></script>
 {% block extra_js %}{% endblock %}

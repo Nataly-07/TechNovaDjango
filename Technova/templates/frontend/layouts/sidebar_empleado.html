@@ -40,6 +40,11 @@
         <i class="bx bx-headphone"></i> Atención al Cliente
       </a>
     </div>
+    <div class="enlace{% if seccion == 'reclamos' %} enlace--activo{% endif %}">
+      <a href="{% url 'web_empleado_seccion' seccion='reclamos' %}">
+        <i class="bx bx-error-circle"></i> Reclamos
+      </a>
+    </div>
     <div class="enlace{% if seccion == 'notificaciones' %} enlace--activo{% endif %}">
       <a href="{% url 'web_empleado_seccion' seccion='notificaciones' %}">
         <i class="bx bx-bell"></i> Notificaciones

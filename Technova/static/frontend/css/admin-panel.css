@@ -2700,3 +2700,214 @@ body.factura-print .btn-download {
     max-width: 120px;
   }
 }
+
+/* ---------- Estilos personalizados para alertas de carrito mejoradas ---------- */
+.custom-swal-popup {
+  border-radius: 16px !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid rgba(16, 185, 129, 0.1) !important;
+  backdrop-filter: blur(10px) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  max-width: 380px !important;
+  margin: 20px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.custom-swal-container {
+  z-index: 9999 !important;
+}
+
+/* Animación personalizada para el icono */
+@keyframes scaleIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Animación de entrada desde la derecha */
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Animación de salida hacia la derecha */
+@keyframes fadeOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+}
+
+/* Estilos para el toast de carrito */
+.swal2-toast.custom-swal-popup {
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.swal2-toast.custom-swal-popup .swal2-html-container {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Toast verde “Agregar al carrito” (más bonito y consistente) */
+.tn-cart-toast {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 14px 14px 14px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(5, 150, 105, 0.06));
+}
+
+.tn-cart-toast__iconWrap {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 24px rgba(16, 185, 129, 0.28);
+}
+
+.tn-cart-toast__icon {
+  font-size: 24px;
+  color: #fff;
+}
+
+.tn-cart-toast__body {
+  min-width: 0;
+}
+
+.tn-cart-toast__title {
+  color: #052e2b;
+  font-weight: 900;
+  font-size: 0.98rem;
+  line-height: 1.15;
+}
+
+.tn-cart-toast__product {
+  margin-top: 2px;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tn-cart-toast__meta {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tn-cart-toast__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  color: #065f46;
+  font-weight: 800;
+  font-size: 0.78rem;
+}
+
+.tn-cart-toast__chip i {
+  font-size: 16px;
+}
+
+/* Efecto de brillo para el icono */
+.custom-swal-popup .icon-check {
+  animation: shine 0.8s ease-out;
+}
+
+@keyframes shine {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 20px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+/* Estilos para botones personalizados de SweetAlert2 */
+.custom-swal-confirm {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 12px 24px !important;
+  font-weight: 600 !important;
+  font-size: 1rem !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.custom-swal-confirm:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4) !important;
+}
+
+.custom-swal-cancel {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  padding: 12px 24px !important;
+  font-weight: 600 !important;
+  font-size: 1rem !important;
+  color: #64748b !important;
+  transition: all 0.3s ease !important;
+}
+
+.custom-swal-cancel:hover {
+  background: #f1f5f9 !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Animación de zoom */
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes zoomOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}

@@ -18,22 +18,13 @@
     <main class="main-content">
       <div class="wrap">
         <form id="csrf-store" style="display:none" aria-hidden="true">{% csrf_token %}</form>
+
         <div class="hdr hdr--split">
           <div>
             <h2><i class="bx bx-bell"></i> Notificaciones</h2>
-            <p class="notif-subtitle">Avisos del sistema para tu cuenta de administrador.</p>
+            <p class="notif-subtitle">Vista en tiempo real de eventos del sistema para el administrador.</p>
           </div>
-          <div id="hdr-marcar-todas-wrap">
-          {% if total_no_leidas > 0 %}
-          <form method="post" action="{% url 'web_admin_notificaciones' %}" class="form-inline-post">
-            {% csrf_token %}
-            <input type="hidden" name="accion" value="marcar_todas_leidas">
-            <button type="submit" class="btn-buscar">
-              <i class="bx bx-check-double"></i> Marcar todas como leídas (<span id="hdr-no-leidas-count">{{ total_no_leidas }}</span>)
-            </button>
-          </form>
-          {% endif %}
-          </div>
+          <div id="hdr-marcar-todas-wrap"></div>
         </div>
 
         {% for message in messages %}
@@ -54,90 +45,56 @@
           </div>
         </div>
 
-        <form class="filtros" method="get" action="{% url 'web_admin_notificaciones' %}">
-          <div class="filtro-group">
-            <label for="leida">Estado</label>
-            <select id="leida" name="leida">
-              <option value="" {% if not filtro_leida %}selected{% endif %}>Todas</option>
-              <option value="no" {% if filtro_leida == "no" %}selected{% endif %}>No leídas</option>
-              <option value="si" {% if filtro_leida == "si" %}selected{% endif %}>Leídas</option>
-            </select>
-          </div>
-          <div class="filtro-group">
-            <label for="q">Buscar</label>
-            <input type="search" id="q" name="q" placeholder="Título o mensaje" value="{{ filtro_q }}">
-          </div>
-          <div class="filtro-group filtro-accion">
-            <button type="submit" class="btn-buscar"><i class="bx bx-search"></i> Filtrar</button>
-          </div>
-        </form>
-
-        <div id="notif-table-wrap" style="overflow-x:auto;margin-top:1.5rem;{% if not notificaciones %}display:none;{% endif %}">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Título</th>
-                <th>Mensaje</th>
-                <th>Tipo</th>
-                <th>Fecha</th>
-                <th>Estado</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="notif-tbody">
-              {% for n in notificaciones %}
-              <tr class="{% if not n.leida %}tr-no-leida{% endif %}">
-                <td><strong>#{{ n.id }}</strong></td>
-                <td>{{ n.titulo }}</td>
-                <td class="cell-msg">{{ n.mensaje|truncatechars:160 }}</td>
-                <td><span class="badge badge-abierta">{{ n.tipo }}</span></td>
-                <td>{{ n.fecha_creacion|date:"d/m/Y H:i" }}</td>
-                <td>
-                  {% if n.leida %}
-                  <span class="badge badge-fact">Leída</span>
-                  {% else %}
-                  <span class="badge badge-abierta">No leída</span>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if not n.leida %}
-                  <form method="post" action="{% url 'web_admin_notificaciones' %}" style="display:inline;">
-                    {% csrf_token %}
-                    <input type="hidden" name="accion" value="marcar_leida">
-                    <input type="hidden" name="notificacion_id" value="{{ n.id }}">
-                    <button type="submit" class="btn-ver" title="Marcar como leída"><i class="bx bx-check"></i></button>
-                  </form>
-                  {% else %}
-                  <span class="muted">—</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="notif-module-bar" role="tablist" aria-label="Filtros por módulo">
+          <button type="button" class="notif-module-btn is-active" data-modulo="todos">
+            Todos
+          </button>
+          <button type="button" class="notif-module-btn" data-modulo="usuarios">
+            Usuarios
+          </button>
+          <button type="button" class="notif-module-btn" data-modulo="articulos">
+            Artículos
+          </button>
+          <button type="button" class="notif-module-btn" data-modulo="pedidos">
+            Pedidos
+          </button>
+          <button type="button" class="notif-module-btn" data-modulo="pagos">
+            Pagos
+          </button>
         </div>
-        <p class="empty-msg" id="notif-empty-msg" {% if notificaciones %}style="display:none;"{% endif %}><i class="bx bx-info-circle"></i> No tienes notificaciones con los filtros actuales.</p>
+
+        <div id="notif-cards-grid" class="notif-cards-grid"></div>
+        <p class="empty-msg notif-empty" id="notif-empty" style="display:none;">
+          <i class="bx bx-info-circle"></i> No hay notificaciones para este módulo.
+        </p>
       </div>
     </main>
   </div>
+
   <script>
   (function () {
     var pollUrl = "{% url 'web_admin_notificaciones_poll' %}";
     var listUrl = "{% url 'web_admin_notificaciones' %}";
-    var tbody = document.getElementById("notif-tbody");
-    var emptyMsg = document.getElementById("notif-empty-msg");
-    var tableWrap = document.getElementById("notif-table-wrap");
-    var hdrWrap = document.getElementById("hdr-marcar-todas-wrap");
     var csrfInput = document.querySelector("#csrf-store input[name=csrfmiddlewaretoken]");
     var csrf = csrfInput ? csrfInput.value : "";
+
+    var grid = document.getElementById("notif-cards-grid");
+    var emptyEl = document.getElementById("notif-empty");
+    var hdrWrap = document.getElementById("hdr-marcar-todas-wrap");
+
+    var activeModulo = "todos";
 
     function esc(s) {
       return String(s == null ? "" : s)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
+        .replace(/\"/g, "&quot;");
+    }
+
+    function normalizeMsg(s) {
+      s = String(s || "");
+      return s.replace(/\s+/g, " ").trim();
     }
 
     function truncateMsg(s, max) {
@@ -151,10 +108,53 @@
         var d = new Date(iso);
         if (isNaN(d.getTime())) return iso;
         return d.toLocaleString("es-ES", {
-          day: "2-digit", month: "2-digit", year: "numeric",
-          hour: "2-digit", minute: "2-digit"
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
         });
-      } catch (e) { return iso; }
+      } catch (e) {
+        return iso;
+      }
+    }
+
+    function moduloKeyFromTipo(tipo) {
+      var t = String(tipo || "").toLowerCase();
+      if (t.startsWith("usuario.")) return "usuarios";
+      if (t.startsWith("inventario.")) return "articulos";
+      if (t.startsWith("venta.")) return "pedidos";
+      if (t.startsWith("envio.")) return "pedidos";
+      if (t.startsWith("pago.")) return "pagos";
+      return "otros";
+    }
+
+    function moduloLabelFromKey(key) {
+      var map = {
+        "todos": "Todos",
+        "usuarios": "Usuarios",
+        "articulos": "Artículos",
+        "pedidos": "Pedidos",
+        "pagos": "Pagos",
+        "otros": "Otros"
+      };
+      return map[key] || "Otros";
+    }
+
+    function nivelFromTipo(tipo) {
+      var t = String(tipo || "").toLowerCase();
+      if (t.includes("agotado") || t.includes("rechazado") || t.includes("pago.fallido")) return { key: "danger", label: "Crítico" };
+      if (t.includes("stock_bajo") || t.includes("anulada") || t.includes("stock_disminuido")) return { key: "warning", label: "Atención" };
+      if (t.includes("producto_nuevo") || t.includes("producto_actualizado") || t.includes("venta.pedido") || t.includes("envio.estado") || t.includes("pago.registrado")) return { key: "success", label: "OK" };
+      if (t.includes("usuario.nuevo") || t.includes("usuario.actualizado")) return { key: "info", label: "Info" };
+      return { key: "info", label: "Info" };
+    }
+
+    function applyModuloFilter(items) {
+      if (activeModulo === "todos") return items;
+      return items.filter(function (n) {
+        return moduloKeyFromTipo(n.tipo) === activeModulo;
+      });
     }
 
     function renderMarcarTodas(noLeidas) {
@@ -172,38 +172,67 @@
         noLeidas + "</span>)</button></form>";
     }
 
-    function renderTableRows(items) {
-      if (!tbody) return;
-      var html = "";
-      for (var i = 0; i < items.length; i++) {
-        var n = items[i];
-        var rowClass = n.leida ? "" : "tr-no-leida";
-        var estadoHtml = n.leida
-          ? '<span class="badge badge-fact">Leída</span>'
-          : '<span class="badge badge-abierta">No leída</span>';
-        var accionHtml = n.leida
+    function renderCards(items) {
+      var filtered = applyModuloFilter(items);
+
+      if (!grid) return;
+      grid.innerHTML = "";
+
+      if (!filtered.length) {
+        if (emptyEl) emptyEl.style.display = "";
+        return;
+      }
+      if (emptyEl) emptyEl.style.display = "none";
+
+      for (var i = 0; i < filtered.length; i++) {
+        var n = filtered[i];
+        var moduleKey = moduloKeyFromTipo(n.tipo);
+        var moduleLabel = moduloLabelFromKey(moduleKey);
+        var nivel = nivelFromTipo(n.tipo);
+
+        var unreadClass = n.leida ? "" : " notif-card--unread";
+        var cardClass = "notif-card notif-card--" + nivel.key + unreadClass;
+
+        var icon = n.icono ? ("bx bx-" + String(n.icono)) : "bx bx-bell";
+
+        var snippet = truncateMsg(normalizeMsg(n.mensaje), 190);
+        var accion = n.leida
           ? '<span class="muted">—</span>'
           : '<form method="post" action="' + esc(listUrl) + '" style="display:inline;">' +
             '<input type="hidden" name="csrfmiddlewaretoken" value="' + esc(csrf) + '">' +
             '<input type="hidden" name="accion" value="marcar_leida">' +
             '<input type="hidden" name="notificacion_id" value="' + n.id + '">' +
             '<button type="submit" class="btn-ver" title="Marcar como leída"><i class="bx bx-check"></i></button></form>';
-        html += '<tr' + (rowClass ? ' class="' + rowClass + '"' : "") + '>' +
-          "<td><strong>#" + n.id + "</strong></td>" +
-          "<td>" + esc(n.titulo) + "</td>" +
-          '<td class="cell-msg">' + esc(truncateMsg(n.mensaje, 160)) + "</td>" +
-          '<td><span class="badge badge-abierta">' + esc(n.tipo) + "</span></td>" +
-          "<td>" + esc(fmtFecha(n.fecha_creacion)) + "</td>" +
-          "<td>" + estadoHtml + "</td>" +
-          "<td>" + accionHtml + "</td></tr>";
+
+        var cardHtml =
+          '<div class="' + cardClass + '" data-notif-id="' + n.id + '">' +
+            '<div class="notif-card__top">' +
+              '<div class="notif-card__titleRow">' +
+                '<div class="notif-card__icon notif-card__icon--' + nivel.key + '"><i class="' + icon + '"></i></div>' +
+                '<div>' +
+                  '<div class="notif-card__title">' + esc(n.titulo) + '</div>' +
+                  '<div class="notif-card__meta">' +
+                    '<span class="notif-module-tag">' + esc(moduleLabel) + '</span>' +
+                    '<span class="notif-level-tag notif-level-tag--' + nivel.key + '">' + esc(nivel.label) + '</span>' +
+                    (n.leida ? '<span class="notif-read-tag notif-read-tag--ok">Leída</span>' : '<span class="notif-read-tag notif-read-tag--no">No leída</span>') +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="notif-card__desc" title="' + esc(normalizeMsg(n.mensaje)) + '">' + esc(snippet) + '</div>' +
+            '<div class="notif-card__bottom">' +
+              '<div class="notif-card__date">' + esc(fmtFecha(n.fecha_creacion)) + '</div>' +
+              '<div class="notif-card__action">' + accion + '</div>' +
+            '</div>' +
+          '</div>';
+
+        grid.insertAdjacentHTML("beforeend", cardHtml);
       }
-      tbody.innerHTML = html;
     }
 
     function poll() {
       if (document.visibilityState === "hidden") return;
-      var qs = window.location.search || "";
-      fetch(pollUrl + qs, { credentials: "same-origin", headers: { "Accept": "application/json" } })
+      fetch(pollUrl, { credentials: "same-origin", headers: { "Accept": "application/json" } })
         .then(function (r) { return r.json(); })
         .then(function (data) {
           var elR = document.getElementById("stat-total-recibidas");
@@ -211,21 +240,43 @@
           if (elR) elR.textContent = data.total_recibidas;
           if (elN) elN.textContent = data.total_no_leidas;
           renderMarcarTodas(data.total_no_leidas);
-          if (tbody && data.notificaciones) {
-            renderTableRows(data.notificaciones);
-            if (emptyMsg) {
-              emptyMsg.style.display = data.notificaciones.length ? "none" : "";
-            }
-            if (tableWrap) {
-              tableWrap.style.display = data.notificaciones.length ? "" : "none";
-            }
-          }
+          lastItems = data.notificaciones || [];
+          renderCards(lastItems);
         })
         .catch(function () {});
     }
 
+    // Inicial: se muestra el contenido del servidor (ordenado desc) y luego se refresca con polling.
+    var lastItems = [
+      {% for n in notificaciones %}
+      {
+        "id": {{ n.id }},
+        "titulo": "{{ n.titulo|escapejs }}",
+        "mensaje": "{{ n.mensaje|escapejs }}",
+        "tipo": "{{ n.tipo|escapejs }}",
+        "icono": "{{ n.icono|escapejs }}",
+        "leida": {{ n.leida|yesno:"true,false" }},
+        "fecha_creacion": "{{ n.fecha_creacion|date:'c' }}"
+      }{% if not forloop.last %},{% endif %}
+      {% endfor %}
+    ];
+
+    // Eventos: botones por módulo (filtra sin recargar).
+    var moduloBtns = document.querySelectorAll(".notif-module-btn");
+    moduloBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        moduloBtns.forEach(function (b) { b.classList.remove("is-active"); });
+        this.classList.add("is-active");
+        activeModulo = this.getAttribute("data-modulo") || "todos";
+        renderCards(lastItems);
+      });
+    });
+
+    // Render inicial (y luego polling para tiempo casi real).
+    renderMarcarTodas({{ total_no_leidas }});
+    renderCards(lastItems);
+    setTimeout(poll, 2000);
     setInterval(poll, 12000);
-    setTimeout(poll, 4000);
   })();
   </script>
 </body>

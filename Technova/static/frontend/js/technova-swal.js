@@ -78,6 +78,18 @@
 
     /** Toast breve esquina superior derecha */
     toastOk: function (text) {
+      // Si existe el sistema moderno de alertas del carrito, úsalo para el mensaje típico
+      // (evita el toast simple con check verde que estás viendo en captura).
+      try {
+        var t = String(text || "");
+        if (
+          window.CarritoAlerts &&
+          typeof window.CarritoAlerts.success === "function" &&
+          /producto\s+agregado\s+al\s+carrito/i.test(t)
+        ) {
+          return window.CarritoAlerts.success("Producto agregado al carrito");
+        }
+      } catch (_ignore) {}
       return Swal.fire({
         toast: true,
         position: "top-end",
@@ -125,12 +137,44 @@
     /** Tras agregar al carrito: éxito y opción de ir al carrito en un solo paso */
     successChooseCart: function (message, cartUrl) {
       return Swal.fire({
-        icon: "success",
-        title: "¡Agregado al carrito!",
-        text: message || "Tu producto ya está en el carrito.",
+        icon: false,
+        html: `
+          <div style="text-align: center; padding: 30px 20px;">
+            <div style="margin-bottom: 20px;">
+              <div style="width: 100px; height: 100px; margin: 0 auto; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: scaleIn 0.5s ease-out;">
+                <i class="bx bx-check" style="font-size: 50px; color: white;"></i>
+              </div>
+            </div>
+            <h3 style="color: #0f172a; font-size: 1.8rem; font-weight: 700; margin-bottom: 12px;">¡Agregado al carrito!</h3>
+            <p style="color: #64748b; font-size: 1.1rem; margin: 0 0 20px 0; font-weight: 500;">${message || "Tu producto ya está en el carrito."}</p>
+            <div style="margin-bottom: 25px; display: flex; justify-content: center; gap: 10px;">
+              <span style="background: #f1f5f9; color: #334155; padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">
+                <i class="bx bx-cart" style="margin-right: 6px;"></i>Carrito actualizado
+              </span>
+              <span style="background: #dcfce7; color: #15803d; padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">
+                <i class="bx bx-check-circle" style="margin-right: 6px;"></i>Disponible
+              </span>
+            </div>
+          </div>
+        `,
         showCancelButton: true,
-        confirmButtonText: "Ir al carrito",
-        cancelButtonText: "Seguir aquí",
+        showConfirmButton: true,
+        confirmButtonText: '<i class="bx bx-shopping-bag" style="margin-right: 8px;"></i>Ir al carrito',
+        cancelButtonText: '<i class="bx bx-arrow-back" style="margin-right: 8px;"></i>Seguir comprando',
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b',
+        customClass: {
+          popup: 'custom-swal-popup',
+          confirmButton: 'custom-swal-confirm',
+          cancelButton: 'custom-swal-cancel'
+        },
+        backdrop: 'rgba(0, 0, 0, 0.4)',
+        showClass: {
+          popup: 'animate__animated animate__zoomIn'
+        },
+        hideClass: {
+          popup: 'animate__animated animate__zoomOut'
+        }
       }).then(function (r) {
         if (r.isConfirmed && cartUrl) window.location.href = cartUrl;
         return r;

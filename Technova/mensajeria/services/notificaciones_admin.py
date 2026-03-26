@@ -179,6 +179,29 @@ def notificar_usuario_nuevo(usuario: Usuario) -> None:
     )
 
 
+def notificar_usuario_actualizado(
+    *,
+    usuario_id: int,
+    correo: str,
+    cambios: list[str],
+    origen: str = "perfil",
+) -> None:
+    cambios_txt = ", ".join(cambios) if cambios else "datos"
+    msg = (
+        f"Se actualizó un usuario.\n"
+        f"Correo: {correo}\n"
+        f"Cambios: {cambios_txt}\n"
+        f"Origen: {origen}"
+    )
+    notificar_admins(
+        titulo=f"Usuario actualizado · {correo}",
+        mensaje=msg,
+        tipo="usuario.actualizado",
+        icono="edit-alt",
+        data_adicional={"usuario_id": usuario_id, "cambios": cambios, "origen": origen},
+    )
+
+
 def notificar_producto_nuevo(producto_id: int, nombre: str, stock: int) -> None:
     if stock == 0:
         extra = " (sin inventario — considera reabastecer)"
@@ -220,4 +243,68 @@ def notificar_producto_agotado(producto_id: int, nombre: str) -> None:
         tipo="inventario.agotado",
         icono="error-circle",
         data_adicional={"producto_id": producto_id},
+    )
+
+
+def notificar_producto_actualizado(
+    *,
+    producto_id: int,
+    nombre: str,
+    cambios: list[str],
+) -> None:
+    cambios_txt = ", ".join(cambios) if cambios else "actualización"
+    msg = f"Producto actualizado: {nombre}\nID: {producto_id}\nCambios: {cambios_txt}"
+    notificar_admins(
+        titulo=f"Producto actualizado · {nombre[:70]}",
+        mensaje=msg,
+        tipo="inventario.producto_actualizado",
+        icono="edit",
+        data_adicional={"producto_id": producto_id, "cambios": cambios},
+    )
+
+
+def notificar_stock_disminuido(
+    *,
+    producto_id: int,
+    nombre: str,
+    stock_anterior: int,
+    stock_actual: int,
+    motivo: str = "venta",
+) -> None:
+    if stock_actual >= stock_anterior:
+        return
+    diff = stock_anterior - stock_actual
+    msg = (
+        f"Disminución de stock ({motivo}).\n"
+        f"Producto: {nombre}\n"
+        f"ID: {producto_id}\n"
+        f"Antes: {stock_anterior} · Ahora: {stock_actual} (−{diff})"
+    )
+    notificar_admins(
+        titulo=f"Stock disminuyó · {nombre[:60]}",
+        mensaje=msg,
+        tipo="inventario.stock_disminuido",
+        icono="trending-down",
+        data_adicional={
+            "producto_id": producto_id,
+            "stock_anterior": stock_anterior,
+            "stock_actual": stock_actual,
+            "motivo": motivo,
+        },
+    )
+
+
+def notificar_pago_registrado(
+    *,
+    pago_id: int,
+    monto: Decimal,
+    numero_factura: str,
+) -> None:
+    msg = f"Pago #{pago_id} registrado.\nMonto: ${monto}\nFactura: {numero_factura}"
+    notificar_admins(
+        titulo=f"Pago registrado · ${monto}",
+        mensaje=msg,
+        tipo="pago.registrado",
+        icono="check-circle",
+        data_adicional={"pago_id": pago_id, "numero_factura": numero_factura},
     )

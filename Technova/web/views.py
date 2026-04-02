@@ -52,6 +52,7 @@ from usuario.application.use_cases.autenticacion_usecases import credenciales_co
 from usuario.infrastructure.models.usuario_model import Usuario
 from venta.models import Venta
 from venta.models import DetalleVenta
+from web.application.admin_web_service import producto_modal_dict  # ✅ AGREGAR IMPORTACIÓN FALTANTE
 
 logger = logging.getLogger(__name__)
 
@@ -1397,7 +1398,7 @@ def admin_inventario(request):
 
     productos = list(qs)
     productos_json = json.dumps(
-        [_producto_modal_dict(p) for p in productos],
+        [producto_modal_dict(p) for p in productos],  # ✅ CORREGIDO: Sin guion bajo
         ensure_ascii=False,
     )
 

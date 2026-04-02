@@ -1,0 +1,900 @@
+{% extends "frontend/base_admin.html" %}
+{% load static %}
+
+{% block title %}Correos - Technova{% endblock %}
+
+{% block extra_css %}
+<style>
+    .panel-correos-page {
+        --cc-primary: #5b6cf0;
+        --cc-primary-dark: #4a56d4;
+        --cc-accent: #8b5cf6;
+        --cc-surface: #ffffff;
+        --cc-surface-soft: #f8f9fc;
+        --cc-border: rgba(91, 108, 240, 0.12);
+        --cc-text: #1e293b;
+        --cc-text-muted: #64748b;
+        --cc-radius-lg: 20px;
+        --cc-radius-md: 14px;
+        --cc-shadow: 0 4px 24px rgba(30, 41, 59, 0.06);
+        --cc-shadow-hover: 0 12px 40px rgba(91, 108, 240, 0.12);
+        padding-bottom: 2.5rem;
+        background:
+            radial-gradient(ellipse 120% 80% at 100% -20%, rgba(139, 92, 246, 0.08), transparent 50%),
+            radial-gradient(ellipse 100% 60% at 0% 100%, rgba(91, 108, 240, 0.06), transparent 45%),
+            linear-gradient(180deg, #f1f4fb 0%, #eef1f8 100%);
+    }
+
+    .comunicaciones-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px;
+        margin-top: 8px;
+    }
+
+    @media (max-width: 991px) {
+        .comunicaciones-container {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .formulario-section,
+    .usuarios-section {
+        position: relative;
+        background: var(--cc-surface);
+        border-radius: var(--cc-radius-lg);
+        padding: 28px 30px 32px;
+        box-shadow: var(--cc-shadow);
+        border: 1px solid var(--cc-border);
+        overflow: hidden;
+    }
+
+    .formulario-section::before,
+    .usuarios-section::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--cc-primary), var(--cc-accent));
+        opacity: 0.92;
+        border-radius: var(--cc-radius-lg) var(--cc-radius-lg) 0 0;
+    }
+
+    .usuarios-section {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--cc-text);
+        margin-bottom: 22px;
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        letter-spacing: -0.02em;
+    }
+
+    .section-title i {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(91, 108, 240, 0.15), rgba(139, 92, 246, 0.12));
+        color: var(--cc-primary-dark);
+        font-size: 1.35rem;
+    }
+
+    .usuarios-section .section-title i {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.14), rgba(91, 108, 240, 0.1));
+        color: var(--cc-accent);
+    }
+
+    .form-group {
+        margin-bottom: 22px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 10px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--cc-text);
+        letter-spacing: 0.01em;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 14px 16px;
+        border: 1px solid #e2e8f0;
+        border-radius: var(--cc-radius-md);
+        font-size: 1rem;
+        box-sizing: border-box;
+        background: var(--cc-surface-soft);
+        color: var(--cc-text);
+        transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    .form-control::placeholder {
+        color: #94a3b8;
+    }
+
+    .form-control:hover {
+        border-color: #cbd5e1;
+        background: #fff;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--cc-primary);
+        background: #fff;
+        box-shadow: 0 0 0 4px rgba(91, 108, 240, 0.12);
+    }
+
+    textarea.form-control {
+        min-height: 140px;
+        resize: vertical;
+        line-height: 1.55;
+    }
+
+    .filtros-rapidos {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 18px;
+        flex-wrap: wrap;
+    }
+
+    .btn-filtro {
+        background: linear-gradient(180deg, #64748b 0%, #475569 100%);
+        color: #fff;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        transition: transform 0.15s, box-shadow 0.2s, filter 0.2s;
+        box-shadow: 0 2px 8px rgba(71, 85, 105, 0.25);
+    }
+
+    .btn-filtro:hover {
+        filter: brightness(1.06);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(71, 85, 105, 0.3);
+    }
+
+    .btn-filtro:active {
+        transform: translateY(0);
+    }
+
+    .btn-filtro i {
+        vertical-align: middle;
+        margin-right: 4px;
+        opacity: 0.95;
+    }
+
+    .btn-filtro.clientes {
+        background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+        box-shadow: 0 2px 10px rgba(22, 163, 74, 0.28);
+    }
+
+    .btn-filtro.clientes:hover {
+        box-shadow: 0 4px 16px rgba(22, 163, 74, 0.35);
+    }
+
+    .btn-filtro.empleados {
+        background: linear-gradient(180deg, #06b6d4 0%, #0891b2 100%);
+        box-shadow: 0 2px 10px rgba(8, 145, 178, 0.28);
+    }
+
+    .btn-filtro.empleados:hover {
+        box-shadow: 0 4px 16px rgba(8, 145, 178, 0.35);
+    }
+
+    .btn-filtro.admin {
+        background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+        color: #422006;
+        box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
+    }
+
+    .btn-filtro.admin:hover {
+        box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
+    }
+
+    /* Solo esta zona hace scroll; la página no crece con la lista */
+    .usuarios-table-scroll {
+        flex: 0 1 auto;
+        min-height: 0;
+        max-height: min(480px, calc(100vh - 340px));
+        overflow-y: auto;
+        overflow-x: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: var(--cc-radius-md);
+        background: var(--cc-surface-soft);
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8);
+    }
+
+    .usuarios-table-scroll::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+    }
+
+    .usuarios-table {
+        border-radius: var(--cc-radius-md);
+    }
+
+    .usuarios-table table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .paginacion-usuarios {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+        margin-top: 18px;
+        flex-wrap: wrap;
+        padding-top: 4px;
+    }
+
+    .btn-pag {
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: var(--cc-text);
+        border-radius: 10px;
+        padding: 8px 14px;
+        min-width: 40px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.875rem;
+        transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    }
+
+    .btn-pag:hover:not(:disabled) {
+        background: var(--cc-surface-soft);
+        border-color: var(--cc-primary);
+        color: var(--cc-primary-dark);
+    }
+
+    .btn-pag.activo {
+        background: linear-gradient(135deg, var(--cc-primary) 0%, var(--cc-accent) 100%);
+        border-color: transparent;
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(91, 108, 240, 0.35);
+    }
+
+    .btn-pag:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .usuarios-table th {
+        background: linear-gradient(180deg, #f1f5f9 0%, #e8eef5 100%);
+        padding: 14px 14px;
+        text-align: left;
+        font-weight: 700;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--cc-text-muted);
+        border-bottom: 1px solid #e2e8f0;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+    }
+
+    .usuarios-table td {
+        padding: 13px 14px;
+        border-bottom: 1px solid #eef2f7;
+        font-size: 0.9375rem;
+        color: var(--cc-text);
+    }
+
+    .usuarios-table tbody tr {
+        transition: background 0.15s;
+    }
+
+    .usuarios-table tbody tr:nth-child(even) {
+        background: rgba(255, 255, 255, 0.5);
+    }
+
+    .usuarios-table tbody tr:hover {
+        background: rgba(91, 108, 240, 0.06);
+    }
+
+    .checkbox-cell {
+        width: 52px;
+        text-align: center;
+    }
+
+    .usuarios-table input[type="checkbox"],
+    #selectAllCheckbox {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--cc-primary);
+        cursor: pointer;
+    }
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: capitalize;
+    }
+
+    .badge-cliente {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.08));
+        color: #15803d;
+        border: 1px solid rgba(34, 197, 94, 0.25);
+    }
+
+    .badge-empleado {
+        background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(6, 182, 212, 0.08));
+        color: #0e7490;
+        border: 1px solid rgba(6, 182, 212, 0.25);
+    }
+
+    .badge-admin {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.08));
+        color: #b45309;
+        border: 1px solid rgba(245, 158, 11, 0.35);
+    }
+
+    .btn-enviar {
+        background: linear-gradient(135deg, var(--cc-primary) 0%, var(--cc-accent) 100%);
+        color: #fff;
+        border: none;
+        padding: 14px 28px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
+        box-shadow: 0 8px 24px rgba(91, 108, 240, 0.35);
+        letter-spacing: 0.01em;
+    }
+
+    .btn-enviar:hover:not(:disabled) {
+        transform: translateY(-2px);
+        filter: brightness(1.03);
+        box-shadow: 0 12px 32px rgba(91, 108, 240, 0.42);
+    }
+
+    .btn-enviar:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+        transform: none;
+        filter: grayscale(0.15);
+    }
+
+    .estadisticas-cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 148px));
+        justify-content: center;
+        column-gap: 28px;
+        row-gap: 18px;
+        margin-bottom: 22px;
+    }
+
+    @media (max-width: 520px) {
+        .estadisticas-cards {
+            grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+            column-gap: 20px;
+            row-gap: 16px;
+        }
+    }
+
+    .stat-card {
+        position: relative;
+        padding: 14px 12px 16px;
+        border-radius: 14px;
+        text-align: center;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-width: 1px;
+        border-style: solid;
+        box-shadow: 0 2px 12px rgba(30, 41, 59, 0.06);
+    }
+
+    .stat-card::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        border-radius: 0 0 13px 13px;
+        opacity: 1;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+
+    /* Total envíos — violeta / índigo */
+    .stat-card--total {
+        background: linear-gradient(155deg, #eef2ff 0%, #e0e7ff 45%, #ddd6fe 100%);
+        border-color: #a5b4fc;
+        box-shadow: 0 4px 16px rgba(99, 102, 241, 0.18);
+    }
+
+    .stat-card--total::after {
+        background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7);
+    }
+
+    .stat-card--total:hover {
+        box-shadow: 0 10px 28px rgba(99, 102, 241, 0.28);
+    }
+
+    .stat-card--total .stat-number {
+        background: linear-gradient(135deg, #4338ca 0%, #7c3aed 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: #4338ca;
+    }
+
+    .stat-card--total .stat-label {
+        color: #5b21b6;
+    }
+
+    /* Envíos hoy — esmeralda / menta */
+    .stat-card--hoy {
+        background: linear-gradient(155deg, #ecfdf5 0%, #d1fae5 50%, #a7f3d0 100%);
+        border-color: #6ee7b7;
+        box-shadow: 0 4px 16px rgba(16, 185, 129, 0.2);
+    }
+
+    .stat-card--hoy::after {
+        background: linear-gradient(90deg, #059669, #10b981, #34d399);
+    }
+
+    .stat-card--hoy:hover {
+        box-shadow: 0 10px 28px rgba(16, 185, 129, 0.3);
+    }
+
+    .stat-card--hoy .stat-number {
+        background: linear-gradient(135deg, #047857 0%, #059669 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: #047857;
+    }
+
+    .stat-card--hoy .stat-label {
+        color: #065f46;
+    }
+
+    /* Usuarios — paleta Technova: Bondi Blue + San Marino + Eden (acorde al sistema) */
+    .stat-card--usuarios {
+        background: linear-gradient(
+            155deg,
+            #f4fbfc 0%,
+            rgba(156, 210, 211, 0.28) 45%,
+            rgba(7, 153, 182, 0.08) 100%
+        );
+        border-color: var(--san-marino, #4a6eb0);
+        box-shadow: 0 4px 16px rgba(74, 110, 176, 0.2);
+    }
+
+    .stat-card--usuarios::after {
+        background: linear-gradient(
+            90deg,
+            var(--bondi-blue, #0799b6),
+            var(--san-marino, #4a6eb0),
+            var(--eden, #114c5f)
+        );
+    }
+
+    .stat-card--usuarios:hover {
+        box-shadow: 0 10px 28px rgba(17, 76, 95, 0.22);
+    }
+
+    .stat-card--usuarios .stat-number {
+        background: linear-gradient(
+            135deg,
+            var(--eden, #114c5f) 0%,
+            var(--san-marino, #4a6eb0) 55%,
+            var(--bondi-blue, #0799b6) 100%
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: var(--eden, #114c5f);
+    }
+
+    .stat-card--usuarios .stat-label {
+        color: var(--eden-dark, #0d3a4a);
+    }
+
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+    }
+
+    .stat-label {
+        margin-top: 6px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        line-height: 1.35;
+        opacity: 0.92;
+    }
+
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.45);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+
+    .loading-spinner {
+        background: #fff;
+        padding: 36px 44px;
+        border-radius: var(--cc-radius-lg);
+        text-align: center;
+        border: 1px solid var(--cc-border);
+        box-shadow: 0 24px 64px rgba(15, 23, 42, 0.2);
+    }
+
+    .loading-spinner p {
+        margin: 0;
+        font-weight: 600;
+        color: var(--cc-text);
+        font-size: 0.95rem;
+    }
+
+    .spinner {
+        border: 3px solid #e8eef5;
+        border-top: 3px solid var(--cc-primary);
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        animation: spin 0.85s linear infinite;
+        margin: 0 auto 18px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid panel-correos-page">
+    <div class="estadisticas-cards">
+        <div class="stat-card stat-card--total">
+            <div class="stat-number">{{ total_envios }}</div>
+            <div class="stat-label">Total de Envíos</div>
+        </div>
+        <div class="stat-card stat-card--hoy">
+            <div class="stat-number">{{ envios_hoy }}</div>
+            <div class="stat-label">Envíos Hoy</div>
+        </div>
+        <div class="stat-card stat-card--usuarios">
+            <div class="stat-number">{{ usuarios.count }}</div>
+            <div class="stat-label">Usuarios Registrados</div>
+        </div>
+    </div>
+    
+    <form id="envioForm" method="post" action="{% url 'correos:enviar_correos' %}">
+        {% csrf_token %}
+        <div class="comunicaciones-container">
+            <!-- Formulario de Redacción -->
+            <div class="formulario-section">
+            <h2 class="section-title">
+                <i class='bx bx-envelope'></i>
+                Redacción de Mensaje
+            </h2>
+            <div class="form-group">
+                <label for="asunto">Asunto *</label>
+                <input type="text" id="asunto" name="asunto" class="form-control" 
+                       placeholder="Escribe el asunto del correo" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="mensaje">Mensaje *</label>
+                <textarea id="mensaje" name="mensaje" class="form-control" 
+                          placeholder="Escribe el contenido del correo" required></textarea>
+            </div>
+            
+            <button type="submit" class="btn-enviar" id="btnEnviar">
+                <i class='bx bx-send'></i>
+                Enviar a Seleccionados
+            </button>
+            </div>
+            
+            <!-- Panel de Destinatarios -->
+            <div class="usuarios-section">
+            <h2 class="section-title">
+                <i class='bx bx-group'></i>
+                Destinatarios
+            </h2>
+            
+            <div class="filtros-rapidos">
+                <button type="button" class="btn-filtro" onclick="seleccionarTodos()">
+                    <i class='bx bx-check-double'></i> Seleccionar Todos
+                </button>
+                <button type="button" class="btn-filtro" onclick="deseleccionarTodos()">
+                    <i class='bx bx-checkbox'></i> Deseleccionar
+                </button>
+                <button type="button" class="btn-filtro" onclick="mostrarTodos()">
+                    <i class='bx bx-group'></i> Todos
+                </button>
+                <button type="button" class="btn-filtro clientes" onclick="filtrarPorRol('cliente')">
+                    <i class='bx bx-user'></i> Solo Clientes
+                </button>
+                <button type="button" class="btn-filtro empleados" onclick="filtrarPorRol('empleado')">
+                    <i class='bx bx-user-voice'></i> Solo Empleados
+                </button>
+                <button type="button" class="btn-filtro admin" onclick="filtrarPorRol('admin')">
+                    <i class='bx bx-shield'></i> Solo Admin
+                </button>
+            </div>
+            
+            <div class="usuarios-table-scroll" aria-label="Lista de destinatarios">
+                <div class="usuarios-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="checkbox-cell">
+                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleAllCheckboxes()">
+                                </th>
+                                <th>Nombre</th>
+                                <th>Email</th>
+                                <th>Rol</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usuariosTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="paginacionUsuarios" class="paginacion-usuarios"></div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>Enviando correos...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const usuariosOriginales = [
+    {% for usuario in usuarios %}
+    {
+        id: {{ usuario.id }},
+        nombres: "{{ usuario.nombres|escapejs }}",
+        email: "{{ usuario.correo_electronico|escapejs }}",
+        rol: "{{ usuario.rol }}"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+const usuariosSeleccionados = new Set();
+let filtroActual = "";
+let paginaActual = 1;
+const TAM_PAGINA = 10;
+
+function obtenerUsuariosFiltrados() {
+    if (!filtroActual) return usuariosOriginales;
+    return usuariosOriginales.filter(u => u.rol === filtroActual);
+}
+
+function crearFilaUsuario(usuario) {
+    const tr = document.createElement('tr');
+    const rolClass = usuario.rol === 'admin' ? 'admin' : (usuario.rol === 'empleado' ? 'empleado' : 'cliente');
+    const checked = usuariosSeleccionados.has(String(usuario.id)) ? "checked" : "";
+
+    tr.innerHTML = `
+        <td class="checkbox-cell">
+            <input type="checkbox" value="${usuario.id}" class="usuario-checkbox" ${checked}>
+        </td>
+        <td>${usuario.nombres}</td>
+        <td>${usuario.email}</td>
+        <td>
+            <span class="badge badge-${rolClass}">
+                ${usuario.rol.charAt(0).toUpperCase() + usuario.rol.slice(1)}
+            </span>
+        </td>
+    `;
+    return tr;
+}
+
+function renderPaginacion(totalPaginas) {
+    const cont = document.getElementById('paginacionUsuarios');
+    if (!cont) return;
+    cont.innerHTML = '';
+
+    const btnPrev = document.createElement('button');
+    btnPrev.type = 'button';
+    btnPrev.className = 'btn-pag';
+    btnPrev.textContent = 'Anterior';
+    btnPrev.disabled = paginaActual <= 1;
+    btnPrev.onclick = () => {
+        if (paginaActual > 1) {
+            paginaActual -= 1;
+            renderTablaUsuarios();
+        }
+    };
+    cont.appendChild(btnPrev);
+
+    for (let p = 1; p <= totalPaginas; p += 1) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn-pag' + (p === paginaActual ? ' activo' : '');
+        b.textContent = String(p);
+        b.onclick = () => {
+            paginaActual = p;
+            renderTablaUsuarios();
+        };
+        cont.appendChild(b);
+    }
+
+    const btnNext = document.createElement('button');
+    btnNext.type = 'button';
+    btnNext.className = 'btn-pag';
+    btnNext.textContent = 'Siguiente';
+    btnNext.disabled = paginaActual >= totalPaginas;
+    btnNext.onclick = () => {
+        if (paginaActual < totalPaginas) {
+            paginaActual += 1;
+            renderTablaUsuarios();
+        }
+    };
+    cont.appendChild(btnNext);
+}
+
+function syncMasterCheckbox() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const pageCheckboxes = document.querySelectorAll('.usuario-checkbox');
+    if (!selectAllCheckbox || !pageCheckboxes.length) {
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+        return;
+    }
+    const checkedCount = Array.from(pageCheckboxes).filter(cb => cb.checked).length;
+    selectAllCheckbox.checked = checkedCount === pageCheckboxes.length;
+    selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < pageCheckboxes.length;
+}
+
+function renderTablaUsuarios() {
+    const tbody = document.getElementById('usuariosTableBody');
+    if (!tbody) return;
+    const filtrados = obtenerUsuariosFiltrados();
+    const totalPaginas = Math.max(1, Math.ceil(filtrados.length / TAM_PAGINA));
+    if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+
+    const ini = (paginaActual - 1) * TAM_PAGINA;
+    const pageItems = filtrados.slice(ini, ini + TAM_PAGINA);
+
+    tbody.innerHTML = '';
+    pageItems.forEach(usuario => tbody.appendChild(crearFilaUsuario(usuario)));
+    renderPaginacion(totalPaginas);
+    syncMasterCheckbox();
+    actualizarContadorSeleccionados();
+}
+
+function seleccionarTodos() {
+    obtenerUsuariosFiltrados().forEach(u => usuariosSeleccionados.add(String(u.id)));
+    renderTablaUsuarios();
+}
+
+function deseleccionarTodos() {
+    usuariosSeleccionados.clear();
+    renderTablaUsuarios();
+}
+
+function toggleAllCheckboxes() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const pageCheckboxes = document.querySelectorAll('.usuario-checkbox');
+    pageCheckboxes.forEach(checkbox => {
+        const id = String(checkbox.value);
+        checkbox.checked = !!selectAllCheckbox.checked;
+        if (checkbox.checked) usuariosSeleccionados.add(id);
+        else usuariosSeleccionados.delete(id);
+    });
+    syncMasterCheckbox();
+    actualizarContadorSeleccionados();
+}
+
+function filtrarPorRol(rol) {
+    filtroActual = rol || "";
+    paginaActual = 1;
+    renderTablaUsuarios();
+}
+
+function mostrarTodos() {
+    filtroActual = "";
+    paginaActual = 1;
+    renderTablaUsuarios();
+}
+
+function actualizarContadorSeleccionados() {
+    const botonEnviar = document.getElementById('btnEnviar');
+    const contador = usuariosSeleccionados.size;
+    if (contador > 0) {
+        botonEnviar.innerHTML = `<i class='bx bx-send'></i> Enviar a ${contador} seleccionados`;
+    } else {
+        botonEnviar.innerHTML = `<i class='bx bx-send'></i> Enviar a Seleccionados`;
+    }
+}
+
+document.addEventListener('change', function(e) {
+    if (!e.target.classList.contains('usuario-checkbox')) return;
+    const id = String(e.target.value);
+    if (e.target.checked) usuariosSeleccionados.add(id);
+    else usuariosSeleccionados.delete(id);
+    syncMasterCheckbox();
+    actualizarContadorSeleccionados();
+});
+
+document.getElementById('envioForm').addEventListener('submit', function(e) {
+    if (usuariosSeleccionados.size === 0) {
+        e.preventDefault();
+        Swal.fire('Error', 'Debes seleccionar al menos un destinatario', 'error');
+        return;
+    }
+
+    // Reinyectar campos hidden antes de enviar para preservar selección de todas las páginas.
+    this.querySelectorAll('input[type="hidden"][name="usuarios_seleccionados"]').forEach(el => el.remove());
+    usuariosSeleccionados.forEach(id => {
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'usuarios_seleccionados';
+        hidden.value = id;
+        this.appendChild(hidden);
+    });
+
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    const botonEnviar = document.getElementById('btnEnviar');
+    botonEnviar.disabled = true;
+    botonEnviar.innerHTML = '<i class="bx bx-loader-circle"></i> Enviando...';
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    renderTablaUsuarios();
+});
+</script>
+{% endblock %}

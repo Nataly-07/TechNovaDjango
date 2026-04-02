@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ asunto }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header img {
+            max-width: 150px;
+            height: auto;
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 1.8rem;
+            margin-top: 15px;
+            font-weight: 600;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .promo-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+        
+        .product-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 2px solid #e9ecef;
+        }
+        
+        .product-image {
+            width: 100%;
+            max-width: 300px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .product-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .product-price {
+            font-size: 1.8rem;
+            color: #667eea;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .product-description {
+            color: #6c757d;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .custom-message {
+            background: #e8f4fd;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .footer {
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .footer p {
+            margin-bottom: 10px;
+        }
+        
+        .social-links {
+            margin-top: 15px;
+        }
+        
+        .social-links a {
+            color: white;
+            margin: 0 10px;
+            font-size: 1.2rem;
+            text-decoration: none;
+        }
+        
+        .social-links a:hover {
+            color: #667eea;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            
+            .content {
+                padding: 25px 20px;
+            }
+            
+            .product-card {
+                padding: 20px;
+            }
+            
+            .cta-button {
+                display: block;
+                text-align: center;
+                padding: 12px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔥 PROMOCIÓN ESPECIAL</h1>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <div class="promo-badge">OFERTA LIMITADA</div>
+            
+            {% if mensaje_usuario %}
+            <div class="custom-message">
+                {{ mensaje_usuario|linebreaks }}
+            </div>
+            {% endif %}
+            
+            <div class="product-card">
+                {% if imagen_producto_url %}
+                <img src="{{ imagen_producto_url }}" alt="{{ producto.nombre }}" width="320" style="display:block;max-width:100%;max-height:220px;width:auto;height:auto;margin:0 auto 20px;border-radius:8px;object-fit:contain;">
+                {% else %}
+                <div style="width: 100%; max-width: 300px; height: 200px; background: #e9ecef; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: #6c757d; font-size: 14px;">
+                    Sin imagen
+                </div>
+                {% endif %}
+                
+                <h2 class="product-name">{{ producto.nombre }}</h2>
+                
+                {% if precio_promocion %}
+                <div class="product-price" style="text-align: center; margin-bottom: 15px;">
+                    {% if precio_regular %}
+                    <div style="text-decoration: line-through; color: #6c757d; font-size: 0.9rem;">
+                        Precio regular: ${{ precio_regular|floatformat:2 }}
+                    </div>
+                    {% endif %}
+                    <div style="color: #28a745; font-size: 1.4rem; font-weight: bold;">
+                        Precio promoción: ${{ precio_promocion|floatformat:2 }}
+                    </div>
+                    {% if ahorro %}
+                    <div style="color: #dc3545; font-size: 0.9rem; font-weight: 600;">
+                        ¡Ahorras ${{ ahorro|floatformat:2 }}!
+                    </div>
+                    {% endif %}
+                </div>
+                {% elif producto.precio_venta %}
+                <div class="product-price">
+                    ${{ producto.precio_venta|floatformat:2 }}
+                </div>
+                {% endif %}
+                
+                {% if producto.descripcion %}
+                <div class="product-description">
+                    {{ producto.descripcion|truncatewords:30 }}
+                </div>
+                {% endif %}
+                
+                <center>
+                    <a href="#" class="cta-button">
+                        <i class="bx bx-cart"></i> Ver Producto
+                    </a>
+                </center>
+            </div>
+            
+            <p style="text-align: center; color: #6c757d; margin-top: 30px;">
+                Esta oferta es por tiempo limitado. ¡Aprovecha ahora!
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>Technova</strong></p>
+            <p>Tu tienda de confianza para tecnología</p>
+            <div class="social-links">
+                <a href="#"><i class="bx bxl-facebook"></i></a>
+                <a href="#"><i class="bx bxl-twitter"></i></a>
+                <a href="#"><i class="bx bxl-instagram"></i></a>
+            </div>
+            <p style="font-size: 0.8rem; margin-top: 20px; opacity: 0.8;">
+                © 2024 Technova. Todos los derechos reservados.<br>
+                Si no deseas recibir estos correos, puedes cancelar tu suscripción.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

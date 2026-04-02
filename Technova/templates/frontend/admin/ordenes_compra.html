@@ -1,0 +1,526 @@
+{% extends "frontend/base_admin.html" %}
+{% load static %}
+
+{% block title %}Órdenes de Compra — Technova{% endblock %}
+
+{% block extra_css %}
+<style>
+.ordenes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.ordenes-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ordenes-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.stat-card--pendiente {
+    border-left: 4px solid #f59e0b;
+}
+
+.stat-card--recibida {
+    border-left: 4px solid #10b981;
+}
+
+.stat-card--cancelada {
+    border-left: 4px solid #ef4444;
+}
+
+.stat-card--total {
+    border-left: 4px solid #6366f1;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.filtros-ordenes {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 2rem;
+}
+
+.filtros-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.filtro-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filtro-group label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.filtro-group select,
+.filtro-group input {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.filtro-group select:focus,
+.filtro-group input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filtros-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+.ordenes-table {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.ordenes-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ordenes-table th {
+    background: #f8fafc;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.ordenes-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.ordenes-table tr:hover {
+    background: #f8fafc;
+}
+
+.estado-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.estado-badge--pendiente {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.estado-badge--recibida {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.estado-badge--cancelada {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.orden-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-action {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.btn-action--primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-action--primary:hover {
+    background: #2563eb;
+}
+
+.btn-action--secondary {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.btn-action--secondary:hover {
+    background: #e5e7eb;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #64748b;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+@media (max-width: 768px) {
+    .ordenes-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .ordenes-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .filtros-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .ordenes-table {
+        overflow-x: auto;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ordenes-header">
+    <div>
+        <h1 class="ordenes-title">
+            <i class="bx bx-cart-alt"></i>
+            Órdenes de Compra
+        </h1>
+        <p style="color: #64748b; margin-top: 0.5rem;">Gestiona las órdenes de compra a proveedores</p>
+    </div>
+    <a href="{% url 'web_admin_orden_compra_crear' %}" class="btn-action btn-action--primary">
+        <i class="bx bx-plus"></i>
+        Nueva Orden
+    </a>
+</div>
+
+<!-- Estadísticas -->
+<div class="ordenes-stats">
+    <div class="stat-card stat-card--total">
+        <div class="stat-number">{{ stats.total_ordenes }}</div>
+        <div class="stat-label">Total de Órdenes</div>
+    </div>
+    <div class="stat-card stat-card--pendiente">
+        <div class="stat-number">{{ stats.pendientes }}</div>
+        <div class="stat-label">Pendientes</div>
+    </div>
+    <div class="stat-card stat-card--recibida">
+        <div class="stat-number">{{ stats.recibidas }}</div>
+        <div class="stat-label">Recibidas</div>
+    </div>
+    <div class="stat-card stat-card--cancelada">
+        <div class="stat-number">{{ stats.canceladas }}</div>
+        <div class="stat-label">Canceladas</div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="filtros-ordenes">
+    <form method="GET" class="filtros-form">
+        <div class="filtros-grid">
+            <div class="filtro-group">
+                <label for="estado">Estado</label>
+                <select name="estado" id="estado">
+                    <option value="">Todos los estados</option>
+                    {% for estado_value, estado_label in estados %}
+                    <option value="{{ estado_value }}" {% if filtros_actuales.estado == estado_value %}selected{% endif %}>
+                        {{ estado_label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filtro-group">
+                <label for="proveedor">Proveedor</label>
+                <select name="proveedor" id="proveedor">
+                    <option value="">Todos los proveedores</option>
+                    {% for proveedor in proveedores %}
+                    <option value="{{ proveedor.id }}" {% if filtros_actuales.proveedor == proveedor.id|stringformat:"s" %}selected{% endif %}>
+                        {{ proveedor.nombre }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filtro-group">
+                <label for="fecha_desde">Fecha desde</label>
+                <input type="date" name="fecha_desde" id="fecha_desde" value="{{ filtros_actuales.fecha_desde }}">
+            </div>
+            <div class="filtro-group">
+                <label for="fecha_hasta">Fecha hasta</label>
+                <input type="date" name="fecha_hasta" id="fecha_hasta" value="{{ filtros_actuales.fecha_hasta }}">
+            </div>
+            <div class="filtro-group">
+                <label for="busqueda">Búsqueda</label>
+                <input type="text" name="busqueda" id="busqueda" placeholder="ID o proveedor..." value="{{ filtros_actuales.busqueda }}">
+            </div>
+        </div>
+        <div class="filtros-actions">
+            <button type="submit" class="btn-action btn-action--primary">
+                <i class="bx bx-search"></i>
+                Buscar
+            </button>
+            <a href="{% url 'web_admin_ordenes_compra' %}" class="btn-action btn-action--secondary">
+                <i class="bx bx-x"></i>
+                Limpiar
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Tabla de Órdenes -->
+<div class="ordenes-table">
+    {% if ordenes %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Proveedor</th>
+                <th>Fecha</th>
+                <th>Total</th>
+                <th>Estado</th>
+                <th>Productos</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for orden in ordenes %}
+            <tr>
+                <td><strong>#{{ orden.id }}</strong></td>
+                <td>{{ orden.proveedor.nombre }}</td>
+                <td>{{ orden.fecha|date:"d/m/Y" }}</td>
+                <td>${{ orden.total|floatformat:2 }}</td>
+                <td>
+                    <span class="estado-badge estado-badge--{{ orden.estado }}">
+                        {{ orden.get_estado_display }}
+                    </span>
+                </td>
+                <td>{{ orden.detalles.count }}</td>
+                <td>
+                    <div class="orden-actions">
+                        <a href="{% url 'web_admin_orden_compra_detalle' orden.id %}" class="btn-action btn-action--primary">
+                            <i class="bx bx-eye"></i>
+                            Ver
+                        </a>
+                        {% if orden.estado == 'pendiente' %}
+                        <button class="btn-action btn-action--secondary btn-cambiar-estado" 
+                                data-orden-id="{{ orden.id }}" 
+                                data-nuevo-estado="recibida">
+                            <i class="bx bx-check"></i>
+                            Recibir
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <i class="bx bx-cart-alt"></i>
+        <h3>No se encontraron órdenes</h3>
+        <p>No hay órdenes de compra que coincidan con los filtros seleccionados.</p>
+        <a href="{% url 'web_admin_orden_compra_crear' %}" class="btn-action btn-action--primary">
+            <i class="bx bx-plus"></i>
+            Crear Primera Orden
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal para cambiar estado -->
+<div id="modalCambiarEstado" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Cambiar Estado de Orden</h3>
+            <button class="modal-close" onclick="cerrarModalEstado()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>¿Está seguro de cambiar el estado de la orden <strong>#<span id="ordenId"></span></strong>?</p>
+            <p>Esta acción no se puede deshacer.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-action btn-action--secondary" onclick="cerrarModalEstado()">Cancelar</button>
+            <button class="btn-action btn-action--primary" id="btnConfirmarCambio">Confirmar</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let ordenIdSeleccionado = null;
+let nuevoEstadoSeleccionado = null;
+
+// Funciones para cambiar estado
+function abrirModalEstado(ordenId, nuevoEstado) {
+    ordenIdSeleccionado = ordenId;
+    nuevoEstadoSeleccionado = nuevoEstado;
+    
+    document.getElementById('ordenId').textContent = ordenId;
+    document.getElementById('modalCambiarEstado').style.display = 'flex';
+}
+
+function cerrarModalEstado() {
+    document.getElementById('modalCambiarEstado').style.display = 'none';
+    ordenIdSeleccionado = null;
+    nuevoEstadoSeleccionado = null;
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Botones para cambiar estado
+    document.querySelectorAll('.btn-cambiar-estado').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const ordenId = this.dataset.ordenId;
+            const nuevoEstado = this.dataset.nuevoEstado;
+            abrirModalEstado(ordenId, nuevoEstado);
+        });
+    });
+    
+    // Botón de confirmación
+    document.getElementById('btnConfirmarCambio').addEventListener('click', function() {
+        if (ordenIdSeleccionado && nuevoEstadoSeleccionado) {
+            fetch(`/admin/ordenes-compra/${ordenIdSeleccionado}/cambiar-estado/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: `estado=${nuevoEstadoSeleccionado}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    cerrarModalEstado();
+                    location.reload();
+                } else {
+                    alert(data.message || 'Error al cambiar estado');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cambiar estado');
+            });
+        }
+    });
+    
+    // Cerrar modal al hacer clic fuera
+    document.getElementById('modalCambiarEstado').addEventListener('click', function(e) {
+        if (e.target === this) {
+            cerrarModalEstado();
+        }
+    });
+});
+</script>
+
+<style>
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #0f172a;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #64748b;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 2rem;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "frontend/base_admin.html" %}
+{% load static %}
+
+{% block title %}Test Órdenes — Technova{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <h1 style="color: #0f172a; margin-bottom: 2rem;">
+        <i class="bx bx-test"></i>
+        Test de Órdenes de Compra
+    </h1>
+    
+    {% if import_exitosa %}
+        <div style="background: #d1fae5; color: #065f46; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
+            <h3 style="margin: 0 0 0.5rem 0;">✅ Importación exitosa</h3>
+            <p style="margin: 0;">Los modelos de órdenes se importaron correctamente.</p>
+        </div>
+        
+        {% if mensaje %}
+            <div style="background: #dbeafe; color: #1e40af; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
+                <p style="margin: 0;">{{ mensaje }}</p>
+            </div>
+        {% endif %}
+        
+        {% if error %}
+            <div style="background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
+                <h3 style="margin: 0 0 0.5rem 0;">⚠️ Error en los datos</h3>
+                <p style="margin: 0;">{{ error }}</p>
+            </div>
+        {% endif %}
+        
+        <div style="background: #f8fafc; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+            <h3 style="margin: 0 0 1rem 0;">🔍 Información del Sistema</h3>
+            <ul style="margin: 0; padding-left: 1.5rem; color: #64748b;">
+                <li>Usuario: {{ usuario.nombres }} {{ usuario.apellidos }}</li>
+                <li>Rol: {{ usuario.rol }}</li>
+                <li>Total de órdenes: {{ total_ordenes }}</li>
+            </ul>
+        </div>
+        
+        <div style="display: flex; gap: 1rem;">
+            <a href="{% url 'web_admin_ordenes_compra' %}" style="background: #3b82f6; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                <i class="bx bx-arrow-right"></i>
+                Ir a Órdenes de Compra
+            </a>
+            <a href="{% url 'web_admin_perfil' %}" style="background: #f3f4f6; color: #374151; padding: 0.75rem 1.5rem; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                <i class="bx bx-arrow-back"></i>
+                Volver al Panel
+            </a>
+        </div>
+        
+    {% else %}
+        <div style="background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
+            <h3 style="margin: 0 0 0.5rem 0;">❌ Error de importación</h3>
+            <p style="margin: 0;">{{ error }}</p>
+        </div>
+        
+        <div style="background: #f8fafc; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+            <h3 style="margin: 0 0 1rem 0;">🔍 Pasos para solucionar:</h3>
+            <ol style="margin: 0; padding-left: 1.5rem; color: #64748b;">
+                <li>Verificar que el módulo `orden` esté en INSTALLED_APPS</li>
+                <li>Ejecutar migraciones: `python manage.py migrate`</li>
+                <li>Reiniciar el servidor de desarrollo</li>
+                <li>Verificar que no haya errores en los modelos</li>
+            </ol>
+        </div>
+        
+        <a href="{% url 'web_admin_perfil' %}" style="background: #f3f4f6; color: #374151; padding: 0.75rem 1.5rem; border-radius: 8px; text-decoration: none; font-weight: 600;">
+            <i class="bx bx-arrow-back"></i>
+            Volver al Panel
+        </a>
+    {% endif %}
+</div>
+{% endblock %}

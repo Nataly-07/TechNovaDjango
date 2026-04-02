@@ -59,12 +59,53 @@
     return "/static/frontend/imagenes/placeholder.svg";
   }
 
-  function precioDisplay(p) {
+  function toNumber(v) {
+    if (v === null || v === undefined) return NaN;
+    const s = String(v).replace(",", ".");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  function format0(n) {
+    const x = toNumber(n);
+    if (!Number.isFinite(x)) return "0";
+    return Math.round(x).toLocaleString("es-CO");
+  }
+
+  function precioHtml(p) {
     const c = p.caracteristica || {};
-    const pv = c.precio_venta || p.precio_venta;
-    if (pv) return "$" + Number(String(pv).replace(",", "")).toLocaleString("es-CO");
-    const costo = p.costo_unitario || "0";
-    return "$" + Number(String(costo).replace(",", "")).toLocaleString("es-CO");
+    const promoActiva = p.promocion_activa ?? c.promocion_activa ?? false;
+    const baseRaw =
+      p.precio_base ??
+      c.precio_base ??
+      c.precio_venta ??
+      p.precio_venta ??
+      p.costo_unitario;
+    const promoRaw = p.precio_promocion ?? c.precio_promocion ?? p.precioPromocion;
+
+    const base = toNumber(baseRaw);
+    const promo = toNumber(promoRaw);
+
+    const hasPromo =
+      !!promoActiva && Number.isFinite(base) && Number.isFinite(promo) && promo > 0 && promo < base;
+
+    if (hasPromo) {
+      const pct = Math.round(((base - promo) * 100.0) / base);
+      return (
+        '<p class="precio-original">$<span>' +
+        format0(base) +
+        '</span></p>' +
+        '<p class="precio-descuento">$<span>' +
+        format0(promo) +
+        "</span>" +
+        (pct > 0 ? '<span class="descuento">-' + pct + "%</span>" : "") +
+        "</p>"
+      );
+    }
+
+    return (
+      '<p><strong>$<span>' + format0(base) + "</span></strong></p>"
+    );
   }
 
   function cardHtml(p) {
@@ -94,9 +135,7 @@
       disp +
       "</div>" +
       "<p>4.5 ⭐</p>" +
-      "<p><strong>" +
-      precioDisplay(p) +
-      "</strong></p>" +
+      precioHtml(p) +
       '<div style="display:flex;gap:8px;justify-content:center;align-items:center;">' +
       '<button type="button" class="carrito-btn js-carrito" data-producto-id="' +
       p.id +

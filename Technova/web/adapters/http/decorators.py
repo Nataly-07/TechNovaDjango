@@ -23,16 +23,24 @@ def admin_login_required(view_func):
 
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
+        print(f"🔍 DEBUG: Sesión completa: {dict(request.session)}")
         uid = request.session.get(SESSION_USUARIO_ID)
+        print(f"🔍 DEBUG: UID extraído: {uid}")
         if not uid:
+            print("🔍 DEBUG: No hay UID, redirigiendo a login")
             return redirect("web_login")
         try:
+            print(f"🔍 DEBUG: Buscando usuario con pk={uid}")
             usuario = Usuario.objects.get(pk=uid)
+            print(f"🔍 DEBUG: Usuario encontrado: {usuario}, rol: {usuario.rol}")
         except Usuario.DoesNotExist:
+            print("🔍 DEBUG: Usuario no existe, limpiando sesión y redirigiendo")
             request.session.flush()
             return redirect("web_login")
         if usuario.rol != Usuario.Rol.ADMIN:
+            print(f"🔍 DEBUG: Usuario no es admin ({usuario.rol}), redirigiendo a inicio")
             return redirect("inicio_autenticado")
+        print(f"🔍 DEBUG: Usuario admin válido, ejecutando vista")
         return view_func(request, *args, **kwargs)
 
     return _wrapped

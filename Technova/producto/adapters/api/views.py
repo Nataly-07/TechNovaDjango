@@ -7,6 +7,7 @@ from common.api import error_response, parse_json_body, success_response
 from common.auth import require_auth
 from common.container import get_producto_service
 from producto.domain.entities import ProductoEntidad
+from producto.models import Producto
 from proveedor.models import Proveedor
 
 
@@ -20,6 +21,24 @@ def _nombre_proveedor(proveedor_id: int) -> str:
 
 def _serialize_producto(entidad: ProductoEntidad) -> dict:
     precio = entidad.precio_venta if entidad.precio_venta is not None else entidad.costo_unitario
+    promocion_activa = False
+    precio_promocion = None
+    fecha_fin_promocion = None
+    try:
+        p_model = Producto.objects.only(
+            "precio_promocion", "fecha_fin_promocion", "precio_venta", "costo_unitario"
+        ).get(id=entidad.id)
+        promocion_activa = bool(p_model.promocion_activa)
+        precio_promocion = (
+            str(p_model.precio_promocion) if p_model.precio_promocion is not None else None
+        )
+        fecha_fin_promocion = (
+            p_model.fecha_fin_promocion.isoformat() if p_model.fecha_fin_promocion else None
+        )
+        if promocion_activa and p_model.precio_promocion is not None:
+            precio = p_model.precio_promocion
+    except Exception:  # noqa: BLE001
+        pass
     return {
         "id": entidad.id,
         "codigo": entidad.codigo,
@@ -31,6 +50,9 @@ def _serialize_producto(entidad: ProductoEntidad) -> dict:
         "estado": entidad.activo,
         "costo_unitario": str(entidad.costo_unitario),
         "precio_venta": str(entidad.precio_venta) if entidad.precio_venta is not None else None,
+        "precio_promocion": precio_promocion,
+        "fecha_fin_promocion": fecha_fin_promocion,
+        "promocion_activa": promocion_activa,
         "caracteristica": {
             "categoria": entidad.categoria,
             "marca": entidad.marca,

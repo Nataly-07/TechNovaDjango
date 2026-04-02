@@ -63,11 +63,26 @@ def perfil_admin(request):
     notificaciones_no_leidas = Notificacion.objects.filter(
         usuario_id=uid, leida=False
     ).count()
+    
+    # Importar y contar órdenes de compra con manejo de errores
+    ordenes_compra_count = 0
+    try:
+        from orden.infrastructure.models import OrdenCompra
+        ordenes_compra_count = OrdenCompra.objects.count()
+    except ImportError:
+        try:
+            from orden.models import OrdenCompra
+            ordenes_compra_count = OrdenCompra.objects.count()
+        except ImportError:
+            # El módulo de órdenes no está disponible
+            pass
+    
     ctx = {
         "usuario": usuario,
         "users_count": Usuario.objects.count(),
         "productos_count": Producto.objects.filter(activo=True).count(),
         "proveedores_count": Proveedor.objects.filter(activo=True).count(),
+        "ordenes_compra_count": ordenes_compra_count,
         "reportes_disponibles": 3,
         "mensajes_pendientes": mensajes_pendientes,
         "notificaciones_no_leidas": notificaciones_no_leidas,

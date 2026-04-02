@@ -1,0 +1,62 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}Panel Administración — Technova{% endblock %}</title>
+  <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="admin-page">
+  <header class="header">
+    <div class="logo" style="cursor: default;">
+      <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Logo Technova" width="50" height="50" loading="eager" decoding="async">
+      <span>TECHNOVA</span>
+    </div>
+    <div class="header-welcome">
+      <h1>¡Bienvenido{% if usuario %}, <span>{{ usuario.nombres }}</span>{% else %}<span>Administrador</span>{% endif %}!</h1>
+      <p>Panel de administración de Technova</p>
+    </div>
+    <div class="acciones-usuario">
+      <a href="{% url 'web_admin_perfil' %}" class="account"><i class="bx bx-user-circle"></i> <span>Perfil</span></a>
+      <form method="post" action="{% url 'web_logout' %}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="account" style="background:none;border:none;color:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">
+          <i class="bx bx-log-out"></i> <span>Cerrar Sesión</span>
+        </button>
+      </form>
+    </div>
+  </header>
+
+  <div class="dashboard-wrapper">
+    {% include "frontend/layouts/sidebar_admin.html" %}
+
+    <main class="main-content">
+      {% for message in messages %}
+      <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+        <i class="bx {% if message.tags == 'error' %}bx-error-circle{% else %}bx-check-circle{% endif %}"></i>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <footer>
+    <p>&copy; 2025 Technova</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="{% static 'frontend/js/technova-swal.js' %}?v=2"></script>
+  <script src="{% static 'frontend/js/carrito-alerts.js' %}?v=1"></script>
+  <script src="{% static 'frontend/js/carrito-mejorado.js' %}?v=1"></script>
+  <script src="{% static 'frontend/js/carrito-inline.js' %}?v=1"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

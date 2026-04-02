@@ -68,7 +68,8 @@ def usuario_modal_dict(u: Usuario) -> dict:
 
 
 def producto_modal_dict(p: Producto) -> dict:
-    precio = p.precio_venta if p.precio_venta is not None else p.costo_unitario
+    precio_base = p.precio_venta if p.precio_venta is not None else p.costo_unitario
+    precio_publico = p.precio_publico if hasattr(p, "precio_publico") else precio_base
     
     # Obtener imágenes adicionales
     imagenes_adicionales = []
@@ -82,23 +83,35 @@ def producto_modal_dict(p: Producto) -> dict:
             for img in p.imagenes.filter(activa=True).order_by('orden')
         ]
     
+    # Obtener imagen principal
+    imagen_url = ""
+    if hasattr(p, 'imagen') and p.imagen:
+        imagen_url = p.imagen.url
+    elif hasattr(p, 'imagen_url') and p.imagen_url:
+        imagen_url = p.imagen_url
+    
     return {
         "id": p.id,
         "codigo": p.codigo,
         "nombre": p.nombre,
         "stock": p.stock,
-        "estado": p.activo,
-        "imagen": p.imagen_url or "",
+        "activo": p.activo,
+        "imagen": imagen_url,
         "imagenes_adicionales": imagenes_adicionales,
         "proveedor": p.proveedor.nombre if p.proveedor_id else "",
-        "caracteristica": {
-            "categoria": p.categoria,
-            "marca": p.marca,
-            "color": p.color or "",
-            "descripcion": p.descripcion,
-            "precioCompra": str(p.costo_unitario),
-            "precioVenta": str(precio) if precio is not None else None,
-        },
+        "categoria": p.categoria,
+        "marca": p.marca,
+        "color": p.color or "",
+        "descripcion": p.descripcion or "",
+        "costo_unitario": float(p.costo_unitario) if p.costo_unitario else 0,
+        "precio_venta": float(p.precio_venta) if p.precio_venta else None,
+        "precio_promocion": float(p.precio_promocion) if p.precio_promocion else None,
+        "fecha_fin_promocion": (
+            p.fecha_fin_promocion.isoformat() if p.fecha_fin_promocion else None
+        ),
+        "promocion_activa": bool(getattr(p, "promocion_activa", False)),
+        "precio_base": float(precio_base) if precio_base is not None else 0,
+        "precio": float(precio_publico) if precio_publico is not None else 0,
     }
 
 

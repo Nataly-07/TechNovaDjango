@@ -7,6 +7,23 @@ from usuario.adapters.web.session_views import (
     registro_web,
 )
 from web import views
+from web.adapters.http.views_ordenes import (
+    admin_ordenes_compra,
+    admin_orden_compra_detalle,
+    admin_orden_compra_crear,
+    admin_orden_compra_cambiar_estado,
+    admin_ordenes_compra_api,
+)
+from web.adapters.http.views_ordenes_test import admin_ordenes_compra_test
+from web.adapters.http.ordenes_views import (
+    listar_ordenes,
+    mostrar_formulario_crear,
+    guardar_orden,
+    recibir_orden,
+    obtener_detalle_orden_api,
+)
+from web.adapters.http.debug_ordenes import debug_ordenes, debug_ordenes_auth
+from web.adapters.http.views_promociones import admin_producto_promocionar, admin_producto_info
 
 urlpatterns = [
     path("", views.root_entry, name="root"),
@@ -63,9 +80,28 @@ urlpatterns = [
         name="web_admin_proveedor_estado",
     ),
     path("admin/proveedores/", views.admin_proveedores, name="web_admin_proveedores"),
+    # URLs de Órdenes de Compra - Exactamente como en Spring Boot
+    path("admin/ordenes/", listar_ordenes, name="web_admin_ordenes_compra"),
+    path("admin/ordenes/crear/", mostrar_formulario_crear, name="web_admin_orden_compra_crear"),
+    path("admin/ordenes/guardar/", guardar_orden, name="web_admin_orden_compra_guardar"),
+    path("admin/ordenes/recibir/<int:orden_id>/", recibir_orden, name="web_admin_orden_compra_recibir"),
+    path("admin/ordenes/api/<int:orden_id>/", obtener_detalle_orden_api, name="web_admin_ordenes_compra_api"),
+    # URLs antiguas (mantener para compatibilidad)
+    path("admin/ordenes-compra/", admin_ordenes_compra, name="web_admin_ordenes_compra_old"),
+    path("admin/ordenes-compra/test/", admin_ordenes_compra_test, name="web_admin_ordenes_compra_test"),
+    path("admin/ordenes-compra/crear/", admin_orden_compra_crear, name="web_admin_orden_compra_crear_old"),
+    path("admin/ordenes-compra/<int:orden_id>/", admin_orden_compra_detalle, name="web_admin_orden_compra_detalle"),
+    path("admin/ordenes-compra/<int:orden_id>/cambiar-estado/", admin_orden_compra_cambiar_estado, name="web_admin_orden_compra_cambiar_estado"),
+    path("admin/ordenes-compra/api/", admin_ordenes_compra_api, name="web_admin_ordenes_compra_api_old"),
     path("admin/reportes/", views.admin_reportes, name="web_admin_reportes"),
     path("admin/reportes/<str:tipo>/preview/", views.admin_reportes_preview, name="web_admin_reportes_preview"),
     path("admin/reportes/<str:tipo>/pdf/", views.admin_reportes_pdf, name="web_admin_reportes_pdf"),
+    # URLs de depuración
+    path("debug/ordenes/", debug_ordenes, name="debug_ordenes"),
+    path("debug/ordenes-auth/", debug_ordenes_auth, name="debug_ordenes_auth"),
+    # URLs de promociones
+    path("admin/producto/<int:producto_id>/promocionar/", admin_producto_promocionar, name="web_admin_producto_promocionar"),
+    path("admin/producto/<int:producto_id>/info/", admin_producto_info, name="web_admin_producto_info"),
     path("admin/pagos/", views.admin_pagos, name="web_admin_pagos"),
     path(
         "admin/pagos/detalle/<int:pago_id>/",

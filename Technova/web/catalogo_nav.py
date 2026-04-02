@@ -31,12 +31,21 @@ def listas_categorias_marcas_publicas():
 
 
 def _precio_tarjeta_index(p: Producto):
+    """
+    Valores SSR para tarjetas de catálogo (tachado + promoción resaltada).
+    """
     base = p.precio_venta if p.precio_venta is not None else p.costo_unitario
     if base is None:
-        return None, None
-    d = float(base)
-    o = round(d * 1.05)
-    return o, d
+        return None, None, None
+
+    base = float(base)
+    if getattr(p, "promocion_activa", False) and getattr(p, "precio_promocion", None):
+        promo = float(p.precio_promocion)
+        if promo > 0 and promo < base:
+            pct = (base - promo) * 100.0 / base
+            return base, promo, int(round(pct))
+
+    return None, base, None
 
 
 def _imagen_producto_publica(p: Producto) -> str:
@@ -51,7 +60,7 @@ def _imagen_producto_publica(p: Producto) -> str:
 
 
 def producto_card_ctx(p: Producto) -> dict:
-    po, pd = _precio_tarjeta_index(p)
+    po, pd, descuento_pct = _precio_tarjeta_index(p)
     return {
         "id": p.id,
         "nombre": p.nombre,
@@ -59,6 +68,7 @@ def producto_card_ctx(p: Producto) -> dict:
         "stock": p.stock or 0,
         "precio_original": po,
         "precio_descuento": pd,
+        "descuento_pct": descuento_pct,
     }
 
 

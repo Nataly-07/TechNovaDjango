@@ -116,6 +116,18 @@
           </div>
         </div>
         <div class="card">
+          <div class="card-icon"><i class="bx bx-cart-alt"></i></div>
+          <div class="card-content">
+            <h3>Órdenes de Compra</h3>
+            <p>Gestiona órdenes a proveedores</p>
+            <div class="card-stats">
+              <span class="stat-number">{{ ordenes_compra_count }}</span>
+              <span class="stat-label">órdenes registradas</span>
+            </div>
+            <a href="{% url 'web_admin_ordenes_compra' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Gestionar Órdenes</a>
+          </div>
+        </div>
+        <div class="card">
           <div class="card-icon"><i class="bx bx-message"></i></div>
           <div class="card-content">
             <h3>Mensajes</h3>

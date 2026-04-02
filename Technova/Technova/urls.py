@@ -23,6 +23,7 @@ from common.health_views import health_live, health_ready
 urlpatterns = [
     path("", include("web.urls")),
     path("admin/", admin.site.urls),
+    path("correos/", include("correos.urls")),
     path("api/v1/health/live/", health_live, name="health_live"),
     path("api/v1/health/ready/", health_ready, name="health_ready"),
     path("api/health/live/", health_live, name="health_live_alias"),

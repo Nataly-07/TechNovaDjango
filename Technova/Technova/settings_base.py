@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "mensajeria",
     "carrito",
     "pago",
+    "correos",
 ]
 
 MIDDLEWARE = [

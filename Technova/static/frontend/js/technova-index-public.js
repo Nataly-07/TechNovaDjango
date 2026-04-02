@@ -33,22 +33,55 @@
       stock > 0
         ? '<span class="producto-stock-badge producto-stock-badge--ok"><span>✓</span><span>Disponible</span></span>'
         : '<span class="producto-stock-badge producto-stock-badge--no"><span>✗</span><span>Agotado</span></span>';
+    function toNumber(v) {
+      if (v === null || v === undefined) return NaN;
+      var s = String(v).replace(",", ".");
+      var n = Number(s);
+      return Number.isFinite(n) ? n : NaN;
+    }
+
+    function format0(v) {
+      var x = toNumber(v);
+      if (!Number.isFinite(x)) return "0";
+      return Math.round(x).toLocaleString("es-CO");
+    }
+
     var c = p.caracteristica || {};
-    var pv = c.precio_venta || p.precio_venta;
-    var precioNum = pv ? Number(String(pv).replace(",", ".")) : NaN;
-    var costo = p.costo_unitario ? Number(String(p.costo_unitario).replace(",", ".")) : NaN;
-    var effective = !isNaN(precioNum) ? precioNum : !isNaN(costo) ? costo : null;
+    var promoActiva = p.promocion_activa ?? c.promocion_activa ?? false;
+    var baseRaw =
+      p.precio_base ??
+      c.precio_base ??
+      c.precio_venta ??
+      p.precio_venta ??
+      p.costo_unitario;
+    var promoRaw = p.precio_promocion ?? c.precio_promocion ?? p.precioPromocion;
+    var base = toNumber(baseRaw);
+    var promo = toNumber(promoRaw);
+
     var precioPart = "";
-    if (effective != null) {
-      var orig = Math.round(effective * 1.05);
-      var desc = Math.round(effective);
+    var hasPromo =
+      !!promoActiva &&
+      Number.isFinite(base) &&
+      Number.isFinite(promo) &&
+      promo > 0 &&
+      promo < base;
+
+    if (hasPromo) {
+      var pct = Math.round(((base - promo) * 100.0) / base);
       precioPart =
         '<p class="precio-original">$<span>' +
-        orig +
+        format0(base) +
         "</span></p>" +
         '<p class="precio-descuento">$<span>' +
-        desc +
-        '</span><span class="descuento">-5%</span></p>';
+        format0(promo) +
+        "</span>" +
+        (pct > 0 ? '<span class="descuento">-' + pct + "%</span>" : "") +
+        "</p>";
+    } else {
+      precioPart =
+        '<p><strong>$<span>' +
+        format0(base) +
+        '</span></strong></p>';
     }
     return (
       '<div class="producto" data-id="' +

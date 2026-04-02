@@ -118,7 +118,9 @@
         <p>4.5 ⭐</p>
         {% if p.precio_original and p.precio_descuento %}
         <p class="precio-original">$<span>{{ p.precio_original|floatformat:0 }}</span></p>
-        <p class="precio-descuento">$<span>{{ p.precio_descuento|floatformat:0 }}</span><span class="descuento">-5%</span></p>
+        <p class="precio-descuento">$<span>{{ p.precio_descuento|floatformat:0 }}</span>{% if p.descuento_pct %}<span class="descuento">-{{ p.descuento_pct|floatformat:0 }}%</span>{% endif %}</p>
+        {% else %}
+        <p><strong>$<span>{{ p.precio_descuento|floatformat:0 }}</span></strong></p>
         {% endif %}
         <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--carrusel">&#128722;</a>
       </div>
@@ -174,7 +176,9 @@
         <p>4.5 ⭐</p>
         {% if p.precio_original and p.precio_descuento %}
         <p class="precio-original">$<span>{{ p.precio_original|floatformat:0 }}</span></p>
-        <p class="precio-descuento">$<span>{{ p.precio_descuento|floatformat:0 }}</span><span class="descuento">-5%</span></p>
+        <p class="precio-descuento">$<span>{{ p.precio_descuento|floatformat:0 }}</span>{% if p.descuento_pct %}<span class="descuento">-{{ p.descuento_pct|floatformat:0 }}%</span>{% endif %}</p>
+        {% else %}
+        <p><strong>$<span>{{ p.precio_descuento|floatformat:0 }}</span></strong></p>
         {% endif %}
         <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--carrusel">&#128722;</a>
       </div>
@@ -206,7 +210,9 @@
       <p class="rating">4.9 ⭐</p>
       {% if oferta_dia.precio_original and oferta_dia.precio_descuento %}
       <p class="precio-original">$<span>{{ oferta_dia.precio_original|floatformat:0 }}</span></p>
-      <p class="precio-descuento">$<span>{{ oferta_dia.precio_descuento|floatformat:0 }}</span><span class="descuento">-5%</span></p>
+      <p class="precio-descuento">$<span>{{ oferta_dia.precio_descuento|floatformat:0 }}</span>{% if oferta_dia.descuento_pct %}<span class="descuento">-{{ oferta_dia.descuento_pct|floatformat:0 }}%</span>{% endif %}</p>
+      {% else %}
+      <p><strong>$<span>{{ oferta_dia.precio_descuento|floatformat:0 }}</span></strong></p>
       {% endif %}
       <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--dia">&#128722;</a>
     </div>
@@ -235,7 +241,9 @@
         <p class="rating">4.9 ⭐</p>
         {% if p.precio_original and p.precio_descuento %}
         <p class="precio-original">$<span>{{ p.precio_original|floatformat:0 }}</span></p>
-        <p class="precio-descuento">$<span>{{ p.precio_descuento|floatformat:0 }}</span><span class="descuento">-5%</span></p>
+        <p class="precio-descuento">$<span>{{ p.precio_descuento|floatformat:0 }}</span>{% if p.descuento_pct %}<span class="descuento">-{{ p.descuento_pct|floatformat:0 }}%</span>{% endif %}</p>
+        {% else %}
+        <p><strong>$<span>{{ p.precio_descuento|floatformat:0 }}</span></strong></p>
         {% endif %}
         <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--mini">&#128722;</a>
       </div>

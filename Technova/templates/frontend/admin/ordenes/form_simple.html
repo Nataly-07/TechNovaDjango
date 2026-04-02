@@ -1,0 +1,316 @@
+{% extends "frontend/base_admin.html" %}
+{% load static %}
+
+{% block title %}Nueva Orden de Compra - Technova{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .form-header {
+        margin-bottom: 30px;
+        border-bottom: 2px solid #f0f0f0;
+        padding-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .form-header h2 {
+        margin: 0;
+        color: #2c3e50;
+    }
+    
+    .back-link {
+        color: #667eea;
+        font-size: 1.5rem;
+        transition: transform 0.2s;
+        text-decoration: none;
+    }
+    
+    .back-link:hover {
+        transform: translateX(-3px);
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 1rem;
+        box-sizing: border-box;
+    }
+
+    .productos-section {
+        margin-top: 30px;
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 12px;
+    }
+    
+    .productos-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .btn-add-product {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .btn-add-product:hover {
+        background: #5a6268;
+    }
+
+    .detalle-row {
+        display: grid;
+        grid-template-columns: 3fr 1fr 1fr auto;
+        gap: 15px;
+        margin-bottom: 15px;
+        align-items: end;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .btn-remove {
+        background: #dc3545;
+        color: white;
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-remove:hover {
+        background: #c82333;
+    }
+
+    .form-actions {
+        margin-top: 30px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 15px;
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .alert-error {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #f5c6cb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="form-header">
+        <a href="{% url 'web_admin_ordenes_compra' %}" class="back-link"><i class='bx bx-arrow-back'></i></a>
+        <h2>Nueva Orden de Compra</h2>
+    </div>
+
+    {% for message in messages %}
+        {% if message.tags == 'error' %}
+            <div class="alert-error">{{ message }}</div>
+        {% endif %}
+    {% endfor %}
+
+    <form action="{% url 'web_admin_orden_compra_guardar' %}" method="post" id="ordenForm">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="proveedor">Proveedor *</label>
+            <select id="proveedor" name="proveedor_id" class="form-control" required>
+                <option value="">-- Seleccionar Proveedor --</option>
+                {% for prov in proveedores %}
+                    <option value="{{ prov.id }}">{{ prov.nombre }} ({{ prov.empresa|default:'Particular' }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="productos-section">
+            <div class="productos-header">
+                <h3 style="margin:0; font-size: 1.1rem; color: #495057;">Detalles de la Orden</h3>
+                <button type="button" class="btn-add-product" onclick="agregarProducto()">
+                    <i class='bx bx-plus'></i> Agregar Producto
+                </button>
+            </div>
+
+            <div id="detalles-container">
+                <!-- Las filas se agregarán aquí dinámicamente -->
+            </div>
+            
+            <div id="empty-msg" style="text-align: center; color: #888; padding: 20px;">
+                Ningún producto agregado.
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{% url 'web_admin_ordenes_compra' %}" class="btn-modal-secondary" style="text-decoration: none; padding: 12px 24px; border-radius: 10px; display: inline-flex; align-items: center; color: #333; background: #e0e0e0;">Cancelar</a>
+            <button type="submit" class="btn-submit">
+                <i class='bx bx-save'></i> Registrar Orden
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Template oculto para copiar filas -->
+<template id="producto-row-template">
+    <div class="detalle-row">
+        <div class="form-group" style="margin-bottom: 0;">
+            <label>Producto</label>
+            <select name="producto_id[]" class="form-control producto-select" required onchange="actualizarPrecio(this)">
+                <option value="">-- Seleccionar --</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label>Cantidad</label>
+            <input type="number" name="cantidad[]" class="form-control" min="1" value="1" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label>Costo Unit.</label>
+            <input type="number" name="precio_unitario[]" class="form-control precio-input" step="0.01" min="0" placeholder="Auto">
+        </div>
+        <button type="button" class="btn-remove" onclick="eliminarFila(this)">
+            <i class='bx bx-trash'></i>
+        </button>
+    </div>
+</template>
+
+<!-- Script simplificado -->
+<script>
+    // Datos de productos (hardcodeado temporalmente para evitar errores)
+    const productosDisponibles = [
+        {% for producto in productos %}
+        {
+            id: {{ producto.id }},
+            nombre: "{{ producto.nombre|safe }}",
+            stock: {{ producto.stock|default:0 }},
+            precio_venta: {{ producto.precio_venta|default:0 }},
+            precio_compra: {{ producto.precio_compra|default:0 }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    let contadorFilas = 0;
+
+    function agregarProducto() {
+        console.log('🔧 Agregando producto...');
+        
+        const container = document.getElementById('detalles-container');
+        const template = document.getElementById('producto-row-template');
+        const emptyMsg = document.getElementById('empty-msg');
+        
+        if (!container || !template) {
+            console.error('❌ No se encontraron elementos necesarios');
+            return;
+        }
+        
+        emptyMsg.style.display = 'none';
+        const clone = template.content.cloneNode(true);
+        const row = clone.querySelector('.detalle-row');
+        const select = row.querySelector('.producto-select');
+        
+        // Llenar select con productos
+        productosDisponibles.forEach(prod => {
+            const option = document.createElement('option');
+            option.value = prod.id;
+            option.setAttribute('data-precio', prod.precio_compra || 0);
+            option.text = prod.nombre + ' (Stock: ' + prod.stock + ')';
+            select.appendChild(option);
+        });
+        
+        container.appendChild(row);
+        contadorFilas++;
+        console.log('✅ Fila agregada. Total:', contadorFilas);
+    }
+
+    function eliminarFila(btn) {
+        const row = btn.closest('.detalle-row');
+        row.remove();
+        
+        const container = document.getElementById('detalles-container');
+        if (container.children.length === 0) {
+            document.getElementById('empty-msg').style.display = 'block';
+        }
+    }
+
+    function actualizarPrecio(select) {
+        const precio = select.options[select.selectedIndex].getAttribute('data-precio');
+        const row = select.closest('.detalle-row');
+        const inputPrecio = row.querySelector('.precio-input');
+        
+        if(precio && precio !== '0') {
+            inputPrecio.value = precio;
+        }
+    }
+
+    // Agregar una fila inicial al cargar
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('📊 Productos disponibles:', productosDisponibles.length);
+        agregarProducto();
+    });
+
+    // Validar formulario antes de enviar
+    document.getElementById('ordenForm').addEventListener('submit', function(e) {
+        const container = document.getElementById('detalles-container');
+        if (container.children.length === 0) {
+            e.preventDefault();
+            Swal.fire('Error', 'Debes agregar al menos un producto a la orden', 'error');
+        }
+    });
+</script>
+{% endblock %}

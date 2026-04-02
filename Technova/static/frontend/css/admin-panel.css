@@ -439,6 +439,38 @@ body.admin-page-perfil .dashboard-wrapper .main-content {
   background: linear-gradient(135deg, #2f4b68 0%, #1f3552 100%);
 }
 
+/* Promocionar: botón naranja GRANDE y visible */
+.btn-accion.btn-promocion {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  color: #fff;
+  font-weight: 700;
+  margin-left: 8px;
+  min-width: 140px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  border: 2px solid #ff6b6b;
+  box-shadow: 0 2px 8px rgba(238, 90, 36, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-accion.btn-promocion:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 16px rgba(238, 90, 36, 0.4);
+  background: linear-gradient(135deg, #ff5252 0%, #ff6b6b 100%);
+  border-color: #ff5252;
+}
+
+.btn-accion.btn-promocion:active {
+  transform: translateY(0) scale(1);
+  box-shadow: 0 2px 6px rgba(238, 90, 36, 0.3);
+}
+
+.btn-accion.btn-promocion i {
+  font-size: 1.1rem;
+  margin-right: 4px;
+}
+
 .btn-modal {
   flex: 1;
   min-width: 140px;
@@ -1610,8 +1642,9 @@ table.pedido-lines {
 
 .acciones-botones {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .btn-accion {

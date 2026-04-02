@@ -1,0 +1,571 @@
+{% extends "frontend/base_admin.html" %}
+{% load static %}
+
+{% block title %}Gestión de Órdenes de Compra - Technova{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dashboard-wrapper .main-content {
+    flex: 1;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 24px 24px 24px 0;
+    overflow-x: visible;
+  }
+
+  .ordenes-container {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 12px 30px rgba(24, 39, 75, 0.08);
+    border: 1px solid #e8edf7;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    min-height: calc(100vh - 140px);
+  }
+
+  .ordenes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+  }
+
+  .ordenes-header h2 {
+    color: #2c3e50;
+    margin: 0;
+    font-size: 1.8rem;
+  }
+
+  .btn-agregar {
+    background: linear-gradient(135deg, #00cc44 0%, #00a638 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    text-decoration: none;
+  }
+
+  .btn-agregar:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 204, 68, 0.3);
+    color: white;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    border: 1px solid #e8edf7;
+    border-radius: 14px;
+    background: #fff;
+  }
+
+  .table-ordenes {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+    background: white;
+  }
+
+  .table-ordenes thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+
+  .table-ordenes th,
+  .table-ordenes td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .table-ordenes th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+  }
+
+  .table-ordenes tbody tr:hover {
+    background: #f7f9fc;
+  }
+
+  .badge-estado {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .badge-pendiente {
+    background: #fff3cd;
+    color: #856404;
+  }
+
+  .badge-recibida {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .btn-recibir {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+  }
+
+  .btn-recibir:hover {
+    background: #218838;
+  }
+
+  .alert {
+    padding: 15px 20px;
+    border-radius: 10px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  .alert-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+
+  .modal-detalle-orden {
+    display: none;
+    position: fixed;
+    z-index: 1200;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-detalle-content {
+    background: #fff;
+    border-radius: 18px;
+    width: min(980px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid #e5edf8;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.2);
+    animation: fadeIn 0.2s ease;
+  }
+
+  .modal-detalle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 22px;
+    border-bottom: 1px solid #e9eef7;
+  }
+
+  .modal-detalle-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.25rem;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .modal-close-btn {
+    border: none;
+    background: #eef3fb;
+    color: #43556f;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+  }
+
+  .modal-detalle-body {
+    padding: 18px 22px 22px;
+  }
+
+  .orden-resumen-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .resumen-card {
+    background: #f8fbff;
+    border: 1px solid #e5edf8;
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+
+  .resumen-label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #60738e;
+    margin-bottom: 4px;
+  }
+
+  .resumen-value {
+    font-weight: 700;
+    color: #24374f;
+  }
+
+  .modal-estado-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .modal-estado-pendiente {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #f7e09f;
+  }
+
+  .modal-estado-recibida {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #bde2c6;
+  }
+
+  .detalle-productos-title {
+    margin: 0 0 10px;
+    color: #32445f;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .detalle-productos-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #e6edf8;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .detalle-productos-table th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 10px;
+    text-align: left;
+  }
+
+  .detalle-productos-table td {
+    padding: 10px;
+    border-bottom: 1px solid #edf2fb;
+    color: #2e3f59;
+  }
+
+  .detalle-productos-table tbody tr:nth-child(even) {
+    background: #f9fbff;
+  }
+
+  .modal-detalle-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .btn-modal-action {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-factura {
+    background: #17a2b8;
+    color: #fff;
+  }
+
+  .btn-cerrar-modal {
+    background: #6c757d;
+    color: #fff;
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-wrapper .main-content {
+      padding: 16px;
+    }
+
+    .ordenes-container {
+      padding: 20px;
+      border-radius: 16px;
+    }
+
+    .orden-resumen-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ordenes-container">
+  <div class="ordenes-header">
+    <h2><i class='bx bx-cart'></i> Gestión de Órdenes de Compra</h2>
+    <div style="display: flex; gap: 10px;">
+      <a href="{% url 'web_admin_orden_compra_crear' %}" class="btn-agregar">
+        <i class='bx bx-plus-circle'></i> Nueva Orden
+      </a>
+    </div>
+  </div>
+
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">
+      <i class='bx {% if message.tags == "error" %}bx-error-circle{% else %}bx-check-circle{% endif %}'></i>
+      <span>{{ message }}</span>
+    </div>
+  {% endfor %}
+
+  <div class="table-container">
+    <table class="table-ordenes" {% if ordenes %}{% else %}style="display: none;"{% endif %}>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Proveedor</th>
+          <th>Fecha</th>
+          <th>Total</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for orden in ordenes %}
+        <tr onclick="verDetalleOrden({{ orden.id }})" style="cursor: pointer; transition: background-color 0.2s;">
+          <td>{{ orden.id }}</td>
+          <td>{{ orden.proveedor_nombre }}</td>
+          <td>{{ orden.fecha|date:"d/m/Y" }}</td>
+          <td>${{ orden.total|floatformat:2 }}</td>
+          <td>
+            {% if orden.estado == 'pendiente' %}
+              <span class="badge-estado badge-pendiente">Pendiente</span>
+            {% elif orden.estado == 'recibida' %}
+              <span class="badge-estado badge-recibida">Recibida</span>
+            {% endif %}
+          </td>
+          <td onclick="event.stopPropagation()">
+            {% if orden.estado == 'pendiente' %}
+              <form action="{% url 'web_admin_orden_compra_recibir' orden.id %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="button" class="btn-recibir" onclick="confirmarRecepcion(this.form)" title="Recibir Pedido">
+                  <i class='bx bx-check-double'></i> Recibir Orden
+                </button>
+              </form>
+            {% elif orden.estado == 'recibida' %}
+              <span style="color: #28a745; font-size: 0.9em;">
+                <i class='bx bx-check'></i> Completada
+              </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="empty-state" {% if ordenes %}style="display: none;"{% else %}{% endif %} style="text-align: center; padding: 40px; color: #7f8c8d;">
+      <i class='bx bx-cart-alt' style="font-size: 4rem; opacity: 0.5;"></i>
+      <h3>No hay órdenes registradas</h3>
+      <p>Comienza creando una nueva orden de compra.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalle Orden -->
+<div id="modalDetalle" class="modal-detalle-orden">
+  <div class="modal-detalle-content">
+    <div class="modal-detalle-header">
+      <h3><i class='bx bx-file'></i> Detalle de Orden #<span id="modalId"></span></h3>
+      <button class="modal-close-btn" onclick="cerrarModal()">&times;</button>
+    </div>
+    <div class="modal-detalle-body">
+      <div class="orden-resumen-grid">
+        <div class="resumen-card">
+          <span class="resumen-label">Proveedor</span>
+          <span class="resumen-value" id="modalProveedor">-</span>
+        </div>
+        <div class="resumen-card">
+          <span class="resumen-label">Fecha</span>
+          <span class="resumen-value" id="modalFecha">-</span>
+        </div>
+        <div class="resumen-card">
+          <span class="resumen-label">Estado</span>
+          <span id="modalEstado" class="modal-estado-badge">-</span>
+        </div>
+        <div class="resumen-card">
+          <span class="resumen-label">Total</span>
+          <span class="resumen-value" id="modalTotal">-</span>
+        </div>
+      </div>
+
+      <h4 class="detalle-productos-title">Productos de la orden</h4>
+      <table class="detalle-productos-table">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th style="text-align:center;">Cant.</th>
+            <th style="text-align:right;">Precio Unit.</th>
+            <th style="text-align:right;">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody id="modalTablaCuerpo"></tbody>
+      </table>
+
+      <div class="modal-detalle-actions">
+        <button onclick="imprimirFactura()" class="btn-modal-action btn-factura">
+          <i class='bx bx-printer'></i> Factura
+        </button>
+        <button onclick="cerrarModal()" class="btn-modal-action btn-cerrar-modal">
+          <i class='bx bx-x'></i> Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function confirmarRecepcion(form) {
+    Swal.fire({
+      title: '¿Recibir Orden?',
+      text: "El stock de los productos se actualizará automáticamente. Esta acción no se puede deshacer.",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#28a745',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Sí, recibir productos',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        form.submit();
+      }
+    })
+  }
+
+  function formatCurrency(value) {
+    return '$ ' + Number(value || 0).toLocaleString('es-CO');
+  }
+
+  function verDetalleOrden(id) {
+    // Mostrar loading
+    Swal.fire({
+      title: 'Cargando...',
+      text: 'Obteniendo detalles de la orden',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    fetch('/admin/ordenes-compra/api/' + id)
+      .then(response => {
+        if (!response.ok) throw new Error('Error al cargar la orden');
+        return response.json();
+      })
+      .then(orden => {
+        Swal.close();
+
+        // Llenar datos
+        document.getElementById('modalId').textContent = orden.id;
+        document.getElementById('modalProveedor').textContent = orden.proveedor_nombre;
+        const fecha = new Date(orden.fecha);
+        document.getElementById('modalFecha').textContent = fecha.toLocaleDateString('es-CO');
+        const estadoEl = document.getElementById('modalEstado');
+        estadoEl.textContent = orden.estado === 'recibida' ? 'Recibida' : 'Pendiente';
+        estadoEl.className = 'modal-estado-badge ' + (orden.estado === 'recibida' ? 'modal-estado-recibida' : 'modal-estado-pendiente');
+        document.getElementById('modalTotal').textContent = formatCurrency(orden.total);
+
+        // Llenar tabla
+        const tbody = document.getElementById('modalTablaCuerpo');
+        tbody.innerHTML = '';
+
+        orden.detalles.forEach(d => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+                      <td>${d.producto_nombre}</td>
+                      <td style="text-align: center;">${d.cantidad}</td>
+                      <td style="text-align: right;">${formatCurrency(d.precio_unitario)}</td>
+                      <td style="text-align: right;">${formatCurrency(d.subtotal)}</td>
+                  `;
+          tbody.appendChild(tr);
+        });
+
+        // Mostrar modal
+        const modal = document.getElementById('modalDetalle');
+        modal.style.display = 'flex';
+      })
+      .catch(error => {
+        Swal.fire('Error', 'No se pudo cargar la información de la orden', 'error');
+        console.error(error);
+      });
+  }
+
+  function cerrarModal() {
+    document.getElementById('modalDetalle').style.display = 'none';
+  }
+
+  function imprimirFactura() {
+    window.print();
+  }
+
+  // Cerrar al hacer clic fuera
+  window.onclick = function (event) {
+    const modal = document.getElementById('modalDetalle');
+    if (event.target == modal) {
+      modal.style.display = "none";
+    }
+  }
+</script>
+{% endblock %}

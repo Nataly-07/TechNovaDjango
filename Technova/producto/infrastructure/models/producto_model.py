@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 
 class Producto(models.Model):
@@ -10,6 +11,8 @@ class Producto(models.Model):
     color = models.CharField(max_length=40, blank=True, default="")
     descripcion = models.TextField(blank=True, default="")
     precio_venta = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    precio_promocion = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    fecha_fin_promocion = models.DateTimeField(null=True, blank=True)
     stock = models.PositiveIntegerField(default=0)
     proveedor = models.ForeignKey(
         "proveedor.Proveedor",
@@ -29,3 +32,19 @@ class Producto(models.Model):
 
     def __str__(self) -> str:
         return f"{self.codigo} - {self.nombre}"
+
+    @property
+    def promocion_activa(self) -> bool:
+        return bool(
+            self.precio_promocion is not None
+            and self.fecha_fin_promocion is not None
+            and self.fecha_fin_promocion > timezone.now()
+        )
+
+    @property
+    def precio_base(self):
+        return self.precio_venta if self.precio_venta is not None else self.costo_unitario
+
+    @property
+    def precio_publico(self):
+        return self.precio_promocion if self.promocion_activa else self.precio_base

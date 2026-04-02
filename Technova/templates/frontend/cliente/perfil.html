@@ -136,7 +136,9 @@
         <p>4.5 ⭐</p>
         {% if p.precio_original and p.precio_descuento %}
         <p class="precio-original">$<span>{{ p.precio_original|floatformat:0 }}</span></p>
-        <p class="precio-descuento">$<span>{{ p.precio_descuento|floatformat:0 }}</span><span class="descuento">-5%</span></p>
+        <p class="precio-descuento">$<span>{{ p.precio_descuento|floatformat:0 }}</span>{% if p.descuento_pct %}<span class="descuento">-{{ p.descuento_pct|floatformat:0 }}%</span>{% endif %}</p>
+        {% else %}
+        <p><strong>$<span>{{ p.precio_descuento|floatformat:0 }}</span></strong></p>
         {% endif %}
         <button type="button" class="carrito-btn carrito-btn--carrusel js-carrito" data-producto-id="{{ p.id }}" title="Agregar al carrito">&#128722;</button>
         <button type="button" class="favorito-btn js-favorito" data-producto-id="{{ p.id }}" title="Favorito">&#10084;&#65039;</button>

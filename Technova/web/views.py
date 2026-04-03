@@ -6,6 +6,7 @@ import base64
 from collections import Counter
 from io import BytesIO
 from pathlib import Path
+from calendar import monthrange
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
@@ -15,6 +16,7 @@ from urllib import request as urllib_request
 from xml.sax.saxutils import escape as _xml_escape
 
 from django.contrib import messages
+from django.contrib.auth.hashers import make_password
 from django.conf import settings
 from django.db import IntegrityError
 from django.db.models import Count, DecimalField, ExpressionWrapper, F, Prefetch, Q, Sum
@@ -1029,6 +1031,100 @@ def catalogo_agregar_carrito(request):
     )
 
 
+def _dashboard_fmt_rango_es(d0: date, d1: date) -> str:
+    """Rango corto en español, p. ej. «27 mar – 2 abr 2026»."""
+    meses = (
+        "ene",
+        "feb",
+        "mar",
+        "abr",
+        "may",
+        "jun",
+        "jul",
+        "ago",
+        "sep",
+        "oct",
+        "nov",
+        "dic",
+    )
+    m0, m1 = meses[d0.month - 1], meses[d1.month - 1]
+    if d0.year == d1.year:
+        if d0.month == d1.month:
+            return f"{d0.day} – {d1.day} {m1} {d1.year}"
+        return f"{d0.day} {m0} – {d1.day} {m1} {d1.year}"
+    return f"{d0.day} {m0} {d0.year} – {d1.day} {m1} {d1.year}"
+
+
+def _dashboard_bucket_categoria(categoria_raw: str | None) -> str:
+    """
+    Agrupa el texto libre de Producto.categoria para el gráfico de dona.
+    (No existe modelo Pedido/DetallePedido de tienda: las líneas de venta son DetalleVenta.)
+    """
+    s = (categoria_raw or "").strip().lower()
+    if not s:
+        return "accesorios"
+    s_norm = (
+        s.replace("á", "a")
+        .replace("é", "e")
+        .replace("í", "i")
+        .replace("ó", "o")
+        .replace("ú", "u")
+    )
+    cel_kw = (
+        "celu",
+        "phone",
+        "smart",
+        "movil",
+        "iphone",
+        "android",
+        "tablet",
+        "galaxy",
+    )
+    comp_kw = (
+        "comput",
+        "compu",
+        "laptop",
+        "noteb",
+        "portatil",
+        "pc",
+        "desk",
+        "torre",
+        "macbook",
+        "all-in",
+        "allin",
+        "workstation",
+        "ultrabook",
+        "escrit",
+    )
+    acc_kw = (
+        "acces",
+        "auricul",
+        "audifon",
+        "funda",
+        "cable",
+        "cargador",
+        "parlant",
+        "parlante",
+        "mouse",
+        "teclad",
+        "protector",
+        "vidrio",
+        "adaptador",
+        "usb",
+        "hub",
+        "memor",
+        "power bank",
+        "tripode",
+    )
+    if any(k in s_norm for k in cel_kw):
+        return "celulares"
+    if any(k in s_norm for k in comp_kw):
+        return "computadores"
+    if any(k in s_norm for k in acc_kw):
+        return "accesorios"
+    return "accesorios"
+
+
 @_cliente_login_required
 @require_POST
 def catalogo_toggle_favorito(request):
@@ -1050,27 +1146,411 @@ def catalogo_toggle_favorito(request):
 
 
 @_admin_login_required
-def perfil_admin(request):
+def perfil_view(request):
+    """Mi Perfil (Administrador) - vuelve al layout original."""
     uid = request.session.get(SESSION_USUARIO_ID)
     usuario = Usuario.objects.get(pk=uid)
+
     mensajes_pendientes = MensajeDirecto.objects.exclude(
         estado=MensajeDirecto.Estado.RESPONDIDO
     ).count()
     notificaciones_no_leidas = Notificacion.objects.filter(
         usuario_id=uid, leida=False
     ).count()
+
+    # Contar órdenes de compra (puede variar el path del módulo)
+    ordenes_compra_count = 0
+    try:
+        from orden.infrastructure.models import OrdenCompra
+
+        ordenes_compra_count = OrdenCompra.objects.count()
+    except ImportError:
+        try:
+            from orden.models import OrdenCompra
+
+            ordenes_compra_count = OrdenCompra.objects.count()
+        except ImportError:
+            pass
+
     ctx = {
         "usuario": usuario,
         "users_count": Usuario.objects.count(),
         "productos_count": Producto.objects.filter(activo=True).count(),
         "proveedores_count": Proveedor.objects.filter(activo=True).count(),
+        "ordenes_compra_count": ordenes_compra_count,
         "reportes_disponibles": 3,
         "mensajes_pendientes": mensajes_pendientes,
         "notificaciones_no_leidas": notificaciones_no_leidas,
         "pedidos_procesados": Venta.objects.count(),
         "transacciones_procesadas": Pago.objects.count(),
     }
-    return render(request, "frontend/admin/perfil.html", ctx)
+    return render(request, "frontend/admin/perfil_admin.html", ctx)
+
+
+@_admin_login_required
+def dashboard_view(request):
+    """Dashboard Admin (métricas + gráficos)."""
+    uid = request.session.get(SESSION_USUARIO_ID)
+    usuario = Usuario.objects.get(pk=uid)
+
+    mensajes_pendientes = MensajeDirecto.objects.exclude(
+        estado=MensajeDirecto.Estado.RESPONDIDO
+    ).count()
+    notificaciones_no_leidas = Notificacion.objects.filter(
+        usuario_id=uid, leida=False
+    ).count()
+
+    # --- Dashboard Admin: métricas + gráficos (últimos 7 días) ---
+    today = date.today()
+    start_week = today - timedelta(days=6)
+    start_month = today - timedelta(days=30)
+    estados_validos = [Venta.Estado.ABIERTA, Venta.Estado.FACTURADA]
+
+    ventas_totales = (
+        Venta.objects.filter(estado__in=estados_validos).aggregate(total=Sum("total"))[
+            "total"
+        ]
+        or 0
+    )
+
+    # "Pedidos nuevos" = ventas recientes (últimos 7 días), excl. anuladas.
+    # El checkout crea Venta en estado FACTURADA (ver venta_transaction_adapter_impl);
+    # filtrar solo ABIERTA dejaba el contador en 0 con pedidos reales.
+    pedidos_nuevos_count = Venta.objects.filter(
+        fecha_venta__gte=start_week,
+        fecha_venta__lte=today,
+    ).exclude(estado=Venta.Estado.ANULADA).count()
+
+    clientes_registrados_count = Usuario.objects.filter(
+        rol=Usuario.Rol.CLIENTE, activo=True
+    ).count()
+
+    productos_bajo_stock_count = Producto.objects.filter(
+        activo=True, stock__lt=5
+    ).count()
+
+    # --- Sparklines KPI (ApexCharts) ---
+    start_30 = today - timedelta(days=29)
+    dias_30 = [start_30 + timedelta(days=i) for i in range(30)]
+    ventas_30_map = {
+        row["fecha_venta"]: (row["monto"] or 0)
+        for row in Venta.objects.filter(
+            fecha_venta__gte=start_30,
+            fecha_venta__lte=today,
+            estado__in=estados_validos,
+        )
+        .values("fecha_venta")
+        .annotate(monto=Sum("total"))
+        .order_by("fecha_venta")
+    }
+    sparkline_ventas_30d = [float(ventas_30_map.get(d, 0)) for d in dias_30]
+
+    ganancia_line = ExpressionWrapper(
+        F("cantidad") * (F("precio_unitario") - F("producto__costo_unitario")),
+        output_field=DecimalField(max_digits=20, decimal_places=2),
+    )
+    total_ganancia = (
+        DetalleVenta.objects.filter(venta__estado__in=estados_validos).aggregate(
+            t=Sum(ganancia_line)
+        )["t"]
+        or 0
+    )
+    ganancia_30_rows = (
+        DetalleVenta.objects.filter(
+            venta__fecha_venta__gte=start_30,
+            venta__fecha_venta__lte=today,
+            venta__estado__in=estados_validos,
+        )
+        .values("venta__fecha_venta")
+        .annotate(g=Sum(ganancia_line))
+        .order_by("venta__fecha_venta")
+    )
+    ganancia_30_map = {
+        r["venta__fecha_venta"]: float(r["g"] or 0) for r in ganancia_30_rows
+    }
+    sparkline_ganancias_30d = [ganancia_30_map.get(d, 0.0) for d in dias_30]
+
+    now = timezone.now()
+    start_24h = now - timedelta(hours=24)
+    sparkline_pedidos_24h = [0] * 24
+    for creado in Venta.objects.filter(creado_en__gte=start_24h).exclude(
+        estado=Venta.Estado.ANULADA
+    ).values_list("creado_en", flat=True):
+        if creado is None:
+            continue
+        idx = int((creado - start_24h).total_seconds() // 3600)
+        if 0 <= idx < 24:
+            sparkline_pedidos_24h[idx] += 1
+
+    # Ventas semanales: total por día
+    dias = [start_week + timedelta(days=i) for i in range(7)]
+    weekday_labels = {
+        0: "Lun",
+        1: "Mar",
+        2: "Mié",
+        3: "Jue",
+        4: "Vie",
+        5: "Sáb",
+        6: "Dom",
+    }
+    ventas_semana_map = {
+        row["fecha_venta"]: (row["monto"] or 0)
+        for row in Venta.objects.filter(
+            fecha_venta__gte=start_week,
+            fecha_venta__lte=today,
+            estado__in=estados_validos,
+        )
+        .values("fecha_venta")
+        .annotate(monto=Sum("total"))
+        .order_by("fecha_venta")
+    }
+    ventas_semana_labels = [weekday_labels[d.weekday()] for d in dias]
+    ventas_semana_series = [float(ventas_semana_map.get(d, 0)) for d in dias]
+    ventas_semana_rango = _dashboard_fmt_rango_es(start_week, today)
+
+    # Ventas por mes (enero–abril 2026) para gráfico de barras.
+    ventas_mes_anio = 2026
+    ventas_mes_hasta = 4
+    ventas_mes_labels = []
+    ventas_mes_series = []
+    for mes in range(1, ventas_mes_hasta + 1):
+        ventas_mes_labels.append(["Ene", "Feb", "Mar", "Abr"][mes - 1])
+        ultimo = monthrange(ventas_mes_anio, mes)[1]
+        d_ini = date(ventas_mes_anio, mes, 1)
+        d_fin = date(ventas_mes_anio, mes, ultimo)
+        monto_mes = (
+            Venta.objects.filter(
+                fecha_venta__gte=d_ini,
+                fecha_venta__lte=d_fin,
+                estado__in=estados_validos,
+            ).aggregate(t=Sum("total"))["t"]
+            or 0
+        )
+        ventas_mes_series.append(float(monto_mes))
+
+    clientes_dia_map = {}
+    for row in (
+        Usuario.objects.filter(rol=Usuario.Rol.CLIENTE)
+        .filter(creado_en__date__gte=start_week, creado_en__date__lte=today)
+        .annotate(d=TruncDay("creado_en"))
+        .values("d")
+        .annotate(c=Count("id"))
+    ):
+        dk = row.get("d")
+        if dk is None:
+            continue
+        day_key = dk.date() if hasattr(dk, "date") else dk
+        clientes_dia_map[day_key] = int(row["c"] or 0)
+    sparkline_clientes_7d = [clientes_dia_map.get(d, 0) for d in dias]
+
+    # Categorías más vendidas: sumar cantidades de DetalleVenta agrupadas por categoría del producto.
+    detalles_validos = DetalleVenta.objects.filter(
+        venta__fecha_venta__gte=start_month,
+        venta__fecha_venta__lte=today,
+        venta__estado__in=estados_validos,
+    )
+    celulares_qty = 0
+    computadores_qty = 0
+    accesorios_qty = 0
+    for row in detalles_validos.values("producto__categoria").annotate(
+        qty=Sum("cantidad")
+    ):
+        q = int(row["qty"] or 0)
+        bucket = _dashboard_bucket_categoria(row.get("producto__categoria"))
+        if bucket == "celulares":
+            celulares_qty += q
+        elif bucket == "computadores":
+            computadores_qty += q
+        else:
+            accesorios_qty += q
+
+    ctx = {
+        "usuario": usuario,
+        "mensajes_pendientes": mensajes_pendientes,
+        "notificaciones_no_leidas": notificaciones_no_leidas,
+
+        "ventas_totales_formatted": f"${ventas_totales:,.2f}",
+        "total_ganancias_formatted": f"${total_ganancia:,.2f}",
+        "pedidos_nuevos_count": pedidos_nuevos_count,
+        "clientes_registrados_count": clientes_registrados_count,
+        "productos_bajo_stock_count": productos_bajo_stock_count,
+
+        "sparkline_ventas_30d_json": mark_safe(
+            json.dumps(sparkline_ventas_30d, ensure_ascii=False)
+        ),
+        "sparkline_ganancias_30d_json": mark_safe(
+            json.dumps(sparkline_ganancias_30d, ensure_ascii=False)
+        ),
+        "sparkline_pedidos_24h_json": mark_safe(
+            json.dumps(sparkline_pedidos_24h, ensure_ascii=False)
+        ),
+        "sparkline_clientes_7d_json": mark_safe(
+            json.dumps(sparkline_clientes_7d, ensure_ascii=False)
+        ),
+
+        "ventas_semana_labels_json": mark_safe(
+            json.dumps(ventas_semana_labels, ensure_ascii=False)
+        ),
+        "ventas_semana_series_json": mark_safe(
+            json.dumps(ventas_semana_series, ensure_ascii=False)
+        ),
+        "ventas_semana_rango": ventas_semana_rango,
+
+        "ventas_mes_labels_json": mark_safe(
+            json.dumps(ventas_mes_labels, ensure_ascii=False)
+        ),
+        "ventas_mes_series_json": mark_safe(
+            json.dumps(ventas_mes_series, ensure_ascii=False)
+        ),
+
+        "categorias_donut_labels_json": mark_safe(
+            json.dumps(["Celulares", "Computadores"], ensure_ascii=False)
+        ),
+        "categorias_donut_series_json": mark_safe(
+            json.dumps(
+                [int(celulares_qty), int(computadores_qty), int(accesorios_qty)],
+                ensure_ascii=False,
+            )
+        ),
+    }
+    return render(request, "frontend/admin/dashboard.html", ctx)
+
+
+@_admin_login_required
+def perfil_admin(request):
+    """Compatibilidad: si alguien llama a `perfil_admin`, muestra Mi Perfil."""
+    return perfil_view(request)
+
+
+@_admin_login_required
+@require_http_methods(["GET", "POST"])
+def admin_perfil_editar(request):
+    """Edición de perfil solo para administrador (sidebar admin, no flujo cliente)."""
+    usuario = _admin_usuario_sesion(request)
+
+    def _ctx_form(
+        *,
+        nombres: str,
+        apellidos: str,
+        telefono: str,
+        direccion: str,
+        show_password_change: bool,
+    ):
+        return {
+            "usuario": usuario,
+            "form_nombres": nombres,
+            "form_apellidos": apellidos,
+            "form_telefono": telefono,
+            "form_direccion": direccion,
+            "show_password_change": show_password_change,
+        }
+
+    if request.method == "POST":
+        nombres = (request.POST.get("nombres") or "").strip()
+        apellidos = (request.POST.get("apellidos") or "").strip()
+        telefono = (request.POST.get("telefono") or "").strip()
+        direccion = (request.POST.get("direccion") or "").strip()
+        current_password = request.POST.get("current_password") or ""
+        new_password = (request.POST.get("new_password") or "").strip()
+        confirm_password = (request.POST.get("confirm_password") or "").strip()
+
+        errors: list[str] = []
+        if not nombres or len(nombres) > 120:
+            errors.append("Los nombres son obligatorios (máx. 120 caracteres).")
+        if not apellidos or len(apellidos) > 120:
+            errors.append("Los apellidos son obligatorios (máx. 120 caracteres).")
+        if len(telefono) > 20:
+            errors.append("El teléfono no puede superar 20 caracteres.")
+        if len(direccion) > 2000:
+            errors.append("La dirección es demasiado larga (máx. 2000 caracteres).")
+        if not current_password:
+            errors.append("Debes ingresar tu contraseña actual para guardar los cambios.")
+
+        wants_pw_change = bool(new_password or confirm_password)
+        if wants_pw_change:
+            if not new_password or not confirm_password:
+                errors.append("Completa el campo «Nueva contraseña» y «Confirmar nueva contraseña».")
+            elif new_password != confirm_password:
+                errors.append("La nueva contraseña y la confirmación no coinciden.")
+            elif len(new_password) < 8:
+                errors.append("La nueva contraseña debe tener al menos 8 caracteres.")
+
+        if errors:
+            for msg in errors:
+                messages.error(request, msg)
+            return render(
+                request,
+                "frontend/admin/perfil_editar.html",
+                _ctx_form(
+                    nombres=nombres,
+                    apellidos=apellidos,
+                    telefono=telefono,
+                    direccion=direccion,
+                    show_password_change=wants_pw_change,
+                ),
+            )
+
+        if not credenciales_coinciden(current_password, usuario.contrasena_hash):
+            messages.error(request, "La contraseña actual no es correcta.")
+            return render(
+                request,
+                "frontend/admin/perfil_editar.html",
+                _ctx_form(
+                    nombres=nombres,
+                    apellidos=apellidos,
+                    telefono=telefono,
+                    direccion=direccion,
+                    show_password_change=wants_pw_change,
+                ),
+            )
+
+        cambios: list[str] = []
+        if usuario.nombres != nombres:
+            cambios.append("nombres")
+        if usuario.apellidos != apellidos:
+            cambios.append("apellidos")
+        if usuario.telefono != telefono:
+            cambios.append("teléfono")
+        if usuario.direccion != direccion:
+            cambios.append("dirección")
+
+        usuario.nombres = nombres
+        usuario.apellidos = apellidos
+        usuario.telefono = telefono
+        usuario.direccion = direccion
+        update_fields = ["nombres", "apellidos", "telefono", "direccion", "actualizado_en"]
+
+        if wants_pw_change:
+            usuario.contrasena_hash = make_password(new_password)
+            update_fields.append("contrasena_hash")
+            cambios.append("contraseña")
+
+        usuario.save(update_fields=update_fields)
+
+        if cambios:
+            from mensajeria.services.notificaciones_admin import notificar_usuario_actualizado
+
+            notificar_usuario_actualizado(
+                usuario_id=usuario.id,
+                correo=usuario.correo_electronico,
+                cambios=cambios,
+                origen="admin_perfil",
+            )
+
+        messages.success(request, "Perfil actualizado correctamente.")
+        return redirect("web_admin_perfil")
+
+    return render(
+        request,
+        "frontend/admin/perfil_editar.html",
+        _ctx_form(
+            nombres=usuario.nombres,
+            apellidos=usuario.apellidos,
+            telefono=usuario.telefono,
+            direccion=usuario.direccion,
+            show_password_change=False,
+        ),
+    )
 
 
 @_admin_login_required

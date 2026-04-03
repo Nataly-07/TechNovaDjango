@@ -6,10 +6,486 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Perfil Administrador — Technova</title>
   <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,200;0,9..40,300;0,9..40,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}">
+
+  <style>
+    /* Dashboard Admin (métricas + gráficos): scroll vertical para vista completa */
+    body.admin-page-perfil.perfil-page .main-content {
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      min-height: 0;
+      align-self: stretch;
+    }
+
+    /* Ocultamos el layout anterior (solo visual) */
+    .profile-card,
+    .dashboard-cards {
+      display: none !important;
+    }
+
+    .admin-hero-dashboard {
+      min-height: calc(100vh - 160px);
+      height: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-width: 0;
+      flex: 1 1 auto;
+      background: linear-gradient(
+        165deg,
+        rgba(248, 250, 252, 0.98) 0%,
+        rgba(239, 246, 255, 0.55) 42%,
+        rgba(240, 253, 250, 0.45) 100%
+      );
+      border-radius: 20px;
+      padding: 8px 8px 12px;
+    }
+
+    .kpi-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 0;
+      flex: 0 0 auto;
+    }
+
+    .kpi-row {
+      display: grid;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .kpi-row--primary {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .kpi-row--secondary {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (max-width: 900px) {
+      .kpi-row--primary,
+      .kpi-row--secondary {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .admin-hero-dashboard {
+        min-height: 0;
+      }
+    }
+
+    /* KPI premium + sparklines (ApexCharts) */
+    .kpi-card {
+      position: relative;
+      border-radius: 18px;
+      padding: 16px 16px 12px;
+      min-height: 132px;
+      min-width: 0;
+      box-shadow: 0 14px 40px rgba(15, 23, 42, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      overflow: hidden;
+    }
+
+    .kpi-card__head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .kpi-card__emoji {
+      font-size: 1.35rem;
+      line-height: 1;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.12));
+    }
+
+    .kpi-card__pill {
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.22);
+      color: #fff;
+      letter-spacing: 0.02em;
+    }
+
+    .kpi-card__label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      opacity: 0.92;
+    }
+
+    .kpi-card__hint {
+      font-size: 0.72rem;
+      font-weight: 500;
+      opacity: 0.78;
+      margin-top: -2px;
+    }
+
+    .kpi-card__body {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: auto;
+      min-height: 58px;
+      flex-wrap: nowrap;
+    }
+
+    .kpi-card__value {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: clamp(1.05rem, 2.1vw, 1.5rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    /* Montos: una sola línea sin scroll (evita controles tipo flechas del navegador junto al texto) */
+    .kpi-card__value--money {
+      white-space: nowrap;
+      font-size: clamp(0.7rem, 1.25vw, 1.08rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      overflow: hidden;
+      max-width: 100%;
+    }
+
+    /* ApexCharts u otros no deben mostrar inputs dentro de las KPI */
+    .kpi-card__spark input,
+    .kpi-card__spark select,
+    .kpi-card__body input,
+    .kpi-card__body select,
+    .admin-hero-dashboard .kpi-card .apexcharts-canvas input,
+    .admin-hero-dashboard .kpi-card .apexcharts-inner input {
+      display: none !important;
+      visibility: hidden !important;
+      width: 0 !important;
+      height: 0 !important;
+      opacity: 0 !important;
+      position: absolute !important;
+      pointer-events: none !important;
+    }
+
+    .kpi-card__value--num {
+      white-space: nowrap;
+    }
+
+    .kpi-card__spark {
+      flex: 0 0 38%;
+      max-width: 128px;
+      min-width: 76px;
+      height: 52px;
+      align-self: flex-end;
+      pointer-events: none;
+      flex-shrink: 0;
+    }
+
+    .kpi-card--light .kpi-card__pill {
+      background: rgba(15, 23, 42, 0.06);
+      color: #0f172a;
+    }
+
+    .kpi-card--ventas {
+      background: linear-gradient(115deg, #059669 0%, #0d9488 45%, #06b6d4 100%);
+      color: #fff;
+    }
+    .kpi-card--ventas .kpi-card__label,
+    .kpi-card--ventas .kpi-card__hint {
+      color: rgba(255, 255, 255, 0.92);
+    }
+    .kpi-card--ventas .kpi-card__hint {
+      opacity: 0.85;
+    }
+
+    .kpi-card--ganancias {
+      background: linear-gradient(118deg, #047857 0%, #0e7490 48%, #22d3ee 100%);
+      color: #fff;
+    }
+    .kpi-card--ganancias .kpi-card__label,
+    .kpi-card--ganancias .kpi-card__hint {
+      color: rgba(255, 255, 255, 0.92);
+    }
+
+    .kpi-card--pedidos {
+      background: linear-gradient(115deg, #6d28d9 0%, #4f46e5 50%, #2563eb 100%);
+      color: #fff;
+    }
+    .kpi-card--pedidos .kpi-card__label,
+    .kpi-card--pedidos .kpi-card__hint {
+      color: rgba(255, 255, 255, 0.92);
+    }
+
+    .kpi-card--clientes {
+      background: linear-gradient(135deg, #ecfeff 0%, #e0f2fe 42%, #dbeafe 100%);
+      color: #0f172a;
+      border-color: rgba(14, 165, 233, 0.2);
+      box-shadow: 0 14px 36px rgba(14, 165, 233, 0.12);
+    }
+    .kpi-card--clientes .kpi-card__label {
+      color: #334155;
+      font-weight: 750;
+    }
+    .kpi-card--clientes .kpi-card__hint {
+      color: #64748b;
+      opacity: 1;
+    }
+    .kpi-card--clientes .kpi-card__value {
+      color: #0f172a;
+    }
+
+    /* Stock: tranquilo si 0, alerta si hay productos bajo mínimo */
+    .kpi-card--productos-ok {
+      background: linear-gradient(125deg, #f0fdf4 0%, #ecfdf5 45%, #f8fafc 100%);
+      border-color: rgba(34, 197, 94, 0.25);
+      color: #14532d;
+      box-shadow: 0 14px 36px rgba(22, 163, 74, 0.08);
+    }
+    .kpi-card--productos-ok .kpi-card__label {
+      color: #166534;
+    }
+    .kpi-card--productos-ok .kpi-card__hint {
+      color: #15803d;
+      opacity: 0.9;
+      font-weight: 600;
+    }
+    .kpi-card--productos-ok .kpi-card__value {
+      color: #15803d;
+    }
+
+    .kpi-card--productos-alert {
+      background: linear-gradient(125deg, #fef2f2 0%, #fff7ed 100%);
+      border-color: rgba(248, 113, 113, 0.45);
+      color: #7f1d1d;
+      box-shadow: 0 14px 36px rgba(239, 68, 68, 0.12);
+    }
+    .kpi-card--productos-alert .kpi-card__label {
+      color: #991b1b;
+    }
+    .kpi-card--productos-alert .kpi-card__hint {
+      color: #b91c1c;
+      opacity: 1;
+      font-weight: 700;
+    }
+    .kpi-card--productos-alert .kpi-card__value {
+      color: #b91c1c;
+    }
+
+    .kpi-card--productos-ok .kpi-card__body,
+    .kpi-card--productos-alert .kpi-card__body {
+      min-height: 0;
+    }
+    .kpi-card--productos-ok .kpi-card__spark,
+    .kpi-card--productos-alert .kpi-card__spark {
+      display: none;
+    }
+
+    /* Bloque inferior: vidrio esmerilado + paneles con relieve suave */
+    .charts-deck-ambient {
+      flex: 1 1 auto;
+      flex-shrink: 0;
+      min-height: 420px;
+      margin-top: 2px;
+      border-radius: 24px;
+      padding: 1px;
+      background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.92) 0%,
+        rgba(255, 255, 255, 0.38) 38%,
+        rgba(255, 255, 255, 0.12) 100%
+      );
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.07);
+    }
+
+    .charts-glass-shell {
+      border-radius: 23px;
+      padding: 20px 18px 18px;
+      background: rgba(255, 255, 255, 0.4);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.88),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.15);
+      min-height: 400px;
+      height: auto;
+      overflow: visible;
+    }
+
+    .charts-grid {
+      display: grid;
+      gap: 16px;
+      align-items: stretch;
+      min-height: min(400px, 100%);
+      overflow: visible;
+    }
+
+    .charts-grid--three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    @media (max-width: 1100px) {
+      .charts-grid--three {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-panel {
+      border-radius: 16px;
+      padding: 14px 14px 12px;
+      background: rgba(255, 255, 255, 0.42);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.58);
+      box-shadow:
+        2px 2px 5px rgba(0, 0, 0, 0.1),
+        -2px -2px 5px rgba(255, 255, 255, 0.7),
+        inset 0 1px 0 rgba(255, 255, 255, 0.72),
+        inset 0 -1px 2px rgba(15, 23, 42, 0.05);
+      display: flex;
+      flex-direction: column;
+      min-height: 400px;
+      height: auto;
+      min-width: 0;
+      overflow: visible;
+    }
+
+    .chart-heading {
+      padding: 4px 6px 12px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      margin-bottom: 4px;
+    }
+
+    .chart-heading__title {
+      font-family: "DM Sans", system-ui, -apple-system, sans-serif;
+      font-size: 1.02rem;
+      font-weight: 200;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #334155;
+      margin: 0;
+      line-height: 1.35;
+    }
+
+    .chart-heading__subtitle {
+      font-family: "DM Sans", system-ui, -apple-system, sans-serif;
+      font-size: 0.78rem;
+      font-weight: 300;
+      color: #64748b;
+      margin: 6px 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    .chart-inner {
+      flex: 1 1 auto;
+      min-height: clamp(320px, 32vh, 480px);
+      height: auto;
+      min-width: 0;
+      overflow: visible;
+      position: relative;
+    }
+
+    .chart-inner .apexcharts-canvas,
+    .chart-inner .apexcharts-svg {
+      overflow: visible !important;
+    }
+
+    /* Leyenda categorías (como la dona anterior): círculos + texto */
+    .chart-categorias-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      padding: 12px 10px 6px;
+      margin-top: 2px;
+      border-top: 1px solid rgba(148, 163, 184, 0.18);
+      flex: 0 0 auto;
+    }
+
+    .chart-categorias-legend__row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-family: "DM Sans", system-ui, sans-serif;
+      font-size: 0.84rem;
+      font-weight: 500;
+      color: #475569;
+      line-height: 1.25;
+      cursor: pointer;
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin: 0 -6px;
+      transition: background 0.18s ease, color 0.18s ease;
+      border: 1px solid transparent;
+    }
+
+    .chart-categorias-legend__row:hover {
+      background: rgba(148, 163, 184, 0.14);
+    }
+
+    .chart-categorias-legend__row.is-active {
+      background: rgba(99, 102, 241, 0.12);
+      border-color: rgba(99, 102, 241, 0.22);
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    .chart-categorias-legend__row:focus-visible {
+      outline: 2px solid rgba(99, 102, 241, 0.55);
+      outline-offset: 2px;
+    }
+
+    .chart-categorias-legend__left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .chart-categorias-legend__qty {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #64748b;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .chart-categorias-legend__row.is-active .chart-categorias-legend__qty {
+      color: #334155;
+    }
+
+    .chart-categorias-legend__swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06);
+    }
+
+    /* Sin spinners en inputs numéricos (este bloque va después de los link CSS del head) */
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      margin: 0 !important;
+    }
+    input[type="number"] {
+      appearance: textfield !important;
+      -moz-appearance: textfield !important;
+      -webkit-appearance: textfield !important;
+    }
+  </style>
 </head>
 <body class="admin-page-perfil perfil-page">
   <header class="header">
@@ -44,13 +520,129 @@
       {% endfor %}
 
       {% if usuario %}
+      <div class="admin-hero-dashboard" role="region" aria-label="Dashboard de Admin">
+        <div class="kpi-rows">
+          <div class="kpi-row kpi-row--primary">
+            <div class="kpi-card kpi-card--ventas" tabindex="0" aria-label="Ventas totales">
+              <div class="kpi-card__head">
+                <span class="kpi-card__emoji" aria-hidden="true">💵</span>
+              </div>
+              <div class="kpi-card__label">Ventas Totales</div>
+              <div class="kpi-card__hint">Ingresos acumulados · tendencia 30 días</div>
+              <div class="kpi-card__body">
+                <div class="kpi-card__value kpi-card__value--money">{{ ventas_totales_formatted|default:"$0.00" }}</div>
+                <div class="kpi-card__spark" id="kpiSparkVentas" aria-hidden="true"></div>
+              </div>
+            </div>
+
+            <div class="kpi-card kpi-card--ganancias" tabindex="0" aria-label="Total ganancias estimadas">
+              <div class="kpi-card__head">
+                <span class="kpi-card__emoji" aria-hidden="true">🪙</span>
+              </div>
+              <div class="kpi-card__label">Total Ganancias</div>
+              <div class="kpi-card__hint">Margen estimado (PVP − costo) · 30 días</div>
+              <div class="kpi-card__body">
+                <div class="kpi-card__value kpi-card__value--money">{{ total_ganancias_formatted|default:"$0.00" }}</div>
+                <div class="kpi-card__spark" id="kpiSparkGanancias" aria-hidden="true"></div>
+              </div>
+            </div>
+
+            <div class="kpi-card kpi-card--pedidos" tabindex="0" aria-label="Pedidos nuevos">
+              <div class="kpi-card__head">
+                <span class="kpi-card__emoji" aria-hidden="true">🛒</span>
+                <span class="kpi-card__pill">{{ pedidos_nuevos_count|default:0 }}</span>
+              </div>
+              <div class="kpi-card__label">Pedidos Nuevos</div>
+              <div class="kpi-card__hint">Últimos 7 días · actividad 24 h</div>
+              <div class="kpi-card__body">
+                <div class="kpi-card__value kpi-card__value--num">{{ pedidos_nuevos_count|default:0 }}</div>
+                <div class="kpi-card__spark" id="kpiSparkPedidos" aria-hidden="true"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="kpi-row kpi-row--secondary">
+            <div class="kpi-card kpi-card--clientes kpi-card--light" tabindex="0" aria-label="Clientes registrados">
+              <div class="kpi-card__head">
+                <span class="kpi-card__emoji" aria-hidden="true">👥</span>
+                <span class="kpi-card__pill">{{ clientes_registrados_count|default:0 }}</span>
+              </div>
+              <div class="kpi-card__label">Clientes Registrados</div>
+              <div class="kpi-card__hint">Altas por día · esta semana</div>
+              <div class="kpi-card__body">
+                <div class="kpi-card__value kpi-card__value--num">{{ clientes_registrados_count|default:0 }}</div>
+                <div class="kpi-card__spark" id="kpiSparkClientes" aria-hidden="true"></div>
+              </div>
+            </div>
+
+            {% with stock_bajo=productos_bajo_stock_count|default:0 %}
+            <div class="kpi-card {% if stock_bajo > 0 %}kpi-card--productos-alert{% else %}kpi-card--productos-ok{% endif %}" tabindex="0" aria-label="Productos con stock bajo">
+              <div class="kpi-card__head">
+                <span class="kpi-card__emoji" aria-hidden="true">⚠️</span>
+              </div>
+              <div class="kpi-card__label">Stock Bajo</div>
+              <div class="kpi-card__hint">Productos con menos de 5 unidades</div>
+              <div class="kpi-card__body">
+                <div class="kpi-card__value kpi-card__value--num">{{ stock_bajo }}</div>
+              </div>
+            </div>
+            {% endwith %}
+          </div>
+        </div>
+
+        <div class="charts-deck-ambient">
+          <div class="charts-glass-shell">
+            <div class="charts-grid charts-grid--three">
+              <section class="chart-panel" aria-labelledby="chart-title-ventas-semana">
+                <header class="chart-heading">
+                  <h2 class="chart-heading__title" id="chart-title-ventas-semana">Semana de sus ventas</h2>
+                  <p class="chart-heading__subtitle">{{ ventas_semana_rango|default:"Últimos 7 días" }}</p>
+                </header>
+                <div id="chartVentasSemanal" class="chart-inner" aria-label="Ventas de la semana"></div>
+              </section>
+
+              <section class="chart-panel" aria-labelledby="chart-title-categorias">
+                <header class="chart-heading">
+                  <h2 class="chart-heading__title" id="chart-title-categorias">Categorías más vendidas</h2>
+                  <p class="chart-heading__subtitle">Unidades · últimos 30 días · clic en una categoría</p>
+                </header>
+                <div id="chartCategoriasVendidas" class="chart-inner" aria-label="Categorías más vendidas"></div>
+                <div class="chart-categorias-legend" role="list" aria-label="Leyenda de categorías">
+                  <div class="chart-categorias-legend__row is-active" role="button" tabindex="0" data-cat="celulares" aria-pressed="true">
+                    <div class="chart-categorias-legend__left">
+                      <span class="chart-categorias-legend__swatch" style="background:#5eead4" aria-hidden="true"></span>
+                      <span>Celulares</span>
+                    </div>
+                    <span class="chart-categorias-legend__qty" aria-live="polite"></span>
+                  </div>
+                  <div class="chart-categorias-legend__row" role="button" tabindex="0" data-cat="computadores" aria-pressed="false">
+                    <div class="chart-categorias-legend__left">
+                      <span class="chart-categorias-legend__swatch" style="background:#93c5fd" aria-hidden="true"></span>
+                      <span>Computadores</span>
+                    </div>
+                    <span class="chart-categorias-legend__qty" aria-live="polite"></span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="chart-panel" aria-labelledby="chart-title-ventas-mes">
+                <header class="chart-heading">
+                  <h2 class="chart-heading__title" id="chart-title-ventas-mes">Ventas por mes</h2>
+                  <p class="chart-heading__subtitle">Enero – abril 2026</p>
+                </header>
+                <div id="chartVentasMes" class="chart-inner" aria-label="Ventas por mes"></div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="profile-card">
         <img src="{% static 'frontend/imagenes/placeholder.svg' %}" alt="Foto de perfil">
         <div class="profile-details">
           <h2>{{ usuario.nombres }} {{ usuario.apellidos }}</h2>
           <p><i class="bx bx-envelope"></i> <span>{{ usuario.correo_electronico }}</span></p>
           <p><i class="bx bx-shield"></i> <span>{{ usuario.get_rol_display }}</span></p>
-          <a href="{% url 'web_cliente_perfil_editar' %}" class="edit-profile"><i class="bx bx-edit"></i> Editar perfil</a>
+          <a href="{% url 'web_admin_perfil_editar' %}" class="edit-profile"><i class="bx bx-edit"></i> Editar perfil</a>
         </div>
       </div>
 
@@ -173,5 +765,596 @@
   <footer>
     <p>&copy; 2025 Technova</p>
   </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script>
+    (function () {
+      const ventasSemanaLabels = {{ ventas_semana_labels_json|default:"[]"|safe }};
+      const ventasSemanaSeries = {{ ventas_semana_series_json|default:"[]"|safe }};
+      const categoriasDonutSeries = {{ categorias_donut_series_json|default:"[]"|safe }};
+      const ventasMesLabels = {{ ventas_mes_labels_json|default:"[]"|safe }};
+      const ventasMesSeries = {{ ventas_mes_series_json|default:"[]"|safe }};
+
+      const sparkVentas30 = {{ sparkline_ventas_30d_json|default:"[]"|safe }};
+      const sparkGanancias30 = {{ sparkline_ganancias_30d_json|default:"[]"|safe }};
+      const sparkPedidos24h = {{ sparkline_pedidos_24h_json|default:"[]"|safe }};
+      const sparkClientes7d = {{ sparkline_clientes_7d_json|default:"[]"|safe }};
+
+      function formatMoney(value) {
+        const n = Number(value) || 0;
+        const fmt = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return '$' + fmt.format(n);
+      }
+
+      function chartHeight() {
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+        if (w < 520) {
+          return Math.max(300, Math.min(440, Math.round(h * 0.34)));
+        }
+        if (w < 1100) {
+          return Math.max(340, Math.min(480, Math.round(h * 0.30)));
+        }
+        return Math.max(400, Math.min(520, Math.round(h * 0.28)));
+      }
+
+      function debounce(fn, wait) {
+        var t;
+        return function () {
+          var ctx = this;
+          var args = arguments;
+          clearTimeout(t);
+          t = setTimeout(function () { fn.apply(ctx, args); }, wait);
+        };
+      }
+
+      function sparkNums(arr) {
+        if (!Array.isArray(arr)) return [];
+        return arr.map(function (v) { return Number(v) || 0; });
+      }
+
+      function padSeries(arr, len) {
+        const a = sparkNums(arr);
+        const out = a.slice(0, len);
+        while (out.length < len) out.push(0);
+        return out;
+      }
+
+      function stripInputsFromKpiSpark(el) {
+        if (!el || !el.querySelectorAll) return;
+        el.querySelectorAll('input, select').forEach(function (node) {
+          node.remove();
+        });
+      }
+
+      function renderSparkline(el, options) {
+        if (!el || !window.ApexCharts) return null;
+        const chart = new ApexCharts(el, options);
+        var done = chart.render();
+        if (done && typeof done.then === 'function') {
+          done.then(function () {
+            stripInputsFromKpiSpark(el);
+          });
+        } else {
+          setTimeout(function () {
+            stripInputsFromKpiSpark(el);
+          }, 0);
+        }
+        return chart;
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        if (!window.ApexCharts) return;
+
+        const animSpark = { enabled: true, easing: 'easeinout', speed: 950, animateGradually: { enabled: true, delay: 40 } };
+
+        const elV = document.querySelector('#kpiSparkVentas');
+        if (elV) {
+          renderSparkline(elV, {
+            series: [{ data: padSeries(sparkVentas30, 30) }],
+            chart: {
+              type: 'area',
+              height: 52,
+              width: '100%',
+              sparkline: { enabled: true },
+              animations: animSpark,
+              toolbar: { show: false },
+              zoom: { enabled: false },
+              selection: { enabled: false }
+            },
+            stroke: { curve: 'smooth', width: 2.2, colors: ['#ffffff'] },
+            fill: {
+              type: 'gradient',
+              gradient: {
+                shade: 'light',
+                type: 'vertical',
+                shadeIntensity: 0.4,
+                opacityFrom: 0.55,
+                opacityTo: 0.02,
+                stops: [0, 92, 100],
+                colorStops: [
+                  { offset: 0, color: '#ffffff', opacity: 0.5 },
+                  { offset: 100, color: '#ffffff', opacity: 0 }
+                ]
+              }
+            },
+            colors: ['#ffffff'],
+            tooltip: { enabled: false },
+            dataLabels: { enabled: false },
+            xaxis: { crosshairs: { show: false } },
+            yaxis: { min: 0 }
+          });
+        }
+
+        const elG = document.querySelector('#kpiSparkGanancias');
+        if (elG) {
+          renderSparkline(elG, {
+            series: [{ data: padSeries(sparkGanancias30, 30) }],
+            chart: {
+              type: 'area',
+              height: 52,
+              width: '100%',
+              sparkline: { enabled: true },
+              animations: animSpark,
+              toolbar: { show: false },
+              zoom: { enabled: false },
+              selection: { enabled: false }
+            },
+            stroke: { curve: 'smooth', width: 2.2, colors: ['#ecfdf5'] },
+            fill: {
+              type: 'gradient',
+              gradient: {
+                shade: 'light',
+                type: 'vertical',
+                shadeIntensity: 0.35,
+                opacityFrom: 0.5,
+                opacityTo: 0.02,
+                stops: [0, 100],
+                colorStops: [
+                  { offset: 0, color: '#a7f3d0', opacity: 0.55 },
+                  { offset: 100, color: '#ffffff', opacity: 0 }
+                ]
+              }
+            },
+            colors: ['#ecfdf5'],
+            tooltip: { enabled: false },
+            dataLabels: { enabled: false },
+            yaxis: { min: 0 }
+          });
+        }
+
+        const elP = document.querySelector('#kpiSparkPedidos');
+        if (elP) {
+          renderSparkline(elP, {
+            series: [{ data: padSeries(sparkPedidos24h, 24) }],
+            chart: {
+              type: 'bar',
+              height: 52,
+              width: '100%',
+              sparkline: { enabled: true },
+              animations: animSpark,
+              toolbar: { show: false },
+              zoom: { enabled: false },
+              selection: { enabled: false }
+            },
+            plotOptions: { bar: { columnWidth: '42%', borderRadius: 3, distributed: false } },
+            colors: ['rgba(255,255,255,0.88)'],
+            tooltip: { enabled: false },
+            dataLabels: { enabled: false },
+            stroke: { width: 0 },
+            yaxis: { min: 0 }
+          });
+        }
+
+        const elC = document.querySelector('#kpiSparkClientes');
+        if (elC) {
+          renderSparkline(elC, {
+            series: [{ data: padSeries(sparkClientes7d, 7) }],
+            chart: {
+              type: 'area',
+              height: 52,
+              width: '100%',
+              sparkline: { enabled: true },
+              animations: animSpark,
+              toolbar: { show: false },
+              zoom: { enabled: false },
+              selection: { enabled: false }
+            },
+            stroke: { curve: 'smooth', width: 2.5, colors: ['#6366f1'] },
+            fill: {
+              type: 'gradient',
+              gradient: {
+                shade: 'light',
+                type: 'vertical',
+                shadeIntensity: 0.25,
+                opacityFrom: 0.35,
+                opacityTo: 0.02,
+                colorStops: [
+                  { offset: 0, color: '#8b5cf6', opacity: 0.4 },
+                  { offset: 100, color: '#3b82f6', opacity: 0 }
+                ]
+              }
+            },
+            colors: ['#6366f1'],
+            tooltip: { enabled: false },
+            dataLabels: { enabled: false },
+            yaxis: { min: 0 }
+          });
+        }
+
+        const animMain = { enabled: true, easing: 'easeinout', speed: 880 };
+        const chartBase = {
+          toolbar: { show: false },
+          animations: animMain,
+          fontFamily: 'DM Sans, system-ui, sans-serif',
+          redrawOnParentResize: true,
+          parentHeightOffset: 0
+        };
+
+        const dashboardCharts = [];
+
+        const lineEl = document.querySelector('#chartVentasSemanal');
+        if (lineEl) {
+          const optionsLine = {
+            series: [{ name: 'Ventas', data: ventasSemanaSeries }],
+            chart: Object.assign({}, chartBase, {
+              type: 'area',
+              height: chartHeight(),
+              zoom: { enabled: false }
+            }),
+            colors: ['#22d3ee'],
+            dataLabels: { enabled: false },
+            stroke: { curve: 'smooth', width: 3, colors: ['#22d3ee'] },
+            fill: {
+              type: 'gradient',
+              gradient: {
+                shade: 'light',
+                type: 'vertical',
+                shadeIntensity: 0.2,
+                opacityFrom: 0.55,
+                opacityTo: 0,
+                inverseColors: false,
+                colorStops: [
+                  { offset: 0, color: '#22d3ee', opacity: 0.52 },
+                  { offset: 32, color: '#22d3ee', opacity: 0.28 },
+                  { offset: 58, color: '#a78bfa', opacity: 0.14 },
+                  { offset: 100, color: '#22d3ee', opacity: 0 }
+                ]
+              }
+            },
+            grid: { borderColor: 'rgba(148, 163, 184, 0.2)', strokeDashArray: 4 },
+            xaxis: {
+              categories: ventasSemanaLabels,
+              labels: { style: { colors: '#64748b', fontSize: '12px', fontWeight: 400 } },
+              axisBorder: { show: false },
+              axisTicks: { show: false }
+            },
+            yaxis: {
+              labels: {
+                style: { colors: '#64748b', fontSize: '11px', fontWeight: 400 },
+                formatter: function (val) {
+                  const n = Number(val) || 0;
+                  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+                  if (n >= 1e3) return (n / 1e3).toFixed(0) + 'k';
+                  return String(Math.round(n));
+                }
+              },
+              title: { text: '' }
+            },
+            tooltip: {
+              shared: false,
+              theme: 'light',
+              y: { formatter: function (val) { return formatMoney(val); } }
+            },
+            legend: { show: false },
+            markers: {
+              size: 5,
+              colors: ['#22d3ee'],
+              strokeColors: '#ffffff',
+              strokeWidth: 2,
+              strokeOpacity: 1,
+              hover: { size: 8, sizeOffset: 0 }
+            }
+          };
+          var chLine = new ApexCharts(lineEl, optionsLine);
+          chLine.render();
+          dashboardCharts.push(chLine);
+        }
+
+        const radialCatEl = document.querySelector('#chartCategoriasVendidas');
+        if (radialCatEl) {
+          var udsCat = (categoriasDonutSeries || []).map(function (x) {
+            return Number(x) || 0;
+          });
+          while (udsCat.length < 3) udsCat.push(0);
+          var totalCatUds = udsCat[0] + udsCat[1] + udsCat[2];
+          var radialSelIdx = 0;
+          var radialPct = 0;
+          var radialLabel = 'Celulares';
+
+          function pctForCat(idx) {
+            if (totalCatUds <= 0) return 0;
+            return Math.round((1000 * udsCat[idx]) / totalCatUds) / 10;
+          }
+
+          radialPct = pctForCat(0);
+
+          function getRadialFill(idx) {
+            if (idx === 1) {
+              return {
+                type: 'gradient',
+                gradient: {
+                  shade: 'dark',
+                  type: 'horizontal',
+                  shadeIntensity: 0.55,
+                  gradientToColors: ['#93c5fd'],
+                  inverseColors: false,
+                  opacityFrom: 1,
+                  opacityTo: 1,
+                  stops: [0, 100],
+                  colorStops: [
+                    { offset: 0, color: '#1d4ed8', opacity: 1 },
+                    { offset: 55, color: '#3b82f6', opacity: 1 },
+                    { offset: 100, color: '#93c5fd', opacity: 1 }
+                  ]
+                }
+              };
+            }
+            return {
+              type: 'gradient',
+              gradient: {
+                shade: 'dark',
+                type: 'horizontal',
+                shadeIntensity: 0.55,
+                gradientToColors: ['#22d3ee'],
+                inverseColors: false,
+                opacityFrom: 1,
+                opacityTo: 1,
+                stops: [0, 100],
+                colorStops: [
+                  { offset: 0, color: '#6d28d9', opacity: 1 },
+                  { offset: 55, color: '#6366f1', opacity: 1 },
+                  { offset: 100, color: '#22d3ee', opacity: 1 }
+                ]
+              }
+            };
+          }
+
+          function radialMainColor(idx) {
+            return idx === 1 ? '#2563eb' : '#7c3aed';
+          }
+
+          function radialHollowBg(idx) {
+            return idx === 1 ? '#93c5fd' : '#00E5FF';
+          }
+
+          function buildRadialOptions() {
+            return {
+              series: [Math.min(100, Math.max(0, radialPct))],
+              chart: Object.assign({}, chartBase, {
+                type: 'radialBar',
+                height: chartHeight(),
+                background: 'transparent'
+              }),
+              labels: [radialLabel],
+              colors: [radialMainColor(radialSelIdx)],
+              stroke: { lineCap: 'round' },
+              fill: getRadialFill(radialSelIdx),
+              plotOptions: {
+                radialBar: {
+                  startAngle: -90,
+                  endAngle: 270,
+                  hollow: {
+                    margin: 0,
+                    size: '64%',
+                    background: radialHollowBg(radialSelIdx)
+                  },
+                  track: {
+                    background: '#3b0764',
+                    strokeWidth: '100%',
+                    margin: 2
+                  },
+                  dataLabels: {
+                    show: true,
+                    name: {
+                      show: true,
+                      color: '#e2e8f0',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      offsetY: -6
+                    },
+                    value: {
+                      show: true,
+                      color: '#ffffff',
+                      fontSize: '28px',
+                      fontWeight: 700,
+                      offsetY: 8,
+                      formatter: function () {
+                        return Math.round(radialPct) + '%';
+                      }
+                    }
+                  }
+                }
+              },
+              tooltip: {
+                theme: 'dark',
+                y: {
+                  formatter: function () {
+                    return (
+                      udsCat[radialSelIdx] +
+                      ' uds. · ' +
+                      Math.round(radialPct) +
+                      '% del total de unidades'
+                    );
+                  }
+                }
+              }
+            };
+          }
+
+          var chRadialCat = new ApexCharts(radialCatEl, buildRadialOptions());
+          var radialDone = chRadialCat.render();
+          dashboardCharts.push(chRadialCat);
+
+          function syncRadialLegendUi() {
+            document.querySelectorAll('.chart-categorias-legend__row[data-cat]').forEach(function (row) {
+              var idx = row.getAttribute('data-cat') === 'computadores' ? 1 : 0;
+              var active = idx === radialSelIdx;
+              row.classList.toggle('is-active', active);
+              row.setAttribute('aria-pressed', active ? 'true' : 'false');
+              var qtyEl = row.querySelector('.chart-categorias-legend__qty');
+              if (qtyEl) {
+                qtyEl.textContent = udsCat[idx] + ' uds.';
+              }
+            });
+          }
+
+          function applyRadialSelection(idx) {
+            if (idx !== 0 && idx !== 1) return;
+            radialSelIdx = idx;
+            radialPct = pctForCat(idx);
+            radialLabel = idx === 0 ? 'Celulares' : 'Computadores';
+            chRadialCat.updateSeries([Math.min(100, Math.max(0, radialPct))], true);
+            chRadialCat.updateOptions(
+              {
+                labels: [radialLabel],
+                colors: [radialMainColor(idx)],
+                fill: getRadialFill(idx),
+                plotOptions: {
+                  radialBar: {
+                    hollow: {
+                      background: radialHollowBg(idx)
+                    },
+                    dataLabels: {
+                      show: true,
+                      name: {
+                        show: true,
+                        color: '#e2e8f0',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                        offsetY: -6
+                      },
+                      value: {
+                        show: true,
+                        color: '#ffffff',
+                        fontSize: '28px',
+                        fontWeight: 700,
+                        offsetY: 8,
+                        formatter: function () {
+                          return Math.round(radialPct) + '%';
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              false,
+              true
+            );
+            syncRadialLegendUi();
+          }
+
+          if (radialDone && typeof radialDone.then === 'function') {
+            radialDone.then(function () {
+              syncRadialLegendUi();
+            });
+          } else {
+            syncRadialLegendUi();
+          }
+
+          document.querySelectorAll('.chart-categorias-legend__row[data-cat]').forEach(function (row) {
+            row.addEventListener('click', function () {
+              var idx = row.getAttribute('data-cat') === 'computadores' ? 1 : 0;
+              applyRadialSelection(idx);
+            });
+            row.addEventListener('keydown', function (e) {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                row.click();
+              }
+            });
+          });
+        }
+
+        const barEl = document.querySelector('#chartVentasMes');
+        if (barEl) {
+          const mesData = (ventasMesSeries || []).map(v => Number(v) || 0);
+          const optionsBar = {
+            series: [{ name: 'Ventas', data: mesData }],
+            chart: Object.assign({}, chartBase, {
+              type: 'bar',
+              height: chartHeight()
+            }),
+            plotOptions: {
+              bar: {
+                borderRadius: 4,
+                columnWidth: '52%',
+                dataLabels: { position: 'top' }
+              }
+            },
+            dataLabels: {
+              enabled: false
+            },
+            colors: ['#22d3ee'],
+            fill: {
+              type: 'gradient',
+              gradient: {
+                shade: 'light',
+                type: 'vertical',
+                shadeIntensity: 0.4,
+                opacityFrom: 0.92,
+                opacityTo: 0.55,
+                colorStops: [
+                  { offset: 0, color: '#22d3ee', opacity: 1 },
+                  { offset: 55, color: '#818cf8', opacity: 0.92 },
+                  { offset: 100, color: '#7c3aed', opacity: 0.88 }
+                ]
+              }
+            },
+            grid: { borderColor: 'rgba(148, 163, 184, 0.18)', strokeDashArray: 4 },
+            xaxis: {
+              categories: ventasMesLabels,
+              labels: { style: { colors: '#64748b', fontSize: '12px', fontWeight: 400 } },
+              axisBorder: { show: false },
+              axisTicks: { show: false }
+            },
+            yaxis: {
+              labels: {
+                style: { colors: '#64748b', fontSize: '11px' },
+                formatter: function (val) {
+                  const n = Number(val) || 0;
+                  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+                  if (n >= 1e3) return (n / 1e3).toFixed(0) + 'k';
+                  return String(Math.round(n));
+                }
+              },
+              title: { text: '' }
+            },
+            tooltip: {
+              theme: 'light',
+              y: { formatter: function (val) { return formatMoney(val); } }
+            },
+            legend: { show: false }
+          };
+          var chBar = new ApexCharts(barEl, optionsBar);
+          chBar.render();
+          dashboardCharts.push(chBar);
+        }
+
+        window.addEventListener(
+          'resize',
+          debounce(function () {
+            var nh = chartHeight();
+            dashboardCharts.forEach(function (ch) {
+              if (!ch || typeof ch.updateOptions !== 'function') return;
+              try {
+                ch.updateOptions({ chart: { height: nh, redrawOnParentResize: true } }, false, true);
+              } catch (e) {}
+            });
+          }, 150)
+        );
+      });
+    })();
+  </script>
 </body>
 </html>

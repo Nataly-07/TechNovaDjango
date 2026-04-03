@@ -1,0 +1,265 @@
+{% extends "frontend/base_admin.html" %}
+{% load static %}
+
+{% block title %}Editar perfil — Administración Technova{% endblock %}
+
+{% block extra_css %}
+<style>
+  .admin-perfil-edit {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .admin-perfil-edit h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .admin-perfil-edit .lead {
+    color: #64748b;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+  .admin-perfil-section {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1.15rem 1.25rem 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  }
+  .admin-perfil-section h2 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+    font-weight: 700;
+    margin: 0 0 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .admin-perfil-section h2 i {
+    font-size: 1.1rem;
+    color: var(--bondi-blue, #0799b6);
+  }
+  .admin-perfil-readonly {
+    display: grid;
+    gap: 0.65rem;
+  }
+  .admin-perfil-readonly .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    align-items: baseline;
+    font-size: 0.92rem;
+  }
+  .admin-perfil-readonly .label {
+    font-weight: 600;
+    color: #475569;
+    min-width: 7rem;
+  }
+  .admin-perfil-readonly .value {
+    color: #0f172a;
+    flex: 1;
+  }
+  .admin-perfil-readonly .badge-rol {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(7, 153, 182, 0.12), rgba(74, 110, 176, 0.12));
+    color: #0f172a;
+    font-weight: 600;
+    font-size: 0.88rem;
+  }
+  .admin-perfil-form .form-row {
+    margin-bottom: 0.9rem;
+  }
+  .admin-perfil-form label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.35rem;
+  }
+  .admin-perfil-form input[type="text"],
+  .admin-perfil-form input[type="tel"],
+  .admin-perfil-form input[type="password"],
+  .admin-perfil-form textarea {
+    width: 100%;
+    max-width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    box-sizing: border-box;
+  }
+  .admin-perfil-form input:focus,
+  .admin-perfil-form textarea:focus {
+    outline: none;
+    border-color: var(--bondi-blue, #0799b6);
+    box-shadow: 0 0 0 3px rgba(7, 153, 182, 0.15);
+  }
+  .admin-perfil-form textarea {
+    min-height: 72px;
+    resize: vertical;
+  }
+  .admin-perfil-form .hint {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 0.25rem;
+  }
+  .admin-perfil-toggle-link {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0.5rem 0 0;
+    color: var(--san-marino, #4a6eb0);
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .admin-perfil-toggle-link:hover {
+    color: var(--bondi-blue, #0799b6);
+  }
+  .admin-perfil-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    align-items: center;
+  }
+  .btn-admin-save {
+    background: linear-gradient(135deg, var(--bondi-blue, #0799b6), var(--san-marino, #4a6eb0));
+    color: #fff;
+    border: none;
+    padding: 0.6rem 1.25rem;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .btn-admin-save:hover {
+    filter: brightness(1.05);
+  }
+  .btn-admin-cancel {
+    color: #475569;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .btn-admin-cancel:hover {
+    color: #0f172a;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-perfil-edit">
+  <h1><i class="bx bx-user-circle"></i> Editar perfil</h1>
+  <p class="lead">Actualiza tus datos de contacto. Los campos marcados como solo lectura no se pueden modificar desde aquí.</p>
+
+  <form method="post" action="{% url 'web_admin_perfil_editar' %}" class="admin-perfil-form" id="formAdminPerfil">
+    {% csrf_token %}
+
+    <section class="admin-perfil-section" aria-labelledby="sec-readonly">
+      <h2 id="sec-readonly"><i class="bx bx-lock-alt"></i> Datos fijos (solo lectura)</h2>
+      <div class="admin-perfil-readonly">
+        <div class="row">
+          <span class="label">Rol</span>
+          <span class="value"><span class="badge-rol">{{ usuario.get_rol_display }}</span></span>
+        </div>
+        <div class="row">
+          <span class="label">Correo electrónico</span>
+          <span class="value">{{ usuario.correo_electronico }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Documento</span>
+          <span class="value">{{ usuario.tipo_documento }} {{ usuario.numero_documento }}</span>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:0.75rem;margin-bottom:0;">El correo no se puede cambiar por ahora para evitar conflictos de inicio de sesión.</p>
+    </section>
+
+    <section class="admin-perfil-section" aria-labelledby="sec-editable">
+      <h2 id="sec-editable"><i class="bx bx-edit-alt"></i> Datos editables</h2>
+      <div class="form-row">
+        <label for="nombres">Nombres *</label>
+        <input type="text" id="nombres" name="nombres" maxlength="120" required value="{{ form_nombres }}" autocomplete="given-name">
+      </div>
+      <div class="form-row">
+        <label for="apellidos">Apellidos *</label>
+        <input type="text" id="apellidos" name="apellidos" maxlength="120" required value="{{ form_apellidos }}" autocomplete="family-name">
+      </div>
+      <div class="form-row">
+        <label for="telefono">Teléfono</label>
+        <input type="tel" id="telefono" name="telefono" maxlength="20" value="{{ form_telefono }}" autocomplete="tel">
+      </div>
+      <div class="form-row">
+        <label for="direccion">Dirección</label>
+        <textarea id="direccion" name="direccion" maxlength="2000" autocomplete="street-address">{{ form_direccion }}</textarea>
+      </div>
+    </section>
+
+    <section class="admin-perfil-section" aria-labelledby="sec-security">
+      <h2 id="sec-security"><i class="bx bx-shield-quarter"></i> Validación de seguridad</h2>
+      <div class="form-row">
+        <label for="current_password">Contraseña actual *</label>
+        <input type="password" id="current_password" name="current_password" required autocomplete="current-password" placeholder="Obligatoria para guardar cualquier cambio">
+        <p class="hint">Debes confirmar tu identidad con la contraseña que usas para entrar al sistema.</p>
+      </div>
+
+      <button type="button" class="admin-perfil-toggle-link" id="togglePasswordChange" aria-expanded="{% if show_password_change %}true{% else %}false{% endif %}" aria-controls="password-change-fields">
+        Deseo cambiar mi contraseña
+      </button>
+
+      <div id="password-change-fields" class="admin-perfil-password-extra" {% if not show_password_change %}hidden{% endif %}>
+        <div class="form-row" style="margin-top:0.75rem;">
+          <label for="new_password">Nueva contraseña</label>
+          <input type="password" id="new_password" name="new_password" autocomplete="new-password" placeholder="Mínimo 8 caracteres">
+        </div>
+        <div class="form-row">
+          <label for="confirm_password">Confirmar nueva contraseña</label>
+          <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" placeholder="Repite la nueva contraseña">
+        </div>
+      </div>
+    </section>
+
+    <div class="admin-perfil-actions">
+      <button type="submit" class="btn-admin-save"><i class="bx bx-save"></i> Guardar cambios</button>
+      <a href="{% url 'web_admin_perfil' %}" class="btn-admin-cancel">Volver al panel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var toggle = document.getElementById('togglePasswordChange');
+  var box = document.getElementById('password-change-fields');
+  var newPw = document.getElementById('new_password');
+  var confirmPw = document.getElementById('confirm_password');
+  if (!toggle || !box) return;
+
+  toggle.addEventListener('click', function () {
+    var open = box.hidden;
+    box.hidden = !open;
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      if (newPw) newPw.focus();
+    } else {
+      if (newPw) newPw.value = '';
+      if (confirmPw) confirmPw.value = '';
+    }
+  });
+})();
+</script>
+{% endblock %}

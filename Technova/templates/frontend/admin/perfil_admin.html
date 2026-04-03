@@ -1,0 +1,187 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Perfil Administrador — Technova</title>
+  <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}">
+</head>
+<body class="admin-page-perfil perfil-page">
+  <header class="header">
+    <div class="logo" style="cursor: default;">
+      <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Logo Technova" width="50" height="50" loading="eager" decoding="async">
+      <span>TECHNOVA</span>
+    </div>
+    <div class="header-welcome">
+      <h1>¡Bienvenido{% if usuario %}, <span>{{ usuario.nombres }}</span>{% else %}<span>Administrador</span>{% endif %}!</h1>
+      <p>Panel de administración de Technova</p>
+    </div>
+    <div class="acciones-usuario">
+      <a href="{% url 'web_admin_perfil' %}" class="account"><i class="bx bx-user-circle"></i> <span>Perfil</span></a>
+      <form method="post" action="{% url 'web_logout' %}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="account" style="background:none;border:none;color:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">
+          <i class="bx bx-log-out"></i> <span>Cerrar Sesión</span>
+        </button>
+      </form>
+    </div>
+  </header>
+
+  <div class="dashboard-wrapper">
+    {% include "frontend/layouts/sidebar_admin.html" %}
+
+    <main class="main-content">
+      {% for message in messages %}
+      <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+        <i class="bx {% if message.tags == 'error' %}bx-error-circle{% else %}bx-check-circle{% endif %}"></i>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+
+      {% if usuario %}
+      <div class="profile-card">
+        <img src="{% static 'frontend/imagenes/placeholder.svg' %}" alt="Foto de perfil">
+        <div class="profile-details">
+          <h2>{{ usuario.nombres }} {{ usuario.apellidos }}</h2>
+          <p><i class="bx bx-envelope"></i> <span>{{ usuario.correo_electronico }}</span></p>
+          <p><i class="bx bx-shield"></i> <span>{{ usuario.get_rol_display }}</span></p>
+          <a href="{% url 'web_admin_perfil_editar' %}" class="edit-profile"><i class="bx bx-edit"></i> Editar perfil</a>
+        </div>
+      </div>
+
+      <div class="dashboard-cards">
+        <div class="card">
+          <div class="card-icon"><i class="bx bx-user"></i></div>
+          <div class="card-content">
+            <h3>Gestión de Usuarios</h3>
+            <p>Administra usuarios del sistema</p>
+            <div class="card-stats">
+              <span class="stat-number">{{ users_count }}</span>
+              <span class="stat-label">usuarios registrados</span>
+            </div>
+            <a href="{% url 'web_admin_usuarios' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Gestionar Usuarios</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon"><i class="bx bx-shopping-bag"></i></div>
+          <div class="card-content">
+            <h3>Movimiento de Artículos</h3>
+            <p>Controla ingresos, salidas y stock</p>
+            <div class="card-stats">
+              <span class="stat-number">{{ productos_count }}</span>
+              <span class="stat-label">productos en inventario</span>
+            </div>
+            <a href="{% url 'web_admin_inventario' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Gestionar Movimientos</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon"><i class="bx bx-chart"></i></div>
+          <div class="card-content">
+            <h3>Reportes</h3>
+            <p>Visualiza métricas del negocio</p>
+            <div class="card-stats">
+              <span class="stat-number">{{ reportes_disponibles }}</span>
+              <span class="stat-label">reportes disponibles</span>
+            </div>
+            <a href="{% url 'web_admin_reportes' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Reportes</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon"><i class="bx bx-user-circle"></i></div>
+          <div class="card-content">
+            <h3>Proveedores</h3>
+            <p>Gestiona proveedores y compras</p>
+            <div class="card-stats">
+              <span class="stat-number">{{ proveedores_count }}</span>
+              <span class="stat-label">proveedores activos</span>
+            </div>
+            <a href="{% url 'web_admin_proveedores' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Gestionar Proveedores</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon"><i class="bx bx-bell"></i></div>
+          <div class="card-content">
+            <h3>Notificaciones</h3>
+            <p>Avisos del sistema para tu cuenta</p>
+            <div class="card-stats">
+              <span class="stat-number">{{ notificaciones_no_leidas }}</span>
+              <span class="stat-label">no leídas</span>
+            </div>
+            <a href="{% url 'web_admin_notificaciones' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver notificaciones</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon"><i class="bx bx-cart-alt"></i></div>
+          <div class="card-content">
+            <h3>Órdenes de Compra</h3>
+            <p>Gestiona órdenes a proveedores</p>
+            <div class="card-stats">
+              <span class="stat-number">{{ ordenes_compra_count }}</span>
+              <span class="stat-label">órdenes registradas</span>
+            </div>
+            <a href="{% url 'web_admin_ordenes_compra' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Gestionar Órdenes</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon"><i class="bx bx-message"></i></div>
+          <div class="card-content">
+            <h3>Mensajes</h3>
+            <p>Gestiona comunicación del sistema</p>
+            <div class="card-stats">
+              <span class="stat-number">{{ mensajes_pendientes }}</span>
+              <span class="stat-label">mensajes pendientes</span>
+            </div>
+            <a href="#" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Mensajes</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon"><i class="bx bx-cart"></i></div>
+          <div class="card-content">
+            <h3>Pedidos</h3>
+            <p>Gestiona pedidos y ventas</p>
+            <div class="card-stats">
+              <span class="stat-number">{{ pedidos_procesados }}</span>
+              <span class="stat-label">pedidos procesados</span>
+            </div>
+            <a href="{% url 'web_admin_pedidos' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Pedidos</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon"><i class="bx bx-credit-card"></i></div>
+          <div class="card-content">
+            <h3>Pagos</h3>
+            <p>Gestiona transacciones y pagos</p>
+            <div class="card-stats">
+              <span class="stat-number">{{ transacciones_procesadas }}</span>
+              <span class="stat-label">transacciones procesadas</span>
+            </div>
+            <a href="{% url 'web_admin_pagos' %}" class="card-button"><i class="bx bx-right-arrow-alt"></i> Ver Pagos</a>
+          </div>
+        </div>
+      </div>
+
+      {% else %}
+      <p style="color:#c0392b;">No se encontró el usuario.</p>
+      {% endif %}
+    </main>
+  </div>
+
+  <footer>
+    <p>&copy; 2025 Technova</p>
+  </footer>
+</body>
+</html>
+

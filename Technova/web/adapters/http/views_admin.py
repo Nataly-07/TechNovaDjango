@@ -88,6 +88,10 @@ def perfil_admin(request):
         "notificaciones_no_leidas": notificaciones_no_leidas,
         "pedidos_procesados": Venta.objects.count(),
         "transacciones_procesadas": Pago.objects.count(),
+        "categorias_donut_labels_json": mark_safe(
+            json.dumps(["Celulares", "Computadores"], ensure_ascii=False)
+        ),
+        "categorias_donut_series_json": mark_safe(json.dumps([0, 0, 0], ensure_ascii=False)),
     }
     return render(request, "frontend/admin/perfil.html", ctx)
 

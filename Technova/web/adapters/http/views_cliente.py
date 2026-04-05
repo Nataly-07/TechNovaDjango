@@ -57,11 +57,8 @@ def perfil_cliente(request):
         notificaciones_count += min(nuevos_productos_count, 12)
 
     # Datos del catálogo como en el index principal
-    productos = (
-        Producto.objects.filter(activo=True)
-        .select_related("categoria")
-        .order_by("-creado_en")[:20]
-    )
+    # `categoria` y `marca` en Producto son CharField, no FK: no usar select_related aquí.
+    productos = Producto.objects.filter(activo=True).order_by("-creado_en")[:20]
     
     # Obtener categorías únicas
     categorias = list(

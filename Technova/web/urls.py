@@ -65,6 +65,11 @@ urlpatterns = [
         name="web_admin_producto_estado",
     ),
     path(
+        "admin/inventario/producto/<int:producto_id>/editar/",
+        views.admin_producto_editar,
+        name="web_admin_producto_editar",
+    ),
+    path(
         "admin/inventario/catalogo/categoria/",
         views.admin_catalogo_categoria_agregar,
         name="web_admin_catalogo_categoria_agregar",
@@ -75,6 +80,16 @@ urlpatterns = [
         name="web_admin_catalogo_marca_agregar",
     ),
     path("admin/inventario/", views.admin_inventario, name="web_admin_inventario"),
+    path(
+        "admin/inventario/importar-excel/plantilla/",
+        views.admin_inventario_plantilla_excel,
+        name="web_admin_inventario_plantilla_excel",
+    ),
+    path(
+        "admin/inventario/importar-excel/",
+        views.admin_inventario_importar_excel,
+        name="web_admin_inventario_importar_excel",
+    ),
     path("admin/proveedores/crear/", views.admin_proveedor_crear, name="web_admin_proveedor_crear"),
     path(
         "admin/proveedores/<int:proveedor_id>/estado/",

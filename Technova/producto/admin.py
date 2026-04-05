@@ -12,10 +12,10 @@ class ProductoImagenInline(admin.TabularInline):
 
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
-    list_display = ['codigo', 'nombre', 'categoria', 'marca', 'stock', 'precio_venta', 'activo']
+    list_display = ['codigo', 'nombre', 'categoria', 'marca', 'stock', 'stock_inicial', 'precio_venta', 'activo']
     list_filter = ['categoria', 'marca', 'activo']
     search_fields = ['codigo', 'nombre', 'descripcion']
-    readonly_fields = ['creado_en', 'actualizado_en']
+    readonly_fields = ['stock_inicial', 'creado_en', 'actualizado_en']
     inlines = [ProductoImagenInline]
     
     fieldsets = (
@@ -26,7 +26,8 @@ class ProductoAdmin(admin.ModelAdmin):
             'fields': ('categoria', 'marca', 'color', 'descripcion')
         }),
         ('Precios e Inventario', {
-            'fields': ('costo_unitario', 'precio_venta', 'stock')
+            'fields': ('costo_unitario', 'precio_venta', 'stock', 'stock_inicial'),
+            'description': 'El stock inicial queda fijo desde el alta; el stock es el inventario operativo actual.',
         }),
         ('Multimedia', {
             'fields': ('imagen_url',)

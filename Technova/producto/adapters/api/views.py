@@ -7,7 +7,7 @@ from common.api import error_response, parse_json_body, success_response
 from common.auth import require_auth
 from common.container import get_producto_service
 from producto.domain.entities import ProductoEntidad
-from producto.models import Producto
+from producto.models import Producto, ProductoImagen
 from proveedor.models import Proveedor
 
 
@@ -19,7 +19,11 @@ def _nombre_proveedor(proveedor_id: int) -> str:
         return ""
 
 
-def _serialize_producto(entidad: ProductoEntidad) -> dict:
+def _serialize_producto(
+    entidad: ProductoEntidad,
+    *,
+    include_imagenes_extras: bool = False,
+) -> dict:
     precio = entidad.precio_venta if entidad.precio_venta is not None else entidad.costo_unitario
     promocion_activa = False
     precio_promocion = None
@@ -39,6 +43,14 @@ def _serialize_producto(entidad: ProductoEntidad) -> dict:
             precio = p_model.precio_promocion
     except Exception:  # noqa: BLE001
         pass
+    imagenes_adicionales: list[dict] = []
+    if include_imagenes_extras and entidad.id is not None:
+        imagenes_adicionales = [
+            {"url": img.url, "orden": img.orden}
+            for img in ProductoImagen.objects.filter(producto_id=entidad.id, activa=True).order_by(
+                "orden", "id"
+            )
+        ]
     return {
         "id": entidad.id,
         "codigo": entidad.codigo,
@@ -47,6 +59,7 @@ def _serialize_producto(entidad: ProductoEntidad) -> dict:
         "proveedor_id": entidad.proveedor_id,
         "proveedor": _nombre_proveedor(entidad.proveedor_id),
         "imagen": entidad.imagen_url or "",
+        "imagenes_adicionales": imagenes_adicionales,
         "estado": entidad.activo,
         "costo_unitario": str(entidad.costo_unitario),
         "precio_venta": str(entidad.precio_venta) if entidad.precio_venta is not None else None,
@@ -111,7 +124,7 @@ def _crear_producto_core(request):
         creado = service.crear(entidad)
     except Exception as exc:  # noqa: BLE001
         return error_response(str(exc), status=400)
-    return success_response(_serialize_producto(creado), status=201)
+    return success_response(_serialize_producto(creado, include_imagenes_extras=True), status=201)
 
 
 @require_GET
@@ -124,7 +137,7 @@ def _detalle_producto_core(request, producto_id: int):
     producto = service.obtener_por_id(producto_id)
     if producto is None:
         return error_response("Producto no encontrado.", status=404)
-    return success_response(_serialize_producto(producto))
+    return success_response(_serialize_producto(producto, include_imagenes_extras=True))
 
 
 def _actualizar_producto_core(request, producto_id: int):
@@ -137,7 +150,7 @@ def _actualizar_producto_core(request, producto_id: int):
     actualizado = service.actualizar(entidad)
     if actualizado is None:
         return error_response("Producto no encontrado.", status=404)
-    return success_response(_serialize_producto(actualizado))
+    return success_response(_serialize_producto(actualizado, include_imagenes_extras=True))
 
 
 def _eliminar_producto_core(request, producto_id: int):
@@ -277,4 +290,4 @@ def patch_estado_producto(request, producto_id: int):
     actualizado = service.cambiar_estado(producto_id, activar)
     if actualizado is None:
         return error_response("Producto no encontrado.", status=404)
-    return success_response(_serialize_producto(actualizado))
+    return success_response(_serialize_producto(actualizado, include_imagenes_extras=True))

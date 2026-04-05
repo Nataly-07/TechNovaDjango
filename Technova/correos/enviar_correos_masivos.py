@@ -4,27 +4,37 @@ import django
 from dotenv import load_dotenv
 
 # 1. Configuración de rutas
-# Obtenemos la carpeta raíz (donde está manage.py y el .env)
 ruta_proyecto = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ruta_proyecto not in sys.path:
     sys.path.append(ruta_proyecto)
 
-# 2. Cargar variables de entorno (Configuración de Postgres y Email)
-load_dotenv(os.path.join(ruta_proyecto, '.env'))
+# 2. Cargar variables de entorno
+load_dotenv(os.path.join(ruta_proyecto, ".env"))
 
 # 3. Configurar Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Technova.settings_dev")
 django.setup()
 
-# 4. Importar TU modelo y herramientas de correo
-# Usamos 'usuario' en singular como me indicaste
-from usuario.models import Usuario 
-from django.core.mail import get_connection, EmailMessage
 from django.conf import settings
+from django.core.mail import get_connection, EmailMessage
+
+from usuario.models import Usuario
+
+
+def _remitente_y_para_visible():
+    from_email = (getattr(settings, "DEFAULT_FROM_EMAIL", None) or "").strip()
+    if not from_email:
+        from_email = (getattr(settings, "EMAIL_HOST_USER", None) or "").strip() or "noreply@localhost"
+    visible = getattr(settings, "TECHNOVA_BULK_MAIL_VISIBLE_TO", None)
+    if visible is None:
+        visible = from_email
+    else:
+        visible = str(visible).strip()
+    to_header = [visible] if visible else []
+    return from_email, to_header
+
 
 def enviar_correos_masivos():
-    # --- FILTRADO PERSONALIZADO ---
-    # Usamos 'activo' y 'correo_electronico' que están en tu models.py
     usuarios = Usuario.objects.filter(activo=True).exclude(correo_electronico="")
 
     print("--- 👤 Buscando Usuarios en Technova ---")
@@ -36,40 +46,52 @@ def enviar_correos_masivos():
         print("❌ No hay usuarios para enviar correos.")
         return
 
-    # --- CONFIGURACIÓN DEL MENSAJE ---
     subject = "Promoción Especial Technova 💻📱"
-    from_email = settings.EMAIL_HOST_USER
+    from_email, to_header = _remitente_y_para_visible()
 
+    connection = get_connection()
     try:
-        # Abrimos una sola conexión para ser más eficientes
-        connection = get_connection()
         connection.open()
-        
-        mensajes = []
-        for usuario in usuarios:
-            # Personalizamos con 'nombres' de tu modelo
-            cuerpo = f"¡Hola {usuario.nombres}!\n\nTenemos ofertas especiales en celulares y computadores para ti."
-            
-            email = EmailMessage(
-                subject,
-                cuerpo,
-                from_email,
-                [usuario.correo_electronico],
-                connection=connection,
-            )
-            mensajes.append(email)
-
-        # Enviamos todos los correos juntos
-        print(f"Enviando {len(mensajes)} correos... por favor espera.")
-        connection.send_messages(mensajes)
-        
-        # Cerramos la conexión
-        connection.close()
-        
-        print("\n¡Proceso completado con éxito! ✅")
-
     except Exception as e:
-        print(f"\n🔴 Ocurrió un error: {e}")
+        print(f"\n🔴 No se pudo conectar al servidor de correo: {e}")
+        return
+
+    exitosos = 0
+    fallidos = 0
+    try:
+        for usuario in usuarios:
+            correo = (usuario.correo_electronico or "").strip()
+            if not correo:
+                fallidos += 1
+                continue
+            cuerpo = (
+                f"¡Hola {usuario.nombres}!\n\n"
+                "Tenemos ofertas especiales en celulares y computadores para ti."
+            )
+            try:
+                email = EmailMessage(
+                    subject,
+                    cuerpo,
+                    from_email,
+                    to_header,
+                    bcc=[correo],
+                    connection=connection,
+                )
+                email.send()
+                exitosos += 1
+            except Exception as e:
+                print(f"  ⚠ Fallo a {correo}: {e}")
+                fallidos += 1
+    finally:
+        try:
+            connection.close()
+        except Exception:
+            pass
+
+    print(f"\nEnviados: {exitosos} · Fallidos: {fallidos}")
+    if exitosos:
+        print("¡Proceso terminado (con al menos un envío exitoso). ✅")
+
 
 if __name__ == "__main__":
     enviar_correos_masivos()

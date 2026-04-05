@@ -39,6 +39,36 @@ def admin_usuario_sesion(request) -> Usuario:
     return get_object_or_404(Usuario, pk=uid)
 
 
+def _galeria_urls_producto(p: Producto) -> list[str]:
+    """URLs en orden: principal + adicionales activas (sin duplicados). Base del carrusel en ficha/modal."""
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def add(u: str | None) -> None:
+        if not u:
+            return
+        t = str(u).strip()
+        if not t or t in seen:
+            return
+        seen.add(t)
+        out.append(t)
+
+    main = ""
+    if hasattr(p, "imagen") and getattr(p, "imagen", None):
+        try:
+            main = str(p.imagen.url or "")
+        except Exception:
+            main = ""
+    if not main.strip():
+        main = str(getattr(p, "imagen_url", None) or "").strip()
+    add(main or None)
+
+    if hasattr(p, "imagenes"):
+        for img in p.imagenes.filter(activa=True).order_by("orden", "id"):
+            add(getattr(img, "url", None))
+    return out
+
+
 def usuario_modal_dict(u: Usuario) -> dict:
     ventas_preview: list[dict] = []
     if u.rol == Usuario.Rol.CLIENTE:
@@ -70,48 +100,67 @@ def usuario_modal_dict(u: Usuario) -> dict:
 def producto_modal_dict(p: Producto) -> dict:
     precio_base = p.precio_venta if p.precio_venta is not None else p.costo_unitario
     precio_publico = p.precio_publico if hasattr(p, "precio_publico") else precio_base
-    
+
+    costo_f = float(p.costo_unitario) if p.costo_unitario is not None else 0.0
+    margen_pct = None
+    if p.precio_venta is not None and costo_f > 0:
+        margen_pct = round((float(p.precio_venta) / costo_f - 1) * 100, 2)
+
     # Obtener imágenes adicionales
     imagenes_adicionales = []
-    if hasattr(p, 'imagenes'):
+    if hasattr(p, "imagenes"):
         imagenes_adicionales = [
             {
                 "url": img.url,
                 "orden": img.orden,
-                "activa": img.activa
+                "activa": img.activa,
             }
-            for img in p.imagenes.filter(activa=True).order_by('orden')
+            for img in p.imagenes.filter(activa=True).order_by("orden")
         ]
-    
+
     # Obtener imagen principal
     imagen_url = ""
-    if hasattr(p, 'imagen') and p.imagen:
+    if hasattr(p, "imagen") and p.imagen:
         imagen_url = p.imagen.url
-    elif hasattr(p, 'imagen_url') and p.imagen_url:
+    elif hasattr(p, "imagen_url") and p.imagen_url:
         imagen_url = p.imagen_url
-    
+
+    precio_venta_f = float(p.precio_venta) if p.precio_venta is not None else None
+
     return {
         "id": p.id,
         "codigo": p.codigo,
         "nombre": p.nombre,
         "stock": p.stock,
         "activo": p.activo,
+        "estado": p.activo,
         "imagen": imagen_url,
+        "galeria_urls": _galeria_urls_producto(p),
         "imagenes_adicionales": imagenes_adicionales,
         "proveedor": p.proveedor.nombre if p.proveedor_id else "",
-        "categoria": p.categoria,
-        "marca": p.marca,
+        "categoria": p.categoria or "",
+        "marca": p.marca or "",
         "color": p.color or "",
         "descripcion": p.descripcion or "",
-        "costo_unitario": float(p.costo_unitario) if p.costo_unitario else 0,
-        "precio_venta": float(p.precio_venta) if p.precio_venta else None,
-        "precio_promocion": float(p.precio_promocion) if p.precio_promocion else None,
+        "costo_unitario": costo_f,
+        "precio_venta": precio_venta_f,
+        "precio_promocion": float(p.precio_promocion) if p.precio_promocion is not None else None,
         "fecha_fin_promocion": (
             p.fecha_fin_promocion.isoformat() if p.fecha_fin_promocion else None
         ),
         "promocion_activa": bool(getattr(p, "promocion_activa", False)),
         "precio_base": float(precio_base) if precio_base is not None else 0,
         "precio": float(precio_publico) if precio_publico is not None else 0,
+        "margen_pct": margen_pct,
+        "stock_inicial": int(getattr(p, "stock_inicial", 0) or 0),
+        "caracteristica": {
+            "categoria": p.categoria or "",
+            "marca": p.marca or "",
+            "color": p.color or "",
+            "descripcion": p.descripcion or "",
+            "precioCompra": str(p.costo_unitario),
+            "precioVenta": str(p.precio_venta) if p.precio_venta is not None else None,
+        },
     }
 
 

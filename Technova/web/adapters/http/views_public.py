@@ -11,6 +11,7 @@ from usuario.adapters.web.session_views import SESSION_USUARIO_ID
 from usuario.infrastructure.models.usuario_model import Usuario
 
 from web.application.catalogo_publico_service import (
+    fetch_productos_recientes,
     listas_categorias_marcas_publicas,
     producto_card_ctx,
 )
@@ -21,8 +22,7 @@ def index_public(request):
     """Landing pública (invitado): catálogo, ofertas y enlaces a login/registro (`/`)."""
     productos_qs = Producto.objects.filter(activo=True).order_by("id")
     productos_cards = [producto_card_ctx(p) for p in productos_qs[:24]]
-    recientes_qs = Producto.objects.filter(activo=True).order_by("-creado_en", "-id")[:6]
-    productos_recientes = [producto_card_ctx(p) for p in recientes_qs]
+    productos_recientes = [producto_card_ctx(p) for p in fetch_productos_recientes()]
     categorias, marcas = listas_categorias_marcas_publicas()
     oferta_dia = productos_cards[0] if productos_cards else None
     ofertas_interes = productos_cards[:3]

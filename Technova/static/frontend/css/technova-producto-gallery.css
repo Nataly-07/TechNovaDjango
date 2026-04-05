@@ -1,0 +1,214 @@
+/* Carrusel: stage (visible, aloja flechas) + viewport (solo overflow hidden en la cinta) */
+.tn-pg {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Alto acotado (320px): el cuadro gris no domina la ficha/modal */
+.tn-pg__stage {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  height: 320px;
+  min-height: 320px;
+  max-height: 320px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+/*
+ * Ventana del carrusel: relative + overflow para recortar la cinta.
+ * Importante: en inventario, estilodas.css usa * { max-width: 100% }, lo que
+ * aplastaba .tn-pg__track al ancho del viewport y amontonaba slides — se anula abajo.
+ */
+.tn-pg__viewport {
+  position: relative !important;
+  width: 100%;
+  height: 320px;
+  max-height: 320px !important;
+  overflow: hidden !important;
+  border-radius: inherit;
+  z-index: 1;
+  container-type: inline-size;
+  container-name: tn-pg-viewport;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
+}
+
+.tn-pg--carousel .tn-pg__viewport {
+  position: relative !important;
+  overflow: hidden !important;
+  max-height: 320px !important;
+}
+
+.tn-pg__track {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  transition: transform 0.35s ease;
+  will-change: transform;
+  align-self: center;
+}
+
+/* Cinta: sin tope max-width del * { max-width: 100% } global (estilodas) */
+.tn-pg--carousel .tn-pg__track {
+  width: auto;
+  max-width: none !important;
+}
+
+.tn-pg__slide {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 10px;
+}
+
+.tn-pg--carousel .tn-pg__slide {
+  flex-shrink: 0;
+  max-width: none !important;
+}
+
+@supports (width: 1cqw) {
+  .tn-pg--carousel .tn-pg__slide {
+    flex: 0 0 100cqw !important;
+    min-width: 100cqw !important;
+    width: 100cqw !important;
+    max-width: 100cqw !important;
+  }
+}
+
+.tn-pg__slide-img {
+  display: block;
+  width: auto !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  box-sizing: border-box;
+}
+
+/* Flechas: más separadas del borde y fondo más legible sin tapar tanto el producto */
+.tn-pg__nav {
+  position: absolute;
+  top: 50%;
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  cursor: pointer;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transform: translateY(-50%);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.tn-pg__nav:hover {
+  background: rgba(79, 70, 229, 0.78);
+  transform: translateY(-50%) scale(1.06);
+}
+
+.tn-pg__nav:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.tn-pg__nav--prev {
+  left: 16px;
+}
+
+.tn-pg__nav--next {
+  right: 16px;
+}
+
+.tn-pg__counter {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  z-index: 10;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* Imagen única: mismo stage grande, sin flechas */
+.tn-pg__stage--solo {
+  display: block;
+  overflow: visible;
+}
+
+.tn-pg__stage--solo .tn-pg__img--solo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: auto !important;
+  max-width: calc(100% - 20px) !important;
+  height: auto !important;
+  max-height: calc(100% - 20px) !important;
+  margin: 0;
+  padding: 10px;
+  box-sizing: border-box;
+  object-fit: contain !important;
+  object-position: center !important;
+  border-radius: inherit;
+  display: block;
+}
+
+.tn-pg:not(.tn-pg--carousel) .tn-pg__nav {
+  display: none !important;
+}
+
+/* Depuración flechas: descomenta si necesitas ver los botones del carrusel en el inspector
+.tn-pg--carousel .tn-pg__nav {
+  outline: 2px solid red;
+  outline-offset: 2px;
+}
+*/
+
+/* Modal tienda: mismo tope 320px respecto al vh del modal */
+.producto-detalle-layout--modal .tn-pg__stage,
+.producto-detalle-layout--modal .tn-pg__viewport {
+  height: min(320px, 45vh);
+  min-height: min(320px, 45vh);
+  max-height: min(320px, 45vh) !important;
+}
+
+@media (max-height: 520px) {
+  .tn-pg__stage,
+  .tn-pg__viewport {
+    height: 260px;
+    min-height: 260px;
+    max-height: 260px !important;
+  }
+}

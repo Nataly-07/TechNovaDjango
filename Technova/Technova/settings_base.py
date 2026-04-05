@@ -177,3 +177,15 @@ TECHNOVA_PAYPAL_CURRENCY = os.getenv("TECHNOVA_PAYPAL_CURRENCY", "USD").strip().
 # Admin: mostrar "PayPal" en lugar de "PSE" para medios guardados con el mapeo antiguo (paypal_sandbox → PSE).
 # Pon TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL=0 si tienes pagos PSE bancarios reales en "pse".
 TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL = _env_bool("TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL", True)
+
+# Correo (remitente y campañas masivas)
+_default_from = os.getenv("DEFAULT_FROM_EMAIL", "").strip()
+if not _default_from:
+    _default_from = os.getenv("EMAIL_HOST_USER", "").strip() or "Technova <noreply@technova.local>"
+DEFAULT_FROM_EMAIL = _default_from
+# Visible en "Para:" en envíos masivos; los clientes van en BCC. Si la variable existe pero está vacía, To queda vacío.
+_bulk_visible_raw = os.getenv("TECHNOVA_BULK_MAIL_VISIBLE_TO")
+if _bulk_visible_raw is None:
+    TECHNOVA_BULK_MAIL_VISIBLE_TO = DEFAULT_FROM_EMAIL
+else:
+    TECHNOVA_BULK_MAIL_VISIBLE_TO = _bulk_visible_raw.strip()

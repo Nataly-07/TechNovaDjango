@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.views.decorators.http import require_GET, require_POST
 from django.http import JsonResponse
 from django.template.loader import render_to_string
-from django.core.mail import send_mail, send_mass_mail, get_connection
+from django.core.mail import EmailMessage, EmailMultiAlternatives, get_connection
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
@@ -152,15 +152,29 @@ def enviar_correos_masivos(request):
             
             DestinatarioEnvio.objects.bulk_create(destinatarios_envio)
         
-        # Enviar correos en segundo plano o sincrónicamente
         try:
-            _procesar_envio_correos(historial)
-            messages.success(request, f'Correo enviado exitosamente a {len(destinatarios)} destinatarios')
+            ok, fail = _procesar_envio_correos(historial)
+            if fail == 0:
+                messages.success(
+                    request, f"Correo enviado correctamente a {ok} destinatario(s)."
+                )
+            elif ok == 0:
+                messages.error(
+                    request,
+                    f"No se pudo enviar ningún correo ({fail} fallido(s)). Revisa el historial.",
+                )
+            else:
+                messages.warning(
+                    request,
+                    f"Enviados {ok} correo(s); {fail} fallido(s). Revisa el historial.",
+                )
         except Exception as e:
             logger.error(f"Error al enviar correos: {e}")
-            historial.estado = 'error'
-            historial.save()
-            messages.error(request, f'Error al enviar correos: {str(e)}')
+            historial.refresh_from_db()
+            if historial.estado != "error":
+                historial.estado = "error"
+                historial.save(update_fields=["estado"])
+            messages.error(request, f"Error al enviar correos: {str(e)}")
         
         return redirect('correos:panel_correos')
         
@@ -331,18 +345,27 @@ def enviar_promocion_producto(request, producto_id):
             
             DestinatarioEnvio.objects.bulk_create(destinatarios_envio)
         
-        # Enviar correos
         try:
-            _procesar_envio_correos(historial, html_content=True)
-            return JsonResponse({
-                'success': True, 
-                'message': f'Promoción enviada a {len(destinatarios)} destinatarios'
-            })
+            ok, fail = _procesar_envio_correos(historial, html_content=True)
+            if ok == 0:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": "No se pudo enviar ningún correo. Revisa direcciones y el servidor SMTP.",
+                    },
+                    status=500,
+                )
+            msg = f"Promoción enviada a {ok} destinatario(s)."
+            if fail:
+                msg += f" {fail} fallido(s)."
+            return JsonResponse({"success": True, "message": msg})
         except Exception as e:
             logger.error(f"Error al enviar promoción: {e}")
-            historial.estado = 'error'
-            historial.save()
-            return JsonResponse({'error': f'Error al enviar: {str(e)}'}, status=500)
+            historial.refresh_from_db()
+            if historial.estado != "error":
+                historial.estado = "error"
+                historial.save(update_fields=["estado"])
+            return JsonResponse({"error": f"Error al enviar: {str(e)}"}, status=500)
         
     except Producto.DoesNotExist:
         return JsonResponse({'error': 'Producto no encontrado'}, status=404)
@@ -376,71 +399,148 @@ def filtrar_usuarios(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
+def _correo_remitente_campanas():
+    from django.conf import settings
+
+    fe = (getattr(settings, "DEFAULT_FROM_EMAIL", None) or "").strip()
+    if fe:
+        return fe
+    eh = (getattr(settings, "EMAIL_HOST_USER", None) or "").strip()
+    return eh or "noreply@localhost"
+
+
+def _correo_para_visible_campanas():
+    """Lista para el encabezado To (tienda); destinatarios reales van en BCC."""
+    from django.conf import settings
+
+    v = getattr(settings, "TECHNOVA_BULK_MAIL_VISIBLE_TO", None)
+    if v is None:
+        v = ""
+    else:
+        v = str(v).strip()
+    if not v:
+        return []
+    return [v]
+
+
 def _procesar_envio_correos(historial, html_content=False):
     """
-    Función interna para procesar el envío de correos
+    Envía un correo por destinatario reutilizando una sola conexión SMTP.
+    Los clientes van en BCC; en To solo el correo de la tienda (o vacío si así está configurado).
+    Devuelve (enviados_ok, enviados_fallidos). Lanza solo si falla abrir la conexión.
     """
-    from django.conf import settings
-    import os
-    
-    # Actualizar estado a enviando
-    historial.estado = 'enviando'
-    historial.save()
-    
+    historial.estado = "enviando"
+    historial.enviados_exitosos = 0
+    historial.enviados_fallidos = 0
+    historial.save(update_fields=["estado", "enviados_exitosos", "enviados_fallidos"])
+
+    destinatarios = list(historial.destinatarios.all())
+    from_email = _correo_remitente_campanas()
+    to_header = _correo_para_visible_campanas()
+
+    connection = get_connection()
     try:
-        # Preparar datos para envío masivo
-        destinatarios = historial.destinatarios.all()
-        
-        # Usar send_mass_mail para mejor rendimiento
-        messages_data = []
-        
+        connection.open()
+    except Exception as exc:
+        logger.exception("No se pudo abrir la conexión SMTP para el historial id=%s", historial.pk)
         for dest in destinatarios:
-            if html_content:
-                # Para HTML, usamos send_mail individual
-                send_mail(
-                    subject=historial.asunto,
-                    message='',  # Mensaje plano vacío
-                    html_message=historial.cuerpo_mensaje,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[dest.email],
-                    fail_silently=False,
-                )
-                dest.estado = 'enviado'
-                dest.fecha_envio = timezone.now()
-                historial.enviados_exitosos += 1
-            else:
-                # Para texto plano, preparamos para send_mass_mail
-                messages_data.append((
-                    historial.asunto,
-                    historial.cuerpo_mensaje,
-                    settings.DEFAULT_FROM_EMAIL,
-                    [dest.email]
-                ))
-                dest.estado = 'enviado'
-                dest.fecha_envio = timezone.now()
-                historial.enviados_exitosos += 1
-        
-        if not html_content and messages_data:
-            # Envío masivo para texto plano
-            send_mass_mail(messages_data, fail_silently=False)
-        
-        # Actualizar estados
-        destinatarios.bulk_update(
-            destinatarios, 
-            ['estado', 'fecha_envio']
+            dest.estado = "fallido"
+            dest.error_message = str(exc)[:500]
+            dest.fecha_envio = None
+        if destinatarios:
+            DestinatarioEnvio.objects.bulk_update(
+                destinatarios, ["estado", "error_message", "fecha_envio"]
+            )
+        historial.enviados_exitosos = 0
+        historial.enviados_fallidos = len(destinatarios)
+        historial.estado = "error"
+        historial.save(
+            update_fields=[
+                "estado",
+                "enviados_exitosos",
+                "enviados_fallidos",
+            ]
         )
-        
-        # Actualizar historial
-        if historial.enviados_fallidos == 0:
-            historial.estado = 'completado'
-        else:
-            historial.estado = 'parcial'
-        
-        historial.save()
-        
-    except Exception as e:
-        logger.error(f"Error en _procesar_envio_correos: {e}")
-        historial.estado = 'error'
-        historial.enviados_fallidos = historial.total_destinatarios - historial.enviados_exitosos
-        historial.save()
         raise
+
+    exitosos = 0
+    fallidos = 0
+    try:
+        for dest in destinatarios:
+            email_addr = (dest.email or "").strip()
+            if not email_addr:
+                dest.estado = "fallido"
+                dest.error_message = "Correo del destinatario vacío"
+                dest.fecha_envio = None
+                fallidos += 1
+                continue
+            try:
+                if html_content:
+                    alt_text = (
+                        "Este mensaje está en HTML. Usa un cliente que permita HTML "
+                        "para ver la promoción completa."
+                    )
+                    msg = EmailMultiAlternatives(
+                        subject=historial.asunto,
+                        body=alt_text,
+                        from_email=from_email,
+                        to=to_header,
+                        bcc=[email_addr],
+                        connection=connection,
+                    )
+                    msg.attach_alternative(historial.cuerpo_mensaje, "text/html")
+                    msg.send()
+                else:
+                    msg = EmailMessage(
+                        subject=historial.asunto,
+                        body=historial.cuerpo_mensaje,
+                        from_email=from_email,
+                        to=to_header,
+                        bcc=[email_addr],
+                        connection=connection,
+                    )
+                    msg.send()
+                dest.estado = "enviado"
+                dest.fecha_envio = timezone.now()
+                dest.error_message = None
+                exitosos += 1
+            except Exception as exc:
+                logger.warning(
+                    "Fallo envío a %s (historial id=%s): %s",
+                    email_addr,
+                    historial.pk,
+                    exc,
+                    exc_info=True,
+                )
+                dest.estado = "fallido"
+                dest.error_message = str(exc)[:500]
+                dest.fecha_envio = None
+                fallidos += 1
+    finally:
+        try:
+            connection.close()
+        except Exception:
+            logger.exception("Error al cerrar conexión SMTP (historial id=%s)", historial.pk)
+
+    if destinatarios:
+        DestinatarioEnvio.objects.bulk_update(
+            destinatarios,
+            ["estado", "fecha_envio", "error_message"],
+        )
+
+    historial.enviados_exitosos = exitosos
+    historial.enviados_fallidos = fallidos
+    if fallidos == 0:
+        historial.estado = "completado"
+    elif exitosos == 0:
+        historial.estado = "error"
+    else:
+        historial.estado = "parcial"
+    historial.save(
+        update_fields=[
+            "estado",
+            "enviados_exitosos",
+            "enviados_fallidos",
+        ]
+    )
+    return exitosos, fallidos

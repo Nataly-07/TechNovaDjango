@@ -18,6 +18,7 @@ from xml.sax.saxutils import escape as _xml_escape
 from django.contrib import messages
 from django.contrib.auth.hashers import make_password
 from django.conf import settings
+from django.core.paginator import Paginator
 from django.db import IntegrityError
 from django.db.models import Count, DecimalField, ExpressionWrapper, F, Prefetch, Q, Sum
 from django.db.models.functions import TruncDay, TruncMonth, TruncWeek
@@ -45,7 +46,7 @@ from envio.models import Envio, Transportadora
 from mensajeria.models import MensajeDirecto, Notificacion
 from pago.models import MedioPago, MetodoPagoUsuario, Pago
 from producto.domain.entities import ProductoEntidad
-from producto.models import Producto, ProductoCatalogoExtra
+from producto.models import Producto, ProductoCatalogoExtra, ProductoImagen
 from proveedor.domain.entities import ProveedorEntidad
 from proveedor.models import Proveedor
 from usuario.adapters.web.session_views import SESSION_USUARIO_ID
@@ -55,6 +56,11 @@ from usuario.infrastructure.models.usuario_model import Usuario
 from venta.models import Venta
 from venta.models import DetalleVenta
 from web.application.admin_web_service import producto_modal_dict  # ✅ AGREGAR IMPORTACIÓN FALTANTE
+from web.application.producto_excel_import import (
+    ErrorImportacionExcel,
+    importar_productos_desde_bytes,
+    respuesta_plantilla_excel,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1870,17 +1876,22 @@ def admin_inventario(request):
     categoria = (request.GET.get("categoria") or "").strip()
     busqueda = (request.GET.get("busqueda") or "").strip()
 
-    qs = Producto.objects.select_related("proveedor").order_by("id")
+    qs = Producto.objects.all().select_related("proveedor").order_by("-creado_en", "-id")
     if categoria:
         qs = qs.filter(categoria__iexact=categoria)
     if busqueda:
         qs = qs.filter(Q(nombre__icontains=busqueda) | Q(codigo__icontains=busqueda))
 
-    productos = list(qs)
-    productos_json = json.dumps(
-        [producto_modal_dict(p) for p in productos],  # ✅ CORREGIDO: Sin guion bajo
-        ensure_ascii=False,
-    )
+    paginator = Paginator(qs, 10)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    productos = list(page_obj.object_list)
+
+    get_params = request.GET.copy()
+    get_params.pop("page", None)
+    filtros_query_sin_page = get_params.urlencode()
+
+    # Lista Python para |json_script — no usar json.dumps + json_script (doble codificación → string, no array).
+    productos_data = [producto_modal_dict(p) for p in productos]
 
     total_productos = Producto.objects.count()
     productos_bajo_stock = Producto.objects.filter(activo=True, stock__gt=0, stock__lt=10).count()
@@ -1944,8 +1955,10 @@ def admin_inventario(request):
 
     ctx = {
         "usuario": usuario,
+        "page_obj": page_obj,
         "productos": productos,
-        "productos_json": mark_safe(productos_json),
+        "filtros_query_sin_page": filtros_query_sin_page,
+        "productos_data": productos_data,
         "categoria": categoria,
         "busqueda": busqueda,
         "categorias_opts": categorias_opts,
@@ -1961,6 +1974,39 @@ def admin_inventario(request):
         "marcas_alta_list": sorted(_marcas_alta_permitidas(), key=str.lower),
     }
     return render(request, "frontend/admin/inventario.html", ctx)
+
+
+@_admin_login_required
+@require_http_methods(["GET"])
+def admin_inventario_plantilla_excel(request):
+    """Descarga plantilla .xlsx para importación masiva de productos."""
+    _admin_usuario_sesion(request)
+    return respuesta_plantilla_excel()
+
+
+@_admin_login_required
+@require_http_methods(["POST"])
+def admin_inventario_importar_excel(request):
+    """Importa productos desde Excel; transacción atómica (todo o nada)."""
+    _admin_usuario_sesion(request)
+    archivo = request.FILES.get("archivo")
+    if not archivo:
+        messages.error(request, "Selecciona un archivo Excel (.xlsx).")
+        return redirect("web_admin_inventario")
+    nombre = (getattr(archivo, "name", "") or "").lower()
+    if not nombre.endswith((".xlsx", ".xlsm")):
+        messages.error(request, "El archivo debe ser Excel (.xlsx o .xlsm).")
+        return redirect("web_admin_inventario")
+    try:
+        contenido = archivo.read()
+        n = importar_productos_desde_bytes(contenido, get_producto_service)
+        messages.success(request, f"¡Éxito! {n} productos cargados correctamente")
+    except ErrorImportacionExcel as exc:
+        messages.error(request, str(exc))
+    except Exception as exc:
+        logger.exception("Error inesperado en importación Excel")
+        messages.error(request, f"Error al importar: {exc}")
+    return redirect("web_admin_inventario")
 
 
 def _decimal_desde_post(val: str | None) -> Decimal | None:
@@ -2015,6 +2061,32 @@ def _marcas_alta_permitidas() -> set[str]:
     return base | extras
 
 
+def _imagenes_adicionales_desde_post(request) -> list[str]:
+    return [u.strip() for u in request.POST.getlist("imagenes_adicionales[]") if u.strip()]
+
+
+def _validar_imagenes_adicionales_post(imagenes_adicionales: list[str]) -> str | None:
+    for url in imagenes_adicionales:
+        if len(url) > 500:
+            return "Una URL de imagen adicional es demasiado larga."
+        if not (url.startswith("http://") or url.startswith("https://")):
+            return (
+                "Las imágenes adicionales deben ser URLs que comiencen con http:// o https://"
+            )
+    return None
+
+
+def _sincronizar_producto_imagenes_adicionales(producto_id: int, urls: list[str]) -> None:
+    ProductoImagen.objects.filter(producto_id=producto_id).delete()
+    for orden, url in enumerate(urls):
+        ProductoImagen.objects.create(
+            producto_id=producto_id,
+            url=url,
+            orden=orden + 1,
+            activa=True,
+        )
+
+
 @_admin_login_required
 @require_http_methods(["POST"])
 def admin_producto_crear(request):
@@ -2028,6 +2100,7 @@ def admin_producto_crear(request):
     color = (request.POST.get("color") or "").strip()
     descripcion = (request.POST.get("descripcion") or "").strip()
     imagen_url = (request.POST.get("imagen_url") or "").strip()
+    imagenes_adicionales = _imagenes_adicionales_desde_post(request)
 
     if not codigo or len(codigo) > 50:
         messages.error(request, "El código es obligatorio (máximo 50 caracteres).")
@@ -2088,6 +2161,11 @@ def admin_producto_crear(request):
             )
             return redirect("web_admin_inventario")
 
+    err_img_ad = _validar_imagenes_adicionales_post(imagenes_adicionales)
+    if err_img_ad:
+        messages.error(request, err_img_ad)
+        return redirect("web_admin_inventario")
+
     entidad = ProductoEntidad(
         id=None,
         codigo=codigo,
@@ -2106,6 +2184,7 @@ def admin_producto_crear(request):
     service = get_producto_service()
     try:
         creado = service.crear(entidad)
+        _sincronizar_producto_imagenes_adicionales(creado.id, imagenes_adicionales)
     except IntegrityError:
         messages.error(request, "Ya existe un producto con ese código.")
         return redirect("web_admin_inventario")
@@ -2138,6 +2217,140 @@ def admin_producto_estado(request, producto_id: int):
         request,
         "Producto activado correctamente." if activar else "Producto desactivado correctamente.",
     )
+    return redirect("web_admin_inventario")
+
+
+@_admin_login_required
+@require_http_methods(["POST"])
+def admin_producto_editar(request, producto_id: int):
+    """Actualiza un producto; el código no se modifica. Requiere contraseña del admin en sesión."""
+    admin = _admin_usuario_sesion(request)
+    pwd = (request.POST.get("confirmacion_contrasena") or "").strip()
+    if not pwd or not credenciales_coinciden(pwd, admin.contrasena_hash):
+        messages.error(request, "La contraseña de confirmación no es correcta.")
+        return redirect("web_admin_inventario")
+
+    p = get_object_or_404(Producto, pk=producto_id)
+
+    nombre = (request.POST.get("nombre") or "").strip()
+    categoria = (request.POST.get("categoria") or "").strip()
+    marca = (request.POST.get("marca") or "").strip()
+    color = (request.POST.get("color") or "").strip()
+    descripcion = (request.POST.get("descripcion") or "").strip()
+    imagen_url = (request.POST.get("imagen_url") or "").strip()
+    imagenes_adicionales = _imagenes_adicionales_desde_post(request)
+
+    if not nombre or len(nombre) > 120:
+        messages.error(request, "El nombre es obligatorio (máximo 120 caracteres).")
+        return redirect("web_admin_inventario")
+
+    cat_permitidas = _categorias_alta_permitidas()
+    if categoria not in cat_permitidas and categoria != (p.categoria or "").strip():
+        messages.error(request, "Selecciona una categoría válida de la lista.")
+        return redirect("web_admin_inventario")
+
+    mar_permitidas = _marcas_alta_permitidas()
+    if marca not in mar_permitidas and marca != (p.marca or "").strip():
+        messages.error(request, "Selecciona una marca válida de la lista.")
+        return redirect("web_admin_inventario")
+
+    if color not in _PRODUCTO_COLORES_ALTA_WEB and color != (p.color or "").strip():
+        messages.error(request, "Selecciona un color de la lista.")
+        return redirect("web_admin_inventario")
+
+    # El stock no se ajusta desde este formulario (solo lectura en UI).
+    stock = int(p.stock)
+
+    costo = _decimal_desde_post(request.POST.get("costo_unitario"))
+    if costo is None or costo < 0:
+        messages.error(request, "El costo unitario debe ser un número mayor o igual a 0.")
+        return redirect("web_admin_inventario")
+
+    precio = _decimal_desde_post(request.POST.get("precio_venta"))
+    if precio is None or precio <= 0:
+        messages.error(request, "El precio de venta debe ser un número mayor que 0.")
+        return redirect("web_admin_inventario")
+
+    if precio <= costo:
+        messages.error(request, "El precio de venta debe ser mayor que el costo unitario.")
+        return redirect("web_admin_inventario")
+
+    if imagen_url:
+        if len(imagen_url) > 500:
+            messages.error(request, "La URL de imagen es demasiado larga.")
+            return redirect("web_admin_inventario")
+        if not (imagen_url.startswith("http://") or imagen_url.startswith("https://")):
+            messages.error(
+                request,
+                "La imagen debe ser una URL que comience con http:// o https://",
+            )
+            return redirect("web_admin_inventario")
+
+    err_img_ad = _validar_imagenes_adicionales_post(imagenes_adicionales)
+    if err_img_ad:
+        messages.error(request, err_img_ad)
+        return redirect("web_admin_inventario")
+
+    if len(descripcion) > 4000:
+        messages.error(request, "La descripción es demasiado larga (máx. 4000 caracteres).")
+        return redirect("web_admin_inventario")
+
+    cambios: list[str] = []
+    if p.nombre != nombre:
+        cambios.append("nombre")
+    if (p.categoria or "") != categoria:
+        cambios.append("categoría")
+    if (p.marca or "") != marca:
+        cambios.append("marca")
+    if (p.color or "") != color:
+        cambios.append("color")
+    if (p.descripcion or "") != descripcion:
+        cambios.append("descripción")
+    if (p.imagen_url or "").strip() != imagen_url:
+        cambios.append("imagen")
+    if p.costo_unitario != costo:
+        cambios.append("costo")
+    if p.precio_venta != precio:
+        cambios.append("precio venta")
+
+    entidad = ProductoEntidad(
+        id=p.id,
+        codigo=p.codigo,
+        nombre=nombre,
+        proveedor_id=p.proveedor_id,
+        stock=stock,
+        costo_unitario=costo,
+        activo=p.activo,
+        imagen_url=imagen_url,
+        categoria=categoria,
+        marca=marca,
+        color=color,
+        descripcion=descripcion,
+        precio_venta=precio,
+    )
+    service = get_producto_service()
+    try:
+        actualizado = service.actualizar(entidad)
+    except Exception as exc:  # noqa: BLE001
+        messages.error(request, str(exc))
+        return redirect("web_admin_inventario")
+
+    if actualizado is None:
+        messages.error(request, "No se pudo actualizar el producto.")
+        return redirect("web_admin_inventario")
+
+    _sincronizar_producto_imagenes_adicionales(p.id, imagenes_adicionales)
+
+    if cambios:
+        from mensajeria.services.notificaciones_admin import notificar_producto_actualizado
+
+        notificar_producto_actualizado(
+            producto_id=p.id,
+            nombre=nombre,
+            cambios=cambios,
+        )
+
+    messages.success(request, f"Producto «{nombre}» actualizado correctamente.")
     return redirect("web_admin_inventario")
 
 

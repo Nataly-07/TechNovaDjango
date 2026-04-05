@@ -69,7 +69,6 @@
         }
       }
     }
-    var srcImg = escapeHtml(imgProductoUrl(data));
     var descHtml = desc
       ? '<p class="producto-detalle-descripcion-texto">' +
         escapeHtml(desc).replaceAll("\n", "<br/>") +
@@ -78,11 +77,7 @@
     return (
       '<div class="producto-detalle-layout producto-detalle-layout--modal">' +
       '<div class="producto-detalle-imagen">' +
-      '<img src="' +
-      srcImg +
-      '" alt="' +
-      escapeHtml(data.nombre) +
-      '" loading="lazy" decoding="async" onerror="this.src=\'/static/frontend/imagenes/placeholder.svg\'"/>' +
+      '<div class="producto-detalle-imagen-inner" data-tn-gallery-host></div>' +
       "</div>" +
       '<div class="producto-detalle-info">' +
       '<p class="producto-detalle-eyebrow">Ficha de producto</p>' +
@@ -161,6 +156,33 @@
           '<article class="producto-detalle-flotante producto-detalle-flotante--modal">' +
           buildInnerHtml(data) +
           "</article>";
+        var gh = body.querySelector("[data-tn-gallery-host]");
+        if (gh) {
+          if (window.TechnovaProductoGallery) {
+            var urls = [];
+            if (data.imagen && String(data.imagen).trim()) {
+              urls.push(imgProductoUrl(data));
+            }
+            (data.imagenes_adicionales || []).forEach(function (x) {
+              if (x && x.url && String(x.url).trim()) {
+                urls.push(imgProductoUrl({ imagen: x.url }));
+              }
+            });
+            window.TechnovaProductoGallery.mount(gh, urls, {
+              alt: data.nombre || "",
+              placeholder: "/static/frontend/imagenes/placeholder.svg",
+            });
+          } else {
+            gh.innerHTML =
+              '<div class="tn-pg__stage tn-pg__stage--solo">' +
+              '<img src="' +
+              escapeHtml(imgProductoUrl(data)) +
+              '" alt="' +
+              escapeHtml(data.nombre) +
+              '" class="tn-pg__img tn-pg__img--solo" loading="lazy" decoding="async" onerror="this.src=\'/static/frontend/imagenes/placeholder.svg\'"/>' +
+              "</div>";
+          }
+        }
       })
       .catch(function (e) {
         body.innerHTML =

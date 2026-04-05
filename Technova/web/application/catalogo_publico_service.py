@@ -1,6 +1,11 @@
 from producto.models import Producto
 
 
+def fetch_productos_recientes(limit: int = 10) -> list[Producto]:
+    """Últimos registros por fecha de creación (sin filtrar por activo)."""
+    return list(Producto.objects.all().order_by("-creado_en", "-id")[:limit])
+
+
 def capitalize_catalogo(s: str) -> str:
     s = (s or "").strip()
     if not s:

@@ -9,9 +9,19 @@
   <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
-  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}?v=6">
-  <link rel="stylesheet" href="{% static 'frontend/css/promocion-btn.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}?v=15">
+  <link rel="stylesheet" href="{% static 'frontend/css/promocion-btn.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'frontend/css/technova-producto-gallery.css' %}?v=9">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+    window.INV_FICHA_PLACEHOLDER = "{% filter escapejs %}{% static 'frontend/imagenes/logo-technova.svg' %}{% endfilter %}";
+    window.INV_URL_PRODUCTO_INFO = function (pk) {
+      return "{% url 'web_admin_producto_info' 987654321 %}".split("987654321").join(String(pk));
+    };
+    window.INV_URL_PRODUCTO_EDITAR = function (pk) {
+      return "{% url 'web_admin_producto_editar' 987654321 %}".split("987654321").join(String(pk));
+    };
+  </script>
 </head>
 <body>
   <script>
@@ -39,6 +49,21 @@
     };
     // Alias solicitado para compatibilidad de nombre
     window.cerrarModalAgregar = window.cerrarModalAgregarProducto;
+
+    window.abrirModalImportarExcel = window.abrirModalImportarExcel || function () {
+      var el = document.getElementById('modalImportarExcel');
+      if (el) {
+        el.classList.add('show');
+        document.body.style.overflow = 'hidden';
+      }
+    };
+    window.cerrarModalImportarExcel = window.cerrarModalImportarExcel || function () {
+      var el = document.getElementById('modalImportarExcel');
+      if (el) el.classList.remove('show');
+      document.body.style.overflow = 'auto';
+      var f = document.getElementById('formImportarExcel');
+      if (f) f.reset();
+    };
 
     // ===========================
     // Funciones globales del modal
@@ -77,12 +102,18 @@
         // - arg = id => hace fetch y luego renderiza
         function render(producto) {
           var nombre = (producto || {}).nombre || "Sin nombre";
-          var descripcion = producto?.descripcion || "Sin descripción disponible";
+          var descripcion =
+            producto && producto.descripcion != null && producto.descripcion !== ""
+              ? producto.descripcion
+              : "Sin descripción disponible";
           var precioRegular =
-            producto?.precio_base ??
-            producto?.precio_venta ??
-            producto?.costo_unitario ??
-            0;
+            producto && producto.precio_base != null
+              ? producto.precio_base
+              : producto && producto.precio_venta != null
+                ? producto.precio_venta
+                : producto && producto.costo_unitario != null
+                  ? producto.costo_unitario
+                  : 0;
 
           document.getElementById("productoNombre").textContent = nombre;
 
@@ -282,62 +313,297 @@
     function filtrarPorRol(rol) {
       return window.filtrarPorRol && window.filtrarPorRol.apply(this, [rol]);
     }
+
+    /**
+     * Pestañas del inventario: implementación global y temprana (no depende del script largo del pie).
+     * onclick en cada botón llama aquí; así funciona aunque falle el parseo del bloque inferior.
+     */
+    window._inventarioBaseUrl = "{% filter escapejs %}{% url 'web_admin_inventario' %}{% endfilter %}";
+    window.inventarioActivarTab = function (name) {
+      if (!name) return;
+      if (name === "recientes") name = "productos";
+      try {
+        var busqEl = document.getElementById("filtroBusqueda");
+        if (busqEl) busqEl.value = "";
+
+        var inv = document.querySelector(".inventario-container");
+        var tabsNav = inv ? inv.querySelector(".inventario-tabs-nav") : null;
+        if (!inv || !tabsNav) return;
+
+        var filtersWereActive = inv.getAttribute("data-inv-filters-active") === "1";
+
+        if (name === "productos") {
+          var params = new URLSearchParams(window.location.search || "");
+          var urlHasFilter =
+            (params.get("busqueda") || "").trim() || (params.get("categoria") || "").trim();
+          if (filtersWereActive || urlHasFilter) {
+            window.location.href = window._inventarioBaseUrl;
+            return;
+          }
+          if (params.get("tab")) {
+            try {
+              history.replaceState({}, "", window._inventarioBaseUrl);
+            } catch (_e) {}
+          }
+        } else {
+          try {
+            var base = window._inventarioBaseUrl || window.location.pathname;
+            var u = new URL(base, window.location.origin);
+            u.search = "";
+            u.searchParams.set("tab", name);
+            history.replaceState({}, "", u.toString());
+          } catch (_e2) {}
+        }
+
+        var buttons = tabsNav.querySelectorAll("button[data-tab]");
+        var i;
+        for (i = 0; i < buttons.length; i++) {
+          buttons[i].classList.remove("active");
+          buttons[i].setAttribute("aria-selected", "false");
+        }
+        var contents = inv.querySelectorAll(".tab-content");
+        for (i = 0; i < contents.length; i++) {
+          contents[i].classList.remove("active");
+        }
+        var btn = tabsNav.querySelector('button[data-tab="' + name + '"]');
+        var panel = document.getElementById("tab-" + name);
+        if (btn) {
+          btn.classList.add("active");
+          btn.setAttribute("aria-selected", "true");
+        }
+        if (panel) panel.classList.add("active");
+      } catch (err) {
+        console.error("inventarioActivarTab", err);
+      }
+    };
+
+    /**
+     * Modales Marcas / Categorías: mismos IDs que en el HTML (#modalCatalogoCategoria, #modalCatalogoMarca).
+     * Definido aquí para que «+ Agregar» funcione aunque falle el script largo del pie.
+     */
+    window.abrirModalCatalogo = function (tipo) {
+      var id = tipo === "categoria" ? "modalCatalogoCategoria" : "modalCatalogoMarca";
+      var el = document.getElementById(id);
+      if (el) {
+        el.classList.add("show");
+        document.body.style.overflow = "hidden";
+      }
+    };
+    window.cerrarModalCatalogo = function (tipo) {
+      var id = tipo === "categoria" ? "modalCatalogoCategoria" : "modalCatalogoMarca";
+      var el = document.getElementById(id);
+      if (el) {
+        el.classList.remove("show");
+        document.body.style.overflow = "auto";
+      }
+    };
+    window.verProducto = window.verProducto || function () {};
+    window.abrirEditarProducto = window.abrirEditarProducto || function () {
+      console.warn("abrirEditarProducto: aún no está definido.");
+    };
+
+    (function () {
+      var ID_CONT_ADD = "contenedorImagenesAdicionales";
+      var ID_CONT_EDIT = "contenedorImagenesAdicionalesEdit";
+
+      function reordenarFilasImagenesAdicionales(contId) {
+        var cont = document.getElementById(contId);
+        if (!cont) return;
+        var filas = cont.querySelectorAll(".imagen-adicional-row");
+        filas.forEach(function (fila, index) {
+          fila.setAttribute("data-imagen-index", String(index));
+          var input = fila.querySelector(".imagen-adicional-input");
+          var btn = fila.querySelector(".btn-eliminar-imagen");
+          if (input) {
+            input.placeholder = "https://ejemplo.com/imagen" + (index + 1) + ".jpg";
+          }
+          if (btn) {
+            btn.setAttribute("onclick", "window.eliminarImagenAdicional(this)");
+          }
+        });
+      }
+      window.invReordenarFilasImagenesAdicionales = reordenarFilasImagenesAdicionales;
+
+      function agregarCampoImagenEn(contId) {
+        var contenedor = document.getElementById(contId);
+        if (!contenedor) return;
+        var n = contenedor.querySelectorAll(".imagen-adicional-row").length;
+        var nuevo = document.createElement("div");
+        nuevo.className = "imagen-adicional-row";
+        nuevo.setAttribute("data-imagen-index", String(n));
+        nuevo.innerHTML =
+          '<input type="url" name="imagenes_adicionales[]" maxlength="500" class="imagen-adicional-input" placeholder="https://ejemplo.com/imagen' +
+          (n + 1) +
+          '.jpg">' +
+          '<button type="button" class="btn-eliminar-imagen" onclick="window.eliminarImagenAdicional(this)" title="Eliminar imagen"><i class="bx bx-trash"></i></button>';
+        contenedor.appendChild(nuevo);
+        reordenarFilasImagenesAdicionales(contId);
+      }
+      window.agregarCampoImagen = function () {
+        agregarCampoImagenEn(ID_CONT_ADD);
+      };
+      window.agregarCampoImagenEdit = function () {
+        agregarCampoImagenEn(ID_CONT_EDIT);
+      };
+
+      window.eliminarImagenAdicional = function (btnOrIndex) {
+        var fila = null;
+        if (btnOrIndex && typeof btnOrIndex === "object" && btnOrIndex.closest) {
+          fila = btnOrIndex.closest(".imagen-adicional-row");
+        } else {
+          fila = document.querySelector(
+            "#" +
+              ID_CONT_ADD +
+              ' .imagen-adicional-row[data-imagen-index="' +
+              btnOrIndex +
+              '"], #' +
+              ID_CONT_EDIT +
+              ' .imagen-adicional-row[data-imagen-index="' +
+              btnOrIndex +
+              '"]'
+          );
+        }
+        if (!fila) return;
+        var cont = fila.parentElement;
+        if (!cont || !cont.id) return;
+        var total = cont.querySelectorAll(".imagen-adicional-row").length;
+        if (total <= 1) {
+          var inp = fila.querySelector(".imagen-adicional-input");
+          if (inp) inp.value = "";
+          return;
+        }
+        fila.parentNode.removeChild(fila);
+        reordenarFilasImagenesAdicionales(cont.id);
+      };
+
+      window.rellenarImagenesAdicionalesEdit = function (p) {
+        var cont = document.getElementById(ID_CONT_EDIT);
+        if (!cont) return;
+        var extras = [];
+        (p.imagenes_adicionales || []).forEach(function (img) {
+          var u =
+            typeof img === "string"
+              ? String(img).trim()
+              : img && img.url
+                ? String(img.url).trim()
+                : "";
+          if (u) extras.push(u);
+        });
+        cont.innerHTML = "";
+        function appendRow(i, value) {
+          var row = document.createElement("div");
+          row.className = "imagen-adicional-row";
+          row.setAttribute("data-imagen-index", String(i));
+          row.innerHTML =
+            '<input type="url" name="imagenes_adicionales[]" maxlength="500" class="imagen-adicional-input" placeholder="https://ejemplo.com/imagen' +
+            (i + 1) +
+            '.jpg">' +
+            '<button type="button" class="btn-eliminar-imagen" onclick="window.eliminarImagenAdicional(this)" title="Eliminar imagen"><i class="bx bx-trash"></i></button>';
+          cont.appendChild(row);
+          var inp = row.querySelector(".imagen-adicional-input");
+          if (inp && value) inp.value = value;
+        }
+        if (!extras.length) {
+          appendRow(0, "");
+        } else {
+          extras.forEach(function (url, i) {
+            appendRow(i, url);
+          });
+        }
+        reordenarFilasImagenesAdicionales(ID_CONT_EDIT);
+      };
+    })();
+    window.cerrarProducto = window.cerrarProducto || function () {};
   </script>
   {% include "frontend/includes/admin_header_compact.html" %}
 
   <div class="dashboard-wrapper">
     {% include "frontend/layouts/sidebar_admin.html" %}
     <main class="main-content main-content--visible">
-      <div class="inventario-container">
-        <div class="inventario-header">
-          <h2><i class="bx bx-shopping-bag"></i> Movimiento de Artículos</h2>
-          <button type="button" id="btnAbrirAgregarProducto" class="btn-agregar" onclick="abrirModalAgregarProducto()" aria-haspopup="dialog">
-            <i class="bx bx-plus-circle"></i> Agregar Producto
-          </button>
+      <div class="inventario-container inv-module container-fluid" data-inv-filters-active="{% if busqueda or categoria %}1{% else %}0{% endif %}">
+        <div class="inventario-header inv-page-header">
+          <div class="inv-page-header__titles">
+            <p class="inv-page-header__eyebrow">Inventario</p>
+            <h2><i class="bx bx-shopping-bag" aria-hidden="true"></i> Movimiento de Artículos</h2>
+            <p class="inv-page-header__subtitle">Gestiona el catálogo, filtros y movimientos en un solo lugar.</p>
+          </div>
+          <div class="inventario-header-actions inv-page-header__actions">
+            <button type="button" id="btnAbrirImportarExcel" class="btn-import-excel" onclick="abrirModalImportarExcel()" aria-haspopup="dialog">
+              <i class="bx bx-import"></i> Importar desde Excel
+            </button>
+            <button type="button" id="btnAbrirAgregarProducto" class="btn-agregar" onclick="abrirModalAgregarProducto()" aria-haspopup="dialog">
+              <i class="bx bx-plus-circle"></i> Agregar Producto
+            </button>
+          </div>
         </div>
 
         {% for message in messages %}
-        <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+        <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %} inv-alert">
           <i class="bx {% if message.tags == 'error' %}bx-error-circle{% else %}bx-check-circle{% endif %}"></i>
           <span>{{ message }}</span>
         </div>
         {% endfor %}
 
-        <div class="stats-bar stats-bar--inventario">
-          <div class="stat-card stat-inv-total" data-inv-kpi="total"><h4>Total productos</h4><p class="number">{{ total_productos }}</p></div>
-          <div class="stat-card stat-inv-bajo" data-inv-kpi="bajo"><h4>Bajo stock</h4><p class="number">{{ productos_bajo_stock }}</p></div>
-          <div class="stat-card stat-inv-agotado" data-inv-kpi="agotado"><h4>Agotados</h4><p class="number">{{ productos_agotados }}</p></div>
+        <div class="stats-bar stats-bar--inventario inv-stats">
+          <div class="stat-card stat-inv-total inv-stat-card" data-inv-kpi="total">
+            <span class="inv-stat-card__icon" aria-hidden="true"><i class="bx bx-package"></i></span>
+            <div class="inv-stat-card__body">
+              <h4>Total productos</h4>
+              <p class="number">{{ total_productos }}</p>
+            </div>
+          </div>
+          <div class="stat-card stat-inv-bajo inv-stat-card" data-inv-kpi="bajo">
+            <span class="inv-stat-card__icon" aria-hidden="true"><i class="bx bx-trending-down"></i></span>
+            <div class="inv-stat-card__body">
+              <h4>Bajo stock</h4>
+              <p class="number">{{ productos_bajo_stock }}</p>
+            </div>
+          </div>
+          <div class="stat-card stat-inv-agotado inv-stat-card" data-inv-kpi="agotado">
+            <span class="inv-stat-card__icon" aria-hidden="true"><i class="bx bx-error-circle"></i></span>
+            <div class="inv-stat-card__body">
+              <h4>Agotados</h4>
+              <p class="number">{{ productos_agotados }}</p>
+            </div>
+          </div>
         </div>
 
-        <form class="filtros-section" method="get" action="{% url 'web_admin_inventario' %}">
-          <div class="filtro-group">
-            <label for="filtroCategoria">Categoría</label>
-            <select id="filtroCategoria" name="categoria">
-              <option value="">Todas</option>
-              {% for cat in categorias_opts %}
-              <option value="{{ cat }}" {% if categoria == cat %}selected{% endif %}>{{ cat }}</option>
-              {% endfor %}
-            </select>
+        <div class="inv-filtros-shell">
+          <div class="inv-filtros-shell__head">
+            <i class="bx bx-filter-alt" aria-hidden="true"></i>
+            <span>Filtros de búsqueda</span>
           </div>
-          <div class="filtro-group">
-            <label for="filtroBusqueda">Buscar</label>
-            <input type="text" id="filtroBusqueda" name="busqueda" placeholder="Nombre o código" value="{{ busqueda }}">
-          </div>
-          <div class="filtro-group">
-            <button type="submit" class="btn-filtrar"><i class="bx bx-search"></i> Buscar</button>
-          </div>
-        </form>
-
-        <div class="tabs">
-          <button type="button" class="tab active" data-tab="productos">Productos</button>
-          <button type="button" class="tab" data-tab="movimientos">Movimientos</button>
-          <button type="button" class="tab" data-tab="marcas">Marcas y categorías</button>
-          <button type="button" class="tab" data-tab="recientes">Productos más recientes</button>
+          <form class="filtros-section inv-filtros-form" method="get" action="{% url 'web_admin_inventario' %}">
+            <div class="filtro-group">
+              <label for="filtroCategoria">Categoría</label>
+              <select id="filtroCategoria" name="categoria">
+                <option value="">Todas</option>
+                {% for cat in categorias_opts %}
+                <option value="{{ cat }}" {% if categoria == cat %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="filtro-group">
+              <label for="filtroBusqueda">Buscar</label>
+              <input type="text" id="filtroBusqueda" name="busqueda" placeholder="Nombre o código" value="{{ busqueda }}" autocomplete="off">
+            </div>
+            <div class="filtro-group filtro-accion inv-filtros-submit">
+              <label class="inv-filtros-submit__label" for="invBtnBuscar">&nbsp;</label>
+              <button type="submit" id="invBtnBuscar" class="btn-filtrar inv-btn-buscar"><i class="bx bx-search"></i> Buscar</button>
+            </div>
+          </form>
         </div>
 
-        <div id="tab-productos" class="tab-content active">
-          <div class="table-container">
-            {% if productos %}
+        <div class="tabs inventario-tabs-nav inv-tabs" role="tablist" aria-label="Secciones de inventario">
+          <button type="button" class="tab active" role="tab" data-tab="productos" aria-selected="true" onclick="window.inventarioActivarTab('productos')"><i class="bx bx-grid-alt" aria-hidden="true"></i> Productos</button>
+          <button type="button" class="tab" role="tab" data-tab="movimientos" aria-selected="false" onclick="window.inventarioActivarTab('movimientos')"><i class="bx bx-transfer" aria-hidden="true"></i> Movimientos</button>
+          <button type="button" class="tab" data-tab="marcas" aria-selected="false" onclick="window.inventarioActivarTab('marcas')"><i class="bx bx-purchase-tag-alt" aria-hidden="true"></i> Marcas y categorías</button>
+        </div>
+
+        <div id="tab-productos" class="tab-content active inv-tab-panel">
+          <div class="table-container inv-table-shell">
+            {% if page_obj.paginator.count %}
+            <div class="table-responsive">
             <table class="table-inventario">
               <thead>
                 <tr>
@@ -353,19 +619,19 @@
                 </tr>
               </thead>
               <tbody id="tbodyProductos">
-                {% for p in productos %}
+                {% for p in page_obj %}
                 <tr data-producto-id="{{ p.id }}">
-                  <td>{{ p.id }}</td>
-                  <td>{{ p.codigo }}</td>
-                  <td>{{ p.nombre }}</td>
+                  <td class="inv-cell-id"><span class="inv-cell-id__badge">#{{ p.id }}</span></td>
+                  <td><code class="inv-code">{{ p.codigo }}</code></td>
+                  <td class="inv-cell-name">{{ p.nombre }}</td>
                   <td>
                     {% if p.promocion_activa %}
-                      <div style="display:flex;flex-direction:column;gap:2px;">
-                        <span style="text-decoration:line-through;color:#64748b;font-size:.82rem;">${{ p.precio_base|floatformat:2 }}</span>
-                        <span style="color:#16a34a;font-weight:800;">${{ p.precio_promocion|floatformat:2 }}</span>
+                      <div class="inv-price-stack">
+                        <span class="inv-price-old">${{ p.precio_base|floatformat:2 }}</span>
+                        <span class="inv-price-promo">${{ p.precio_promocion|floatformat:2 }}</span>
                       </div>
                     {% else %}
-                      ${{ p.precio_base|floatformat:2 }}
+                      <span class="inv-price">${{ p.precio_base|floatformat:2 }}</span>
                     {% endif %}
                   </td>
                   <td>{{ p.marca|default:"—" }}</td>
@@ -388,27 +654,16 @@
                     {% endif %}
                   </td>
                   <td>
-                    <div class="acciones-botones">
-                      <button type="button" class="btn-accion btn-ver" data-id="{{ p.id }}" onclick="verProducto(this.dataset.id)">
-                        <i class="bx bx-show"></i> Ver
+                    <div class="acciones-botones inv-row-actions">
+                      <button type="button" class="btn-accion btn-ver" data-id="{{ p.id }}" onclick="window.verProducto(this.dataset.id)">
+                        <i class="bx bx-show" aria-hidden="true"></i> Ver
+                      </button>
+                      <button type="button" class="btn-accion btn-editar" data-id="{{ p.id }}" onclick="window.abrirEditarProducto(this.dataset.id)" title="Editar producto">
+                        <i class="bx bx-edit-alt" aria-hidden="true"></i> Editar
                       </button>
                       <button type="button" class="btn-accion btn-promocion" onclick="abrirModalPromocion('{{ p.id }}')" title="Promocionar este producto">
-                        <i class="bx bx-megaphone"></i> PROMOCIONAR
+                        <i class="bx bx-megaphone" aria-hidden="true"></i> Promocionar
                       </button>
-                      
-                      <!-- ✅ DEBUG: Event Listener para verificar clic -->
-                      <script>
-                        document.addEventListener('DOMContentLoaded', function() {
-                          // ✅ Verificar que el botón PROMOCIONAR tenga el evento correcto
-                          const botonesPromocion = document.querySelectorAll('.btn-promocion');
-                          console.log('✅ Botones PROMOCIONAR encontrados:', botonesPromocion.length);
-                          
-                          botonesPromocion.forEach((boton, index) => {
-                            console.log(`✅ Botón ${index + 1}:`, boton);
-                            console.log(`✅ Producto ID:`, boton.getAttribute('onclick'));
-                          });
-                        });
-                      </script>
                       <form method="post" action="{% url 'web_admin_producto_estado' p.id %}" style="display:inline;" onsubmit="return confirm('¿Cambiar estado del producto?');">
                         {% csrf_token %}
                         {% if p.activo %}
@@ -425,16 +680,28 @@
                 {% endfor %}
               </tbody>
             </table>
+            </div>
+            <nav class="inv-pagination" aria-label="Paginación de productos">
+              <div class="inv-pagination__inner">
+                {% if page_obj.has_previous %}
+                <a class="inv-pagination__btn inv-pagination__btn--nav" href="?{% if filtros_query_sin_page %}{{ filtros_query_sin_page }}&amp;{% endif %}page={{ page_obj.previous_page_number }}"><i class="bx bx-chevron-left" aria-hidden="true"></i> Anterior</a>
+                {% endif %}
+                <span class="inv-pagination__status">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                <a class="inv-pagination__btn inv-pagination__btn--nav" href="?{% if filtros_query_sin_page %}{{ filtros_query_sin_page }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Siguiente <i class="bx bx-chevron-right" aria-hidden="true"></i></a>
+                {% endif %}
+              </div>
+            </nav>
             {% else %}
-            <div class="empty-state"><i class="bx bx-package" style="font-size:3rem;opacity:.5;"></i><h3>No hay productos</h3><p>Ajusta filtros o usa <strong>Agregar Producto</strong> para crear el primero.</p></div>
+            <div class="empty-state inv-empty"><span class="inv-empty__icon" aria-hidden="true"><i class="bx bx-package"></i></span><h3>No hay productos</h3><p>Ajusta filtros o usa <strong>Importar desde Excel</strong> / <strong>Agregar Producto</strong> para crear el primero.</p></div>
             {% endif %}
           </div>
         </div>
 
-        <div id="tab-movimientos" class="tab-content">
-          <div class="movimientos-grid">
-            <div class="movimiento-card">
-              <h3 style="margin-top:0;">Compras (entradas)</h3>
+        <div id="tab-movimientos" class="tab-content inv-tab-panel">
+          <div class="movimientos-grid inv-movimientos">
+            <div class="movimiento-card inv-motion-card">
+              <h3><i class="bx bx-down-arrow-circle" aria-hidden="true"></i> Compras (entradas)</h3>
               {% if compras_recientes %}
               <div class="table-container" style="border:none;">
                 <table class="table-inventario" style="min-width:0;">
@@ -455,8 +722,8 @@
               <p style="color:#7f8c8d;">No hay compras registradas.</p>
               {% endif %}
             </div>
-            <div class="movimiento-card">
-              <h3 style="margin-top:0;">Ventas (salidas)</h3>
+            <div class="movimiento-card inv-motion-card">
+              <h3><i class="bx bx-up-arrow-circle" aria-hidden="true"></i> Ventas (salidas)</h3>
               {% if ventas_recientes %}
               <div class="table-container" style="border:none;">
                 <table class="table-inventario" style="min-width:0;">
@@ -479,12 +746,12 @@
           </div>
         </div>
 
-        <div id="tab-marcas" class="tab-content">
-          <div class="marcas-grid-wrap">
+        <div id="tab-marcas" class="tab-content inv-tab-panel">
+          <div class="marcas-grid-wrap inv-marcas-grid">
             <div>
               <div class="mc-block-head">
                 <h3><i class="bx bx-category"></i> Categorías</h3>
-                <button type="button" class="btn-mini-add" onclick="abrirModalCatalogo('categoria')"><i class="bx bx-plus"></i> Agregar categoría</button>
+                <button type="button" class="btn-mini-add" onclick="window.abrirModalCatalogo('categoria')"><i class="bx bx-plus"></i> Agregar categoría</button>
               </div>
               <div class="table-container">
                 {% if categorias_info %}
@@ -504,7 +771,7 @@
             <div>
               <div class="mc-block-head">
                 <h3><i class="bx bx-purchase-tag"></i> Marcas</h3>
-                <button type="button" class="btn-mini-add" onclick="abrirModalCatalogo('marca')"><i class="bx bx-plus"></i> Agregar marca</button>
+                <button type="button" class="btn-mini-add" onclick="window.abrirModalCatalogo('marca')"><i class="bx bx-plus"></i> Agregar marca</button>
               </div>
               <div class="table-container">
                 {% if marcas_info %}
@@ -523,22 +790,34 @@
             </div>
           </div>
         </div>
-
-        <div id="tab-recientes" class="tab-content">
-          <div class="table-container">
-            <table class="table-inventario">
-              <thead>
-                <tr>
-                  <th>ID</th><th>Código</th><th>Nombre</th><th>Precio</th><th>Marca</th><th>Color</th><th>Stock</th><th>Estado</th>
-                </tr>
-              </thead>
-              <tbody id="tbodyRecientes"></tbody>
-            </table>
-            <div id="emptyRecientes" class="empty-state" style="display:none;"><p>No hay productos para mostrar.</p></div>
-          </div>
-        </div>
       </div>
     </main>
+  </div>
+
+  <div id="modalImportarExcel" class="modal" role="dialog" aria-modal="true" aria-labelledby="tituloImportarExcel">
+    <div class="modal-content modal-content--import">
+      <div class="modal-header">
+        <h3 id="tituloImportarExcel" style="margin:0;"><i class="bx bx-spreadsheet"></i> Importar productos desde Excel</h3>
+        <button type="button" class="close-modal" onclick="cerrarModalImportarExcel()" aria-label="Cerrar">&times;</button>
+      </div>
+      <p class="import-excel-hint">
+        Descarga la plantilla, completa las columnas (categoría, marca y color deben coincidir con el catálogo del sistema, sin importar mayúsculas) y sube el archivo. La carga es <strong>todo o nada</strong>: si una fila falla, no se guarda ningún producto.
+      </p>
+      <p class="import-excel-download">
+        <a href="{% url 'web_admin_inventario_plantilla_excel' %}" class="link-plantilla-excel"><i class="bx bx-download"></i> Descargar Plantilla</a>
+      </p>
+      <form id="formImportarExcel" method="post" action="{% url 'web_admin_inventario_importar_excel' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+          <label for="archivoExcel"><i class="bx bx-file"></i> Archivo (.xlsx)</label>
+          <input type="file" name="archivo" id="archivoExcel" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-modal btn-modal-secondary" onclick="cerrarModalImportarExcel()"><i class="bx bx-x"></i> Cancelar</button>
+          <button type="submit" class="btn-modal btn-modal-primary"><i class="bx bx-upload"></i> Importar</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <div id="modalAgregarProducto" class="modal" role="dialog" aria-modal="true" aria-labelledby="tituloAgregarProducto">
@@ -652,12 +931,12 @@
           <div id="contenedorImagenesAdicionales">
             <div class="imagen-adicional-row" data-imagen-index="0">
               <input type="url" name="imagenes_adicionales[]" maxlength="500" placeholder="https://ejemplo.com/imagen1.jpg" class="imagen-adicional-input">
-              <button type="button" class="btn-eliminar-imagen" onclick="eliminarImagenAdicional(0)" title="Eliminar imagen">
+              <button type="button" class="btn-eliminar-imagen" onclick="window.eliminarImagenAdicional(this)" title="Eliminar imagen">
                 <i class="bx bx-trash"></i>
               </button>
             </div>
           </div>
-          <button type="button" id="btnAgregarImagen" class="btn-agregar-imagen" onclick="agregarCampoImagen()">
+          <button type="button" id="btnAgregarImagen" class="btn-agregar-imagen" onclick="window.agregarCampoImagen()">
             <i class="bx bx-plus"></i> Agregar otra imagen
           </button>
           <p class="field-feedback" id="feed-imagenes_adicionales" role="status"></p>
@@ -670,13 +949,143 @@
     </div>
   </div>
 
-  <div id="modalProducto" class="modal">
+  <div id="modalEditarProducto" class="modal" role="dialog" aria-modal="true" aria-labelledby="tituloEditarProducto">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 style="margin:0;"><i class="bx bx-detail"></i> Detalle del producto</h3>
-        <button type="button" class="close-modal" onclick="cerrarProducto()" aria-label="Cerrar">&times;</button>
+        <h3 id="tituloEditarProducto" style="margin:0;"><i class="bx bx-edit-alt"></i> Editar producto</h3>
+        <button type="button" class="close-modal" onclick="window.cerrarModalEditarProducto()" aria-label="Cerrar">&times;</button>
       </div>
-      <div id="modalProductoBody"></div>
+      <form id="formEditarProducto" method="post" action="" novalidate>
+        {% csrf_token %}
+        <div class="form-row">
+          <div class="form-group field-neutral" data-edit-wrap="codigo">
+            <label for="edit_codigo"><i class="bx bx-barcode"></i> Código</label>
+            <input type="text" id="edit_codigo" readonly autocomplete="off" aria-describedby="edit-feed-codigo" class="input-readonly-muted">
+            <small class="hint-margen">Solo Lectura.</small>
+            <p class="field-feedback" id="edit-feed-codigo" role="status"></p>
+          </div>
+          <div class="form-group field-neutral" data-edit-wrap="nombre">
+            <label for="edit_nombre"><i class="bx bx-purchase-tag-alt"></i> Nombre *</label>
+            <input type="text" name="nombre" id="edit_nombre" required maxlength="120" placeholder="Nombre del producto" aria-describedby="edit-feed-nombre">
+            <p class="field-feedback" id="edit-feed-nombre" role="status"></p>
+          </div>
+        </div>
+        <div class="form-group field-neutral" data-edit-wrap="proveedor">
+          <label for="edit_proveedor_display"><i class="bx bx-buildings"></i> Proveedor</label>
+          <input type="text" id="edit_proveedor_display" readonly class="input-readonly-muted" autocomplete="off" aria-describedby="edit-feed-proveedor">
+          <small class="hint-margen">Solo Lectura.</small>
+          <p class="field-feedback" id="edit-feed-proveedor" role="status"></p>
+        </div>
+        <div class="form-row">
+          <div class="form-group field-neutral" data-edit-wrap="categoria">
+            <label for="edit_categoria"><i class="bx bx-category"></i> Categoría *</label>
+            <select name="categoria" id="edit_categoria" required aria-describedby="edit-feed-categoria">
+              <option value="">Selecciona una categoría</option>
+              {% for c in categorias_alta_list %}
+              <option value="{{ c }}">{{ c }}</option>
+              {% endfor %}
+            </select>
+            <p class="field-feedback" id="edit-feed-categoria" role="status"></p>
+          </div>
+          <div class="form-group field-neutral" data-edit-wrap="marca">
+            <label for="edit_marca"><i class="bx bx-badge"></i> Marca *</label>
+            <select name="marca" id="edit_marca" required aria-describedby="edit-feed-marca">
+              <option value="">Selecciona una marca</option>
+              {% for m in marcas_alta_list %}
+              <option value="{{ m }}">{{ m }}</option>
+              {% endfor %}
+            </select>
+            <p class="field-feedback" id="edit-feed-marca" role="status"></p>
+          </div>
+        </div>
+        <div class="form-group field-neutral" data-edit-wrap="color">
+          <label for="edit_color"><i class="bx bx-palette"></i> Color *</label>
+          <select name="color" id="edit_color" required aria-describedby="edit-feed-color">
+            <option value="">Selecciona un color</option>
+            <option value="Negro">Negro</option>
+            <option value="Blanco">Blanco</option>
+            <option value="Gris">Gris</option>
+            <option value="Azul">Azul</option>
+            <option value="Rojo">Rojo</option>
+            <option value="Dorado">Dorado</option>
+            <option value="Plateado">Plateado</option>
+            <option value="Verde">Verde</option>
+            <option value="Morado">Morado</option>
+            <option value="Rosa">Rosa</option>
+          </select>
+          <p class="field-feedback" id="edit-feed-color" role="status"></p>
+        </div>
+        <div class="form-row">
+          <div class="form-group field-neutral" data-edit-wrap="stock">
+            <label for="edit_stock"><i class="bx bx-cube"></i> Stock</label>
+            <input type="text" id="edit_stock" readonly class="input-readonly-muted" inputmode="numeric" aria-describedby="edit-feed-stock" autocomplete="off">
+            <small class="hint-margen">Solo Lectura.</small>
+            <p class="field-feedback" id="edit-feed-stock" role="status"></p>
+          </div>
+          <div class="form-group field-neutral" data-edit-wrap="costo_unitario">
+            <label for="edit_costo_unitario"><i class="bx bx-dollar-circle"></i> Costo unitario *</label>
+            <input type="text" name="costo_unitario" id="edit_costo_unitario" inputmode="decimal" required placeholder="0.00" aria-describedby="edit-feed-costo_unitario">
+            <p class="field-feedback" id="edit-feed-costo_unitario" role="status"></p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group field-neutral" data-edit-wrap="margen_pct">
+            <label for="edit_margen_pct"><i class="bx bx-trending-up"></i> Margen sobre costo (%)</label>
+            <input type="text" id="edit_margen_pct" inputmode="decimal" placeholder="Ej. 25" autocomplete="off" aria-describedby="edit-feed-margen_pct">
+            <small class="hint-margen"><i class="bx bx-info-circle"></i> Al cambiar costo o margen, el precio de venta se recalcula en pantalla (puedes ajustar el precio después).</small>
+            <p class="field-feedback" id="edit-feed-margen_pct" role="status"></p>
+          </div>
+          <div class="form-group field-neutral" data-edit-wrap="precio_venta">
+            <label for="edit_precio_venta"><i class="bx bx-money"></i> Precio de venta *</label>
+            <input type="text" name="precio_venta" id="edit_precio_venta" inputmode="decimal" required placeholder="0.00" aria-describedby="edit-feed-precio_venta">
+            <p class="field-feedback" id="edit-feed-precio_venta" role="status"></p>
+          </div>
+        </div>
+        <div class="form-group field-neutral" data-edit-wrap="descripcion">
+          <label for="edit_descripcion"><i class="bx bx-align-left"></i> Descripción</label>
+          <textarea name="descripcion" id="edit_descripcion" maxlength="4000" placeholder="Opcional" aria-describedby="edit-feed-descripcion"></textarea>
+          <p class="field-feedback" id="edit-feed-descripcion" role="status"></p>
+        </div>
+        <div class="form-group field-neutral" data-edit-wrap="imagen_url">
+          <label for="edit_imagen_url"><i class="bx bx-image"></i> URL de imagen principal</label>
+          <input type="url" name="imagen_url" id="edit_imagen_url" maxlength="500" placeholder="https://… (opcional)" aria-describedby="edit-feed-imagen_url">
+          <p class="field-feedback" id="edit-feed-imagen_url" role="status"></p>
+        </div>
+        <div class="form-group field-neutral" data-edit-wrap="imagenes_adicionales">
+          <label><i class="bx bx-images"></i> Imágenes adicionales</label>
+          <div id="contenedorImagenesAdicionalesEdit">
+            <div class="imagen-adicional-row" data-imagen-index="0">
+              <input type="url" name="imagenes_adicionales[]" maxlength="500" placeholder="https://ejemplo.com/imagen1.jpg" class="imagen-adicional-input">
+              <button type="button" class="btn-eliminar-imagen" onclick="window.eliminarImagenAdicional(this)" title="Eliminar imagen">
+                <i class="bx bx-trash"></i>
+              </button>
+            </div>
+          </div>
+          <button type="button" class="btn-agregar-imagen" onclick="window.agregarCampoImagenEdit()">
+            <i class="bx bx-plus"></i> Agregar otra imagen
+          </button>
+          <p class="field-feedback" id="edit-feed-imagenes_adicionales" role="status"></p>
+        </div>
+        <div class="form-group field-neutral" data-edit-wrap="confirmacion_contrasena">
+          <label for="edit_confirmacion_contrasena"><i class="bx bx-lock-alt"></i> Contraseña de tu perfil *</label>
+          <input type="password" name="confirmacion_contrasena" id="edit_confirmacion_contrasena" autocomplete="current-password" aria-describedby="edit-feed-confirmacion_contrasena" placeholder="Confirma para guardar cambios">
+          <p class="field-feedback" id="edit-feed-confirmacion_contrasena" role="status"></p>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn-modal btn-modal-primary"><i class="bx bx-save"></i> Guardar cambios</button>
+          <button type="button" class="btn-modal btn-modal-secondary" onclick="window.cerrarModalEditarProducto()"><i class="bx bx-x"></i> Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalProducto" class="modal modal-producto-ficha" role="dialog" aria-modal="true" aria-labelledby="modalProductoTitulo">
+    <div class="modal-content modal-content--ficha-producto">
+      <div class="modal-header">
+        <h3 id="modalProductoTitulo" style="margin:0;"><i class="bx bx-detail" aria-hidden="true"></i> Ficha técnica del producto</h3>
+        <button type="button" class="close-modal" onclick="window.cerrarProducto()" aria-label="Cerrar">&times;</button>
+      </div>
+      <div id="modalProductoBody" class="modal-producto-ficha__body"></div>
     </div>
   </div>
 
@@ -684,7 +1093,7 @@
     <div class="modal-content" style="max-width:420px;">
       <div class="modal-header">
         <h3 id="tituloCat" style="margin:0;"><i class="bx bx-category"></i> Nueva categoría</h3>
-        <button type="button" class="close-modal" onclick="cerrarModalCatalogo('categoria')" aria-label="Cerrar">&times;</button>
+        <button type="button" class="close-modal" onclick="window.cerrarModalCatalogo('categoria')" aria-label="Cerrar">&times;</button>
       </div>
       <form method="post" action="{% url 'web_admin_catalogo_categoria_agregar' %}">
         {% csrf_token %}
@@ -694,7 +1103,7 @@
         </div>
         <div class="modal-actions">
           <button type="submit" class="btn-modal btn-modal-primary"><i class="bx bx-save"></i> Guardar</button>
-          <button type="button" class="btn-modal btn-modal-secondary" onclick="cerrarModalCatalogo('categoria')">Cancelar</button>
+          <button type="button" class="btn-modal btn-modal-secondary" onclick="window.cerrarModalCatalogo('categoria')">Cancelar</button>
         </div>
       </form>
     </div>
@@ -704,7 +1113,7 @@
     <div class="modal-content" style="max-width:420px;">
       <div class="modal-header">
         <h3 id="tituloMar" style="margin:0;"><i class="bx bx-purchase-tag"></i> Nueva marca</h3>
-        <button type="button" class="close-modal" onclick="cerrarModalCatalogo('marca')" aria-label="Cerrar">&times;</button>
+        <button type="button" class="close-modal" onclick="window.cerrarModalCatalogo('marca')" aria-label="Cerrar">&times;</button>
       </div>
       <form method="post" action="{% url 'web_admin_catalogo_marca_agregar' %}">
         {% csrf_token %}
@@ -714,7 +1123,7 @@
         </div>
         <div class="modal-actions">
           <button type="submit" class="btn-modal btn-modal-primary"><i class="bx bx-save"></i> Guardar</button>
-          <button type="button" class="btn-modal btn-modal-secondary" onclick="cerrarModalCatalogo('marca')">Cancelar</button>
+          <button type="button" class="btn-modal btn-modal-secondary" onclick="window.cerrarModalCatalogo('marca')">Cancelar</button>
         </div>
       </form>
     </div>
@@ -759,55 +1168,37 @@
 
   {{ categorias_alta_list|json_script:"categorias-alta-data" }}
   {{ marcas_alta_list|json_script:"marcas-alta-data" }}
-  {{ productos_json|json_script:"productos-data" }}
+  {{ productos_data|json_script:"productos-data" }}
+  <script src="{% static 'frontend/js/technova-producto-gallery.js' %}?v=6"></script>
 
   <script>
     let PRODUCTOS = [];
     
-    // Función para depurar productos
     function depurarProductos() {
-      console.log('=== DEPURACIÓN DE PRODUCTOS ===');
-      
       try {
-        const productosDataElement = document.getElementById('productos-data');
-        console.log('Elemento productos-data:', productosDataElement);
-        
+        var productosDataElement = document.getElementById('productos-data');
         if (!productosDataElement) {
-          console.error('❌ No se encontró el elemento productos-data');
           PRODUCTOS = [];
           return;
         }
-        
-        const productosText = productosDataElement.textContent;
-        console.log('Texto crudo de productos:', productosText);
-        console.log('Longitud del texto:', productosText.length);
-        console.log('Tipo de dato:', typeof productosText);
-        
-        if (!productosText || productosText.trim() === '') {
-          console.error('❌ El texto de productos está vacío');
+        var productosText = (productosDataElement.textContent || '').trim();
+        if (!productosText) {
           PRODUCTOS = [];
           return;
         }
-        
-        PRODUCTOS = JSON.parse(productosText);
-        console.log('✅ Productos parseados:', PRODUCTOS);
-        console.log('✅ Cantidad de productos:', PRODUCTOS.length);
-        console.log('✅ Es array?', Array.isArray(PRODUCTOS));
-        
-        if (PRODUCTOS.length > 0) {
-          console.log('✅ Primer producto:', PRODUCTOS[0]);
-          console.log('✅ Campos del primer producto:', Object.keys(PRODUCTOS[0]));
+        var raw = JSON.parse(productosText);
+        if (Array.isArray(raw)) {
+          PRODUCTOS = raw;
+        } else if (raw && typeof raw === 'object' && Array.isArray(raw.items)) {
+          PRODUCTOS = raw.items;
         } else {
-          console.warn('⚠️ No hay productos en el array');
+          console.warn('Inventario: #productos-data no es un array ni { items: [] }. Se usa lista vacía.');
+          PRODUCTOS = [];
         }
-        
       } catch (error) {
-        console.error('❌ Error parseando productos:', error);
-        console.error('❌ Error details:', error.message);
+        console.error('Error parseando #productos-data:', error);
         PRODUCTOS = [];
       }
-      
-      console.log('=== FIN DEPURACIÓN ===');
     }
     
     // Ejecutar depuración al cargar
@@ -839,8 +1230,6 @@
     var MARCAS_OK = window.MARCAS_OK || new Set();
     const TECHNOVA_ADMIN_PRODUCTO_CREAR_URL = "{% url 'web_admin_producto_crear' %}";
     
-    console.log('Productos finales:', PRODUCTOS.length, 'es array?', Array.isArray(PRODUCTOS));
-
     function setFieldStateProd(fieldId, state, text) {
       var feed = document.getElementById('feed-' + fieldId);
       if (!feed) return;
@@ -1041,6 +1430,10 @@
       return true;
     }
 
+    function validarImagenesAdicionales() {
+      return true;
+    }
+
     function validarTodoProducto() {
       var ok = true;
       if (!validateCodigoProd()) ok = false;
@@ -1112,143 +1505,335 @@
     window.abrirModalAgregarProducto = abrirModalAgregarProducto;
     window.cerrarModalAgregarProducto = cerrarModalAgregarProducto;
 
-    document.getElementById('modalAgregarProducto').addEventListener('click', function (e) {
-      if (e.target === this) cerrarModalAgregarProducto();
-    });
+    function abrirModalImportarExcel() {
+      var m = document.getElementById('modalImportarExcel');
+      if (!m) return;
+      m.classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+    function cerrarModalImportarExcel() {
+      var m = document.getElementById('modalImportarExcel');
+      if (!m) return;
+      m.classList.remove('show');
+      document.body.style.overflow = 'auto';
+      var f = document.getElementById('formImportarExcel');
+      if (f) f.reset();
+    }
+    window.abrirModalImportarExcel = abrirModalImportarExcel;
+    window.cerrarModalImportarExcel = cerrarModalImportarExcel;
+    var modalImportarExcel = document.getElementById('modalImportarExcel');
+    if (modalImportarExcel) {
+      modalImportarExcel.addEventListener('click', function (e) {
+        if (e.target === this) cerrarModalImportarExcel();
+      });
+    }
+
+    var modalAgregarEl = document.getElementById('modalAgregarProducto');
+    if (modalAgregarEl) {
+      modalAgregarEl.addEventListener('click', function (e) {
+        if (e.target === this) cerrarModalAgregarProducto();
+      });
+    }
 
     (function bindFormProducto() {
-      var ids = ['codigo', 'nombre', 'proveedor_id', 'categoria', 'marca', 'color', 'stock', 'descripcion', 'imagen_url'];
-      ids.forEach(function (id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        var fn = {
-          codigo: validateCodigoProd,
-          nombre: validateNombreProd,
-          proveedor_id: validateProveedorProd,
-          categoria: validateCategoriaProd,
-          marca: validateMarcaProd,
-          color: validateColorProd,
-          stock: validateStockProd,
-          descripcion: validateDescripcionProd,
-          imagen_url: validateImagenProd
-        }[id];
-        if (fn) {
-          el.addEventListener('input', fn);
-          el.addEventListener('change', fn);
-        }
-      });
-      document.getElementById('costo_unitario').addEventListener('input', function () {
-        validateCostoProd();
-        recalcPrecioDesdeMargen();
-      });
-      document.getElementById('margen_pct').addEventListener('input', function () {
-        validateMargenOpcional();
-        recalcPrecioDesdeMargen();
-      });
-      document.getElementById('precio_venta').addEventListener('input', function () {
-        validatePrecioVentaProd();
-        syncMargenDesdePrecio();
-      });
-      document.getElementById('formAgregarProducto').addEventListener('submit', function (e) {
-        if (!validarTodoProducto()) {
-          e.preventDefault();
-          var firstErr = document.querySelector('#modalAgregarProducto .form-group.field-err input, #modalAgregarProducto .form-group.field-err select, #modalAgregarProducto .form-group.field-err textarea');
-          if (firstErr) firstErr.focus();
-          else if (typeof Swal !== 'undefined') {
-            Swal.fire({ title: 'Revisa los campos', text: 'Corrige los mensajes en rojo antes de guardar.', icon: 'warning', confirmButtonText: 'Entendido' });
+      try {
+        var ids = ['codigo', 'nombre', 'proveedor_id', 'categoria', 'marca', 'color', 'stock', 'descripcion', 'imagen_url'];
+        ids.forEach(function (id) {
+          var el = document.getElementById(id);
+          if (!el) return;
+          var fn = {
+            codigo: validateCodigoProd,
+            nombre: validateNombreProd,
+            proveedor_id: validateProveedorProd,
+            categoria: validateCategoriaProd,
+            marca: validateMarcaProd,
+            color: validateColorProd,
+            stock: validateStockProd,
+            descripcion: validateDescripcionProd,
+            imagen_url: validateImagenProd
+          }[id];
+          if (fn) {
+            el.addEventListener('input', fn);
+            el.addEventListener('change', fn);
           }
+        });
+        var costoEl = document.getElementById('costo_unitario');
+        if (costoEl) {
+          costoEl.addEventListener('input', function () {
+            validateCostoProd();
+            recalcPrecioDesdeMargen();
+          });
         }
-      });
+        var margenEl = document.getElementById('margen_pct');
+        if (margenEl) {
+          margenEl.addEventListener('input', function () {
+            validateMargenOpcional();
+            recalcPrecioDesdeMargen();
+          });
+        }
+        var precioEl = document.getElementById('precio_venta');
+        if (precioEl) {
+          precioEl.addEventListener('input', function () {
+            validatePrecioVentaProd();
+            syncMargenDesdePrecio();
+          });
+        }
+        var formProd = document.getElementById('formAgregarProducto');
+        if (formProd) {
+          formProd.addEventListener('submit', function (e) {
+            if (!validarTodoProducto()) {
+              e.preventDefault();
+              var firstErr = document.querySelector('#modalAgregarProducto .form-group.field-err input, #modalAgregarProducto .form-group.field-err select, #modalAgregarProducto .form-group.field-err textarea');
+              if (firstErr) firstErr.focus();
+              else if (typeof Swal !== 'undefined') {
+                Swal.fire({ title: 'Revisa los campos', text: 'Corrige los mensajes en rojo antes de guardar.', icon: 'warning', confirmButtonText: 'Entendido' });
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('bindFormProducto:', err);
+      }
     })();
 
-    document.querySelectorAll('.tab').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var name = btn.getAttribute('data-tab');
-        document.querySelectorAll('.tab').forEach(function (b) { b.classList.remove('active'); });
-        document.querySelectorAll('.tab-content').forEach(function (c) { c.classList.remove('active'); });
-        btn.classList.add('active');
-        var el = document.getElementById('tab-' + name);
-        if (el) el.classList.add('active');
-        if (name === 'recientes') renderRecientes();
-      });
-    });
+    function abrirModalCatalogo(tipo) {
+      var id = tipo === "categoria" ? "modalCatalogoCategoria" : "modalCatalogoMarca";
+      var el = document.getElementById(id);
+      if (el) {
+        el.classList.add("show");
+        document.body.style.overflow = "hidden";
+      }
+    }
+    function cerrarModalCatalogo(tipo) {
+      var id = tipo === "categoria" ? "modalCatalogoCategoria" : "modalCatalogoMarca";
+      var el = document.getElementById(id);
+      if (el) {
+        el.classList.remove("show");
+        document.body.style.overflow = "auto";
+      }
+    }
+    window.abrirModalCatalogo = abrirModalCatalogo;
+    window.cerrarModalCatalogo = cerrarModalCatalogo;
+    (function () {
+      var mc = document.getElementById('modalCatalogoCategoria');
+      var mm = document.getElementById('modalCatalogoMarca');
+      if (mc) {
+        mc.addEventListener('click', function (e) {
+          if (e.target === this) cerrarModalCatalogo('categoria');
+        });
+      }
+      if (mm) {
+        mm.addEventListener('click', function (e) {
+          if (e.target === this) cerrarModalCatalogo('marca');
+        });
+      }
+    })();
     (function activarTabDesdeUrl() {
       try {
         var tab = new URLSearchParams(window.location.search).get('tab');
         if (!tab) return;
-        var btn = document.querySelector('.tab[data-tab="' + tab + '"]');
-        if (btn) btn.click();
+        if (typeof window.inventarioActivarTab === "function") {
+          window.inventarioActivarTab(tab);
+        }
       } catch (e) {}
     })();
-    function abrirModalCatalogo(tipo) {
-      var id = tipo === 'categoria' ? 'modalCatalogoCategoria' : 'modalCatalogoMarca';
-      document.getElementById(id).classList.add('show');
-      document.body.style.overflow = 'hidden';
+    function invFmtMoney(n) {
+      if (n === null || n === undefined || n === '') return '—';
+      var x = Number(n);
+      if (isNaN(x)) return '—';
+      return '$' + x.toFixed(2);
     }
-    function cerrarModalCatalogo(tipo) {
-      var id = tipo === 'categoria' ? 'modalCatalogoCategoria' : 'modalCatalogoMarca';
-      document.getElementById(id).classList.remove('show');
-      document.body.style.overflow = 'auto';
+    function invFmtPct(n) {
+      if (n === null || n === undefined) return '—';
+      var x = Number(n);
+      if (isNaN(x)) return '—';
+      return x.toFixed(2) + '%';
     }
-    document.getElementById('modalCatalogoCategoria').addEventListener('click', function (e) {
-      if (e.target === this) cerrarModalCatalogo('categoria');
-    });
-    document.getElementById('modalCatalogoMarca').addEventListener('click', function (e) {
-      if (e.target === this) cerrarModalCatalogo('marca');
-    });
-    function renderRecientes() {
-      var body = document.getElementById('tbodyRecientes');
-      var empty = document.getElementById('emptyRecientes');
-      var rows = Array.prototype.slice.call(document.querySelectorAll('#tbodyProductos tr[data-producto-id]'));
-      rows.sort(function (a, b) {
-        return Number(b.getAttribute('data-producto-id')) - Number(a.getAttribute('data-producto-id'));
-      });
-      body.innerHTML = '';
-      if (!rows.length) { empty.style.display = 'block'; return; }
-      empty.style.display = 'none';
-      rows.forEach(function (row) {
-        var clone = row.cloneNode(true);
-        var cells = clone.querySelectorAll('td');
-        if (cells.length > 8) {
-          var tr = document.createElement('tr');
-          for (var i = 0; i < 8; i++) tr.appendChild(cells[i].cloneNode(true));
-          body.appendChild(tr);
+    function invUrlsGaleriaProducto(p) {
+      if (Array.isArray(p.galeria_urls) && p.galeria_urls.length) {
+        return p.galeria_urls
+          .map(function (x) {
+            return String(x).trim();
+          })
+          .filter(Boolean);
+      }
+      var urls = [];
+      if (p.imagen && String(p.imagen).trim()) {
+        urls.push(String(p.imagen).trim());
+      }
+      (p.imagenes_adicionales || []).forEach(function (img) {
+        var u =
+          typeof img === 'string'
+            ? String(img).trim()
+            : img && img.url
+              ? String(img.url).trim()
+              : '';
+        if (u) {
+          urls.push(u);
         }
       });
+      return urls;
+    }
+    function renderFichaProducto(p) {
+      var ph = window.INV_FICHA_PLACEHOLDER || '';
+      var galUrls = invUrlsGaleriaProducto(p);
+      var galleryHint =
+        galUrls.length < 2
+          ? '<p class="inv-ficha__gallery-hint" role="status">Solo hay una imagen en ficha. El carrusel y las flechas aparecen al añadir <strong>imágenes adicionales</strong> en <strong>Editar producto</strong>.</p>'
+          : '';
+      var promoBlock = '';
+      if (p.promocion_activa && p.precio_promocion != null) {
+        promoBlock =
+          '<div class="inv-ficha__promo-banner">' +
+          '<i class="bx bxs-purchase-tag-alt" aria-hidden="true"></i> ' +
+          'Promoción activa: <strong>' +
+          invFmtMoney(p.precio_promocion) +
+          '</strong>' +
+          (p.fecha_fin_promocion
+            ? ' <span class="inv-ficha__promo-hasta">(hasta ' + escapeHtml(String(p.fecha_fin_promocion)) + ')</span>'
+            : '') +
+          '</div>';
+      }
+      var stockIniNum =
+        p.stock_inicial != null && p.stock_inicial !== ''
+          ? Number(p.stock_inicial)
+          : p.stock != null
+            ? Number(p.stock)
+            : NaN;
+      var stockIni =
+        Number.isFinite(stockIniNum)
+          ? escapeHtml(String(stockIniNum))
+          : '<span class="inv-ficha__muted">—</span>';
+      document.getElementById('modalProductoBody').innerHTML =
+        '<div class="inv-ficha">' +
+        '<div class="inv-ficha__hero inv-ficha__hero--gallery">' +
+        '<div class="inv-ficha__img-wrap inv-ficha__gallery-wrap">' +
+        '<div class="inv-ficha__gallery-host" id="inv-ficha-gallery-host"></div>' +
+        galleryHint +
+        '</div>' +
+        '<div class="inv-ficha__hero-meta">' +
+        '<span class="inv-ficha__id">#' +
+        escapeHtml(String(p.id)) +
+        '</span>' +
+        '<h4 class="inv-ficha__nombre">' +
+        escapeHtml(p.nombre || '—') +
+        '</h4>' +
+        '<p class="inv-ficha__codigo"><code>' +
+        escapeHtml(p.codigo || '—') +
+        '</code></p>' +
+        '<span class="inv-ficha__estado inv-ficha__estado--' +
+        (p.activo ? 'on' : 'off') +
+        '">' +
+        (p.activo ? 'Activo' : 'Inactivo') +
+        '</span>' +
+        '</div>' +
+        '</div>' +
+        promoBlock +
+        '<section class="inv-ficha__section">' +
+        '<h5 class="inv-ficha__h5"><i class="bx bx-info-circle" aria-hidden="true"></i> Información general</h5>' +
+        '<dl class="inv-ficha__dl">' +
+        '<div><dt>Marca</dt><dd>' +
+        escapeHtml(p.marca || '—') +
+        '</dd></div>' +
+        '<div><dt>Categoría</dt><dd>' +
+        escapeHtml(p.categoria || '—') +
+        '</dd></div>' +
+        '<div><dt>Proveedor</dt><dd>' +
+        escapeHtml(p.proveedor || '—') +
+        '</dd></div>' +
+        '</dl>' +
+        '</section>' +
+        '<section class="inv-ficha__section inv-ficha__section--costos">' +
+        '<h5 class="inv-ficha__h5"><i class="bx bx-dollar-circle" aria-hidden="true"></i> Costos y precios</h5>' +
+        '<dl class="inv-ficha__dl inv-ficha__dl--costos">' +
+        '<div><dt>Costo unitario</dt><dd>' +
+        invFmtMoney(p.costo_unitario) +
+        '</dd></div>' +
+        '<div><dt>Margen</dt><dd>' +
+        invFmtPct(p.margen_pct) +
+        '</dd></div>' +
+        '</dl>' +
+        '<div class="inv-ficha__precio-venta">' +
+        '<span class="inv-ficha__precio-venta-label">Precio de venta</span>' +
+        '<span class="inv-ficha__precio-venta-val">' +
+        invFmtMoney(p.precio_venta) +
+        '</span>' +
+        '</div>' +
+        '</section>' +
+        '<section class="inv-ficha__section">' +
+        '<h5 class="inv-ficha__h5"><i class="bx bx-cube" aria-hidden="true"></i> Inventario</h5>' +
+        '<dl class="inv-ficha__dl">' +
+        '<div><dt>Stock inicial</dt><dd>' +
+        stockIni +
+        '</dd></div>' +
+        '<div><dt>Stock actual</dt><dd><strong>' +
+        escapeHtml(String(p.stock != null ? p.stock : '—')) +
+        '</strong></dd></div>' +
+        '<div><dt>Color</dt><dd>' +
+        escapeHtml(p.color || '—') +
+        '</dd></div>' +
+        '</dl>' +
+        '</section>' +
+        '<section class="inv-ficha__section">' +
+        '<h5 class="inv-ficha__h5"><i class="bx bx-align-left" aria-hidden="true"></i> Descripción</h5>' +
+        '<div class="inv-ficha__desc">' +
+        (p.descripcion && String(p.descripcion).trim()
+          ? escapeHtml(String(p.descripcion)).replace(/\n/g, '<br>')
+          : '<span class="inv-ficha__muted">Sin descripción.</span>') +
+        '</div>' +
+        '</section>' +
+        '</div>';
+      var gh = document.getElementById('inv-ficha-gallery-host');
+      function mountInvGallery() {
+        if (gh && window.TechnovaProductoGallery) {
+          window.TechnovaProductoGallery.mount(gh, galUrls, {
+            alt: p.nombre || '',
+            placeholder: ph,
+          });
+        }
+      }
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(mountInvGallery);
+      } else {
+        mountInvGallery();
+      }
     }
     function verProducto(id) {
-      var p = PRODUCTOS.find(function (x) { return String(x.id) === String(id); });
-      if (!p) return;
-      var c = p.caracteristica || {};
-      var precioVenta = c.precioVenta != null ? c.precioVenta : '—';
-      document.getElementById('modalProductoBody').innerHTML =
-        '<div class="detail-grid">' +
-        '<div class="detail-item"><strong>ID</strong><br>' + escapeHtml(String(p.id)) + '</div>' +
-        '<div class="detail-item"><strong>Código</strong><br>' + escapeHtml(p.codigo) + '</div>' +
-        '<div class="detail-item"><strong>Nombre</strong><br>' + escapeHtml(p.nombre) + '</div>' +
-        '<div class="detail-item"><strong>Stock</strong><br>' + escapeHtml(String(p.stock)) + '</div>' +
-        '<div class="detail-item"><strong>Categoría</strong><br>' + escapeHtml(c.categoria || '—') + '</div>' +
-        '<div class="detail-item"><strong>Marca</strong><br>' + escapeHtml(c.marca || '—') + '</div>' +
-        '<div class="detail-item"><strong>Color</strong><br>' + escapeHtml(c.color || '—') + '</div>' +
-        '<div class="detail-item"><strong>Proveedor</strong><br>' + escapeHtml(p.proveedor || '—') + '</div>' +
-        '<div class="detail-item"><strong>Estado</strong><br>' + (p.estado ? 'Activo' : 'Inactivo') + '</div>' +
-        '<div class="detail-item"><strong>Precio compra</strong><br>' + escapeHtml(String(c.precioCompra || '—')) + '</div>' +
-        '<div class="detail-item"><strong>Precio venta</strong><br>' + escapeHtml(String(precioVenta)) + '</div>' +
-        '</div>' +
-        '<p style="margin-top:12px;"><strong>Descripción:</strong><br>' + escapeHtml(c.descripcion || '—') + '</p>' +
-        '<div style="margin-top:12px;"><strong>Imágenes:</strong><br>' +
-        '<div class="imagenes-container" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">' +
-        (p.imagen ? '<div class="imagen-item"><img src="' + escapeAttr(p.imagen) + '" alt="Imagen principal" style="width:80px;height:80px;object-fit:cover;border-radius:4px;cursor:pointer;" onclick="window.open(\'' + escapeAttr(p.imagen) + '\', \'_blank\')" title="Imagen principal"></div>' : '') +
-        (p.imagenes_adicionales && p.imagenes_adicionales.length > 0 ? 
-          p.imagenes_adicionales.map(function(img, index) {
-            return '<div class="imagen-item"><img src="' + escapeAttr(img.url) + '" alt="Imagen adicional ' + (index + 1) + '" style="width:80px;height:80px;object-fit:cover;border-radius:4px;cursor:pointer;" onclick="window.open(\'' + escapeAttr(img.url) + '\', \'_blank\')" title="Imagen adicional ' + (index + 1) + '"></div>';
-          }).join('') : '') +
-        '</div>' +
-        (!p.imagen && (!p.imagenes_adicionales || p.imagenes_adicionales.length === 0) ? '<p style="color:#888;font-style:italic;">Sin imágenes</p>' : '') +
-        '</div>';
-      document.getElementById('modalProducto').classList.add('show');
+      var body = document.getElementById('modalProductoBody');
+      var modal = document.getElementById('modalProducto');
+      if (!body || !modal) return;
+      var urlFn = window.INV_URL_PRODUCTO_INFO;
+      if (typeof urlFn !== 'function') {
+        body.innerHTML = '<p class="inv-ficha__error">Error de configuración (URL).</p>';
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        return;
+      }
+      body.innerHTML =
+        '<div class="inv-ficha-loading"><div class="inv-ficha-loading__spinner" aria-hidden="true"></div><p>Cargando ficha…</p></div>';
+      modal.classList.add('show');
       document.body.style.overflow = 'hidden';
+      fetch(urlFn(id), {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      })
+        .then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function (data) {
+          if (!data || !data.success || !data.producto) {
+            throw new Error((data && data.error) || 'Respuesta inválida');
+          }
+          renderFichaProducto(data.producto);
+        })
+        .catch(function () {
+          body.innerHTML =
+            '<p class="inv-ficha__error">No se pudo cargar la ficha del producto. Comprueba tu sesión e intenta de nuevo.</p>';
+        });
     }
+    window.verProducto = verProducto;
     function escapeHtml(s) {
       var d = document.createElement('div');
       d.textContent = s;
@@ -1261,8 +1846,500 @@
       document.getElementById('modalProducto').classList.remove('show');
       document.body.style.overflow = 'auto';
     }
-    
-    let usuariosOriginales = [];
+    window.cerrarProducto = cerrarProducto;
+
+    function setFieldStateEdit(suffix, state, text) {
+      var feed = document.getElementById('edit-feed-' + suffix);
+      if (!feed) return;
+      feed.textContent = text || '';
+      feed.className = 'field-feedback';
+      if (state === 'ok') feed.classList.add('is-ok');
+      else if (state === 'err') feed.classList.add('is-err');
+      else if (state === 'muted') feed.classList.add('is-muted');
+      var wrap = document.querySelector('#modalEditarProducto [data-edit-wrap="' + suffix + '"]');
+      if (wrap) {
+        wrap.classList.remove('field-ok', 'field-err', 'field-neutral');
+        if (state === 'ok') wrap.classList.add('field-ok');
+        else if (state === 'err') wrap.classList.add('field-err');
+        else wrap.classList.add('field-neutral');
+      }
+    }
+
+    function resetValidacionEdit() {
+      [
+        'codigo', 'proveedor', 'nombre', 'categoria', 'marca', 'color', 'stock', 'costo_unitario',
+        'margen_pct', 'precio_venta', 'descripcion', 'imagen_url', 'imagenes_adicionales',
+        'confirmacion_contrasena',
+      ].forEach(function (s) {
+        setFieldStateEdit(s, 'neutral', '');
+      });
+    }
+
+    function ensureSelectHasValue(selectId, val) {
+      if (val == null || val === '') return;
+      var sel = document.getElementById(selectId);
+      if (!sel) return;
+      var v = String(val);
+      var found = false;
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === v) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        var opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v + ' (actual)';
+        sel.appendChild(opt);
+      }
+      sel.value = v;
+    }
+
+    function validateNombreEdit() {
+      var v = document.getElementById('edit_nombre').value.trim();
+      if (!v) {
+        setFieldStateEdit('nombre', 'muted', 'Campo obligatorio.');
+        return false;
+      }
+      if (v.length > 120) {
+        setFieldStateEdit('nombre', 'err', 'Máximo 120 caracteres.');
+        return false;
+      }
+      setFieldStateEdit('nombre', 'ok', 'Nombre válido.');
+      return true;
+    }
+
+    function validateCategoriaEdit() {
+      var v = document.getElementById('edit_categoria').value.trim();
+      if (!v) {
+        setFieldStateEdit('categoria', 'muted', 'Selecciona una categoría.');
+        return false;
+      }
+      var leg = window.__editProdLegacy || {};
+      if (!CATEGORIAS_OK.has(v) && v !== (leg.categoria || '')) {
+        setFieldStateEdit('categoria', 'err', 'Categoría no válida.');
+        return false;
+      }
+      setFieldStateEdit('categoria', 'ok', 'Categoría seleccionada.');
+      return true;
+    }
+
+    function validateMarcaEdit() {
+      var v = document.getElementById('edit_marca').value.trim();
+      if (!v) {
+        setFieldStateEdit('marca', 'muted', 'Selecciona una marca.');
+        return false;
+      }
+      var leg = window.__editProdLegacy || {};
+      if (!MARCAS_OK.has(v) && v !== (leg.marca || '')) {
+        setFieldStateEdit('marca', 'err', 'Marca no válida.');
+        return false;
+      }
+      setFieldStateEdit('marca', 'ok', 'Marca seleccionada.');
+      return true;
+    }
+
+    function validateColorEdit() {
+      var v = document.getElementById('edit_color').value.trim();
+      if (!v) {
+        setFieldStateEdit('color', 'muted', 'Selecciona un color.');
+        return false;
+      }
+      var leg = window.__editProdLegacy || {};
+      if (!_COLORES_OK[v] && v !== (leg.color || '')) {
+        setFieldStateEdit('color', 'err', 'Color no válido.');
+        return false;
+      }
+      setFieldStateEdit('color', 'ok', 'Color seleccionado.');
+      return true;
+    }
+
+    function validateStockEdit() {
+      var raw = document.getElementById('edit_stock').value;
+      var n = parseInt(raw, 10);
+      if (raw === '' || raw === null || Number.isNaN(n)) {
+        setFieldStateEdit('stock', 'muted', 'Indica un entero ≥ 0.');
+        return false;
+      }
+      if (n < 0) {
+        setFieldStateEdit('stock', 'err', 'El stock no puede ser negativo.');
+        return false;
+      }
+      setFieldStateEdit('stock', 'ok', 'Stock válido.');
+      return true;
+    }
+
+    function validateCostoEdit() {
+      var c = parseDecimalJS(document.getElementById('edit_costo_unitario').value);
+      if (c === null) {
+        setFieldStateEdit('costo_unitario', 'muted', 'Indica el costo unitario.');
+        return false;
+      }
+      if (c < 0) {
+        setFieldStateEdit('costo_unitario', 'err', 'Debe ser mayor o igual a 0.');
+        return false;
+      }
+      setFieldStateEdit('costo_unitario', 'ok', 'Costo válido.');
+      return true;
+    }
+
+    function validateMargenEditOpcional() {
+      var t = document.getElementById('edit_margen_pct').value.trim();
+      if (!t) {
+        setFieldStateEdit('margen_pct', 'neutral', '');
+        return true;
+      }
+      var m = parseDecimalJS(t);
+      if (m === null) {
+        setFieldStateEdit('margen_pct', 'err', 'Número no válido.');
+        return false;
+      }
+      setFieldStateEdit('margen_pct', 'ok', 'Se aplicará al calcular el precio.');
+      return true;
+    }
+
+    function validatePrecioVentaEdit() {
+      var costo = parseDecimalJS(document.getElementById('edit_costo_unitario').value);
+      var pr = parseDecimalJS(document.getElementById('edit_precio_venta').value);
+      if (pr === null) {
+        setFieldStateEdit('precio_venta', 'muted', 'Indica el precio de venta.');
+        return false;
+      }
+      if (pr <= 0) {
+        setFieldStateEdit('precio_venta', 'err', 'Debe ser mayor que 0.');
+        return false;
+      }
+      if (costo !== null && pr <= costo) {
+        setFieldStateEdit('precio_venta', 'err', 'Debe ser mayor que el costo unitario.');
+        return false;
+      }
+      setFieldStateEdit('precio_venta', 'ok', 'Precio coherente con el costo.');
+      return true;
+    }
+
+    function validateDescripcionEdit() {
+      var v = document.getElementById('edit_descripcion').value.trim();
+      if (v.length > 4000) {
+        setFieldStateEdit('descripcion', 'err', 'Máximo 4000 caracteres.');
+        return false;
+      }
+      if (!v) {
+        setFieldStateEdit('descripcion', 'muted', 'Opcional.');
+        return true;
+      }
+      setFieldStateEdit('descripcion', 'ok', 'Descripción registrada.');
+      return true;
+    }
+
+    function validateImagenEdit() {
+      var v = document.getElementById('edit_imagen_url').value.trim();
+      if (!v) {
+        setFieldStateEdit('imagen_url', 'muted', 'Opcional.');
+        return true;
+      }
+      if (v.length > 500) {
+        setFieldStateEdit('imagen_url', 'err', 'URL demasiado larga (máx. 500).');
+        return false;
+      }
+      if (!/^https?:\/\//i.test(v)) {
+        setFieldStateEdit('imagen_url', 'err', 'Debe comenzar con http:// o https://');
+        return false;
+      }
+      setFieldStateEdit('imagen_url', 'ok', 'URL válida.');
+      return true;
+    }
+
+    function validateImagenesAdicionalesEdit() {
+      var cont = document.getElementById('contenedorImagenesAdicionalesEdit');
+      if (!cont) return true;
+      var inputs = cont.querySelectorAll('.imagen-adicional-input');
+      var hasFilled = false;
+      var firstBad = null;
+      inputs.forEach(function (inp) {
+        var v = (inp.value || '').trim();
+        if (!v) return;
+        hasFilled = true;
+        if (v.length > 500 || !/^https?:\/\//i.test(v)) {
+          if (!firstBad) firstBad = inp;
+        }
+      });
+      if (firstBad) {
+        setFieldStateEdit(
+          'imagenes_adicionales',
+          'err',
+          'Cada URL adicional debe ser http/https y tener como máximo 500 caracteres.'
+        );
+        return false;
+      }
+      setFieldStateEdit(
+        'imagenes_adicionales',
+        hasFilled ? 'ok' : 'muted',
+        hasFilled ? 'URLs adicionales listas.' : 'Opcional. Aparecen en el carrusel de la ficha.'
+      );
+      return true;
+    }
+
+    function validateConfirmacionEdit() {
+      var v = (document.getElementById('edit_confirmacion_contrasena').value || '').trim();
+      if (!v) {
+        setFieldStateEdit('confirmacion_contrasena', 'err', 'Ingresa tu contraseña para guardar los cambios.');
+        return false;
+      }
+      setFieldStateEdit('confirmacion_contrasena', 'ok', 'Contraseña indicada.');
+      return true;
+    }
+
+    function validarTodoProductoEdit() {
+      var ok = true;
+      if (!validateNombreEdit()) ok = false;
+      if (!validateCategoriaEdit()) ok = false;
+      if (!validateMarcaEdit()) ok = false;
+      if (!validateColorEdit()) ok = false;
+      if (!validateStockEdit()) ok = false;
+      if (!validateCostoEdit()) ok = false;
+      if (!validateMargenEditOpcional()) ok = false;
+      if (!validatePrecioVentaEdit()) ok = false;
+      if (!validateDescripcionEdit()) ok = false;
+      if (!validateImagenEdit()) ok = false;
+      if (!validateImagenesAdicionalesEdit()) ok = false;
+      if (!validateConfirmacionEdit()) ok = false;
+      return ok;
+    }
+
+    function recalcPrecioDesdeMargenEdit() {
+      var mRaw = document.getElementById('edit_margen_pct').value.trim();
+      if (!mRaw) return;
+      var m = parseDecimalJS(mRaw);
+      var c = parseDecimalJS(document.getElementById('edit_costo_unitario').value);
+      if (m === null || c === null || c < 0) return;
+      var pr = c * (1 + m / 100);
+      document.getElementById('edit_precio_venta').value = pr.toFixed(2);
+      validatePrecioVentaEdit();
+    }
+
+    function syncMargenDesdePrecioEdit() {
+      var c = parseDecimalJS(document.getElementById('edit_costo_unitario').value);
+      var pr = parseDecimalJS(document.getElementById('edit_precio_venta').value);
+      if (c === null || c <= 0 || pr === null) return;
+      var m = (pr / c - 1) * 100;
+      var rounded = Math.round(m * 100) / 100;
+      document.getElementById('edit_margen_pct').value = String(rounded);
+      validateMargenEditOpcional();
+    }
+
+    function cerrarModalEditarProducto() {
+      var m = document.getElementById('modalEditarProducto');
+      if (!m) return;
+      m.classList.remove('show');
+      document.body.style.overflow = 'auto';
+      var f = document.getElementById('formEditarProducto');
+      if (f) {
+        f.reset();
+        f.action = '';
+      }
+      if (typeof window.rellenarImagenesAdicionalesEdit === 'function') {
+        window.rellenarImagenesAdicionalesEdit({ imagenes_adicionales: [] });
+      }
+      resetValidacionEdit();
+      window.__editProdLegacy = null;
+    }
+    window.cerrarModalEditarProducto = cerrarModalEditarProducto;
+
+    function abrirEditarProducto(id) {
+      var modal = document.getElementById('modalEditarProducto');
+      var form = document.getElementById('formEditarProducto');
+      var urlFn = window.INV_URL_PRODUCTO_EDITAR;
+      var infoFn = window.INV_URL_PRODUCTO_INFO;
+      if (!modal || !form || typeof urlFn !== 'function' || typeof infoFn !== 'function') {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ title: 'Error', text: 'No se pudo abrir el editor.', icon: 'error' });
+        }
+        return;
+      }
+      form.action = urlFn(id);
+      resetValidacionEdit();
+      modal.classList.add('show');
+      document.body.style.overflow = 'hidden';
+
+      fetch(infoFn(id), {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      })
+        .then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function (data) {
+          if (!data || !data.success || !data.producto) {
+            throw new Error((data && data.error) || 'Respuesta inválida');
+          }
+          var p = data.producto;
+          window.__editProdLegacy = {
+            categoria: p.categoria || '',
+            marca: p.marca || '',
+            color: p.color || '',
+          };
+          document.getElementById('edit_codigo').value = p.codigo || '';
+          document.getElementById('edit_nombre').value = p.nombre || '';
+          ensureSelectHasValue('edit_categoria', p.categoria || '');
+          ensureSelectHasValue('edit_marca', p.marca || '');
+          ensureSelectHasValue('edit_color', p.color || '');
+          document.getElementById('edit_stock').value =
+            p.stock != null && p.stock !== '' ? String(p.stock) : '0';
+          var costo = p.costo_unitario != null ? Number(p.costo_unitario) : 0;
+          document.getElementById('edit_costo_unitario').value =
+            Number.isFinite(costo) ? String(costo) : '0';
+          var margen = p.margen_pct;
+          if (margen != null && Number.isFinite(Number(margen))) {
+            document.getElementById('edit_margen_pct').value = String(margen);
+          } else {
+            document.getElementById('edit_margen_pct').value = '';
+          }
+          var pv = p.precio_venta != null ? Number(p.precio_venta) : null;
+          if (pv != null && Number.isFinite(pv)) {
+            document.getElementById('edit_precio_venta').value = pv.toFixed(2);
+          } else if (Number.isFinite(costo) && costo > 0) {
+            document.getElementById('edit_precio_venta').value = (costo * 1.01).toFixed(2);
+          } else {
+            document.getElementById('edit_precio_venta').value = '';
+          }
+          document.getElementById('edit_descripcion').value = p.descripcion || '';
+          var imgField = (p.imagen && String(p.imagen).trim()) ? String(p.imagen).trim() : '';
+          document.getElementById('edit_imagen_url').value = imgField;
+          if (typeof window.rellenarImagenesAdicionalesEdit === 'function') {
+            window.rellenarImagenesAdicionalesEdit(p);
+          }
+          document.getElementById('edit_confirmacion_contrasena').value = '';
+          var provEl = document.getElementById('edit_proveedor_display');
+          if (provEl) {
+            provEl.value = p.proveedor ? String(p.proveedor) : '—';
+          }
+          if (!document.getElementById('edit_margen_pct').value.trim() && costo > 0) {
+            syncMargenDesdePrecioEdit();
+          }
+          validateNombreEdit();
+          validateCategoriaEdit();
+          validateMarcaEdit();
+          validateColorEdit();
+          validateStockEdit();
+          validateCostoEdit();
+          validateMargenEditOpcional();
+          validatePrecioVentaEdit();
+          validateDescripcionEdit();
+          validateImagenEdit();
+          validateImagenesAdicionalesEdit();
+        })
+        .catch(function () {
+          cerrarModalEditarProducto();
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              title: 'No se pudo cargar',
+              text: 'Revisa tu sesión e intenta de nuevo.',
+              icon: 'error',
+            });
+          }
+        });
+    }
+    window.abrirEditarProducto = abrirEditarProducto;
+
+    (function bindFormEditarProducto() {
+      var modalEl = document.getElementById('modalEditarProducto');
+      if (modalEl) {
+        modalEl.addEventListener('click', function (e) {
+          if (e.target === modalEl) cerrarModalEditarProducto();
+        });
+        modalEl.addEventListener('input', function (e) {
+          var t = e.target;
+          if (
+            t &&
+            t.classList &&
+            t.classList.contains('imagen-adicional-input') &&
+            t.closest('#contenedorImagenesAdicionalesEdit')
+          ) {
+            validateImagenesAdicionalesEdit();
+          }
+        });
+      }
+      var ids = ['edit_nombre', 'edit_categoria', 'edit_marca', 'edit_color', 'edit_descripcion', 'edit_imagen_url'];
+      var map = {
+        edit_nombre: validateNombreEdit,
+        edit_categoria: validateCategoriaEdit,
+        edit_marca: validateMarcaEdit,
+        edit_color: validateColorEdit,
+        edit_descripcion: validateDescripcionEdit,
+        edit_imagen_url: validateImagenEdit,
+      };
+      ids.forEach(function (id) {
+        var el = document.getElementById(id);
+        var fn = map[id];
+        if (el && fn) {
+          el.addEventListener('input', fn);
+          el.addEventListener('change', fn);
+        }
+      });
+      var costoEl = document.getElementById('edit_costo_unitario');
+      if (costoEl) {
+        costoEl.addEventListener('input', function () {
+          validateCostoEdit();
+          recalcPrecioDesdeMargenEdit();
+        });
+      }
+      var margenEl = document.getElementById('edit_margen_pct');
+      if (margenEl) {
+        margenEl.addEventListener('input', function () {
+          validateMargenEditOpcional();
+          recalcPrecioDesdeMargenEdit();
+        });
+      }
+      var precioEl = document.getElementById('edit_precio_venta');
+      if (precioEl) {
+        precioEl.addEventListener('input', function () {
+          validatePrecioVentaEdit();
+          syncMargenDesdePrecioEdit();
+        });
+      }
+      var pwdEl = document.getElementById('edit_confirmacion_contrasena');
+      if (pwdEl) {
+        pwdEl.addEventListener('input', validateConfirmacionEdit);
+      }
+      var formEd = document.getElementById('formEditarProducto');
+      if (formEd) {
+        formEd.addEventListener('submit', function (e) {
+          if (!validarTodoProductoEdit()) {
+            e.preventDefault();
+            var firstErr = document.querySelector(
+              '#modalEditarProducto .form-group.field-err input, #modalEditarProducto .form-group.field-err select, #modalEditarProducto .form-group.field-err textarea'
+            );
+            if (!firstErr && document.querySelector('#modalEditarProducto [data-edit-wrap="imagenes_adicionales"].field-err')) {
+              var badImg = document.querySelector(
+                '#contenedorImagenesAdicionalesEdit .imagen-adicional-input'
+              );
+              var inps = document.querySelectorAll('#contenedorImagenesAdicionalesEdit .imagen-adicional-input');
+              for (var bi = 0; bi < inps.length; bi++) {
+                var vv = (inps[bi].value || '').trim();
+                if (vv && (vv.length > 500 || !/^https?:\/\//i.test(vv))) {
+                  badImg = inps[bi];
+                  break;
+                }
+              }
+              firstErr = badImg;
+            }
+            if (firstErr) firstErr.focus();
+            else if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                title: 'Revisa los campos',
+                text: 'Corrige los mensajes en rojo antes de guardar.',
+                icon: 'warning',
+                confirmButtonText: 'Entendido',
+              });
+            }
+          }
+        });
+      }
+    })();
+
     let productoActual = null;
     
     // abrirModalPromocion: definición única en <script id="script-promo-modal-unificado"> al pie del body.
@@ -1765,7 +2842,6 @@
         botonEnviar.innerHTML = '<i class="bx bx-send"></i> Enviar Promoción';
         document.getElementById('loadingOverlay').style.display = 'none';
       }
-    }
     };
     
     function getCookie(name) {
@@ -1783,26 +2859,8 @@
       return cookieValue;
     }
     
-    // ✅ DEBUG: Verificar que la función esté definida al cargar la página
-    console.log('✅ Función abrirModalPromocion definida:', typeof abrirModalPromocion);
-    console.log('✅ Función cargarUsuarios definida:', typeof cargarUsuarios);
-    console.log('✅ Función enviarPromocion definida:', typeof enviarPromocion);
-    
-    // Clic fuera del modal de promoción y Escape: script unificado al pie (tras insertar #modalPromocion).
-
     document.getElementById('modalProducto').addEventListener('click', function (e) {
-      if (e.target === this) cerrarProducto();
-    });
-    
-    // ✅ DEBUG: Verificar botones PROMOCIONAR al cargar
-    document.addEventListener('DOMContentLoaded', function() {
-      const botonesPromocion = document.querySelectorAll('.btn-promocion');
-      console.log('✅ Botones PROMOCIONAR encontrados:', botonesPromocion.length);
-      
-      botonesPromocion.forEach((boton, index) => {
-        console.log(`✅ Botón ${index + 1}:`, boton);
-        console.log(`✅ Producto ID:`, boton.getAttribute('onclick'));
-      });
+      if (e.target === this) window.cerrarProducto();
     });
   </script>
   

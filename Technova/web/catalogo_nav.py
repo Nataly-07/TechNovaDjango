@@ -74,10 +74,11 @@ def producto_card_ctx(p: Producto) -> dict:
 
 def ctx_catalogo_index():
     """Mismo contexto de tarjetas que `index_public` para `home` autenticado."""
+    from web.application.catalogo_publico_service import fetch_productos_recientes
+
     productos_qs = Producto.objects.filter(activo=True).order_by("id")
     productos_cards = [producto_card_ctx(p) for p in productos_qs[:24]]
-    recientes_qs = Producto.objects.filter(activo=True).order_by("-creado_en", "-id")[:6]
-    productos_recientes = [producto_card_ctx(p) for p in recientes_qs]
+    productos_recientes = [producto_card_ctx(p) for p in fetch_productos_recientes()]
     oferta_dia = productos_cards[0] if productos_cards else None
     ofertas_interes = productos_cards[:3]
     return {

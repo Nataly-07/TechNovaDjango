@@ -50,11 +50,14 @@ class ProductoOrmRepository(ProductoRepositoryPort):
         return self._to_entity(model)
 
     def crear(self, producto: ProductoEntidad) -> ProductoEntidad:
+        # Alta: el mismo valor va a stock (operativo) y stock_inicial (histórico permanente).
+        cantidad = int(producto.stock)
         model = Producto.objects.create(
             codigo=producto.codigo,
             nombre=producto.nombre,
             proveedor_id=producto.proveedor_id,
-            stock=producto.stock,
+            stock=cantidad,
+            stock_inicial=cantidad,
             costo_unitario=producto.costo_unitario,
             activo=producto.activo,
             imagen_url=producto.imagen_url or "",
@@ -85,7 +88,24 @@ class ProductoOrmRepository(ProductoRepositoryPort):
         model.color = producto.color or ""
         model.descripcion = producto.descripcion or ""
         model.precio_venta = producto.precio_venta
-        model.save()
+        # No incluir stock_inicial: debe permanecer fijo desde el alta.
+        model.save(
+            update_fields=[
+                "codigo",
+                "nombre",
+                "proveedor_id",
+                "stock",
+                "costo_unitario",
+                "activo",
+                "imagen_url",
+                "categoria",
+                "marca",
+                "color",
+                "descripcion",
+                "precio_venta",
+                "actualizado_en",
+            ]
+        )
         return self._to_entity(model)
 
     def marcar_inactivo(self, producto_id: int) -> bool:

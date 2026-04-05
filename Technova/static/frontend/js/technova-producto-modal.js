@@ -64,8 +64,12 @@
           stockNum === 1
             ? "1 unidad disponible"
             : stockNum + " unidades disponibles";
-        if (stockNum <= 5) {
+        if (stockNum <= 7) {
           stockClass = " producto-detalle-spec-val--bajo";
+        } else if (stockNum <= 20) {
+          stockClass = " producto-detalle-spec-val--medio";
+        } else {
+          stockClass = " producto-detalle-spec-val--alto";
         }
       }
     }

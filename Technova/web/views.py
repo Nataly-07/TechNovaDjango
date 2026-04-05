@@ -47,6 +47,11 @@ from mensajeria.models import MensajeDirecto, Notificacion
 from pago.models import MedioPago, MetodoPagoUsuario, Pago
 from producto.domain.entities import ProductoEntidad
 from producto.models import Producto, ProductoCatalogoExtra, ProductoImagen
+from producto.stock_niveles import (
+    STOCK_BAJO_MAX,
+    normalizar_nivel_stock_param,
+    q_filtro_listado_nivel_stock,
+)
 from proveedor.domain.entities import ProveedorEntidad
 from proveedor.models import Proveedor
 from usuario.adapters.web.session_views import SESSION_USUARIO_ID
@@ -834,7 +839,7 @@ def empleado_dashboard(request, seccion: str = "inicio"):
                 ),
                 "total_productos": Producto.objects.count(),
                 "productos_bajo_stock": Producto.objects.filter(
-                    activo=True, stock__gt=0, stock__lt=10
+                    activo=True, stock__gte=1, stock__lte=STOCK_BAJO_MAX
                 ).count(),
                 "productos_agotados": Producto.objects.filter(activo=True, stock=0).count(),
             }
@@ -1232,7 +1237,7 @@ def dashboard_view(request):
     ).count()
 
     productos_bajo_stock_count = Producto.objects.filter(
-        activo=True, stock__lt=5
+        activo=True, stock__gte=1, stock__lte=STOCK_BAJO_MAX
     ).count()
 
     # --- Sparklines KPI (ApexCharts) ---
@@ -1875,12 +1880,16 @@ def admin_inventario(request):
     usuario = _admin_usuario_sesion(request)
     categoria = (request.GET.get("categoria") or "").strip()
     busqueda = (request.GET.get("busqueda") or "").strip()
+    nivel_stock = normalizar_nivel_stock_param(request.GET.get("nivel_stock") or "")
 
     qs = Producto.objects.all().select_related("proveedor").order_by("-creado_en", "-id")
     if categoria:
         qs = qs.filter(categoria__iexact=categoria)
     if busqueda:
         qs = qs.filter(Q(nombre__icontains=busqueda) | Q(codigo__icontains=busqueda))
+    stock_q = q_filtro_listado_nivel_stock(nivel_stock)
+    if stock_q is not None:
+        qs = qs.filter(stock_q)
 
     paginator = Paginator(qs, 10)
     page_obj = paginator.get_page(request.GET.get("page"))
@@ -1894,7 +1903,9 @@ def admin_inventario(request):
     productos_data = [producto_modal_dict(p) for p in productos]
 
     total_productos = Producto.objects.count()
-    productos_bajo_stock = Producto.objects.filter(activo=True, stock__gt=0, stock__lt=10).count()
+    productos_bajo_stock = Producto.objects.filter(
+        activo=True, stock__gte=1, stock__lte=STOCK_BAJO_MAX
+    ).count()
     productos_agotados = Producto.objects.filter(activo=True, stock=0).count()
 
     categorias_opts = sorted(
@@ -1961,6 +1972,7 @@ def admin_inventario(request):
         "productos_data": productos_data,
         "categoria": categoria,
         "busqueda": busqueda,
+        "nivel_stock": nivel_stock,
         "categorias_opts": categorias_opts,
         "total_productos": total_productos,
         "productos_bajo_stock": productos_bajo_stock,
@@ -3586,7 +3598,7 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
         top_rows = [[str(x["producto__id"]), x["producto__nombre"], str(x["cantidad"])] for x in top_vendidos]
 
         stock_bajo = list(
-            Producto.objects.filter(activo=True, stock__lte=5).order_by("stock", "nombre")[:25]
+            Producto.objects.filter(activo=True, stock__lte=STOCK_BAJO_MAX).order_by("stock", "nombre")[:25]
         )
         stock_rows = [[str(p.id), p.nombre, str(p.stock)] for p in stock_bajo]
 
@@ -3639,7 +3651,10 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
                 "rango": rango_label,
                 "kpis": [
                     ("Total productos (catálogo)", str(Producto.objects.count())),
-                    ("Productos stock bajo (≤ 5)", str(Producto.objects.filter(activo=True, stock__lte=5).count())),
+                    (
+                        "Productos stock crítico (0–7 u.)",
+                        str(Producto.objects.filter(activo=True, stock__lte=STOCK_BAJO_MAX).count()),
+                    ),
                     ("Productos en reporte", str(len(rows))),
                     ("Categoría/Marca", f"{categoria or 'Todas'} · {marca or 'Todas'}"),
                 ],

@@ -54,9 +54,13 @@
     host.setAttribute("data-tn-idx", String(idx));
     applyTransform(track, idx, n);
 
-    var counter = host.querySelector(".tn-pg__counter");
-    if (counter) {
-      counter.textContent = idx + 1 + " / " + n;
+    var cur = host.querySelector(".tn-pg__counter-current");
+    var tot = host.querySelector(".tn-pg__counter-total");
+    if (cur) {
+      cur.textContent = String(idx + 1);
+    }
+    if (tot) {
+      tot.textContent = String(n);
     }
   }
 
@@ -112,6 +116,11 @@
     host.classList.add("tn-pg--carousel");
     host.setAttribute("data-tn-slides", String(n));
     host.setAttribute("data-tn-idx", "0");
+    var chevL =
+      '<svg class="tn-pg__nav-svg" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6"/></svg>';
+    var chevR =
+      '<svg class="tn-pg__nav-svg" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 18l6-6-6-6"/></svg>';
+
     /* Ancho de la cinta: lo define el flex (cada slide = 100cqw del viewport en CSS). */
     host.innerHTML =
       '<div class="tn-pg__stage">' +
@@ -120,11 +129,19 @@
       slidesHtml +
       "</div></div>" +
       '<button type="button" class="tn-pg__nav tn-pg__nav--prev" aria-label="Imagen anterior" onclick="window.moverCarrusel(-1, this.closest(\'.tn-pg--carousel\'))">' +
-      "&lt;</button>" +
+      chevL +
+      "</button>" +
       '<button type="button" class="tn-pg__nav tn-pg__nav--next" aria-label="Imagen siguiente" onclick="window.moverCarrusel(1, this.closest(\'.tn-pg--carousel\'))">' +
-      "&gt;</button>" +
-      '<div class="tn-pg__counter" aria-live="polite">1 / ' +
+      chevR +
+      "</button>" +
+      '<div class="tn-pg__counter" role="status" aria-live="polite">' +
+      '<span class="tn-pg__counter-inner">' +
+      '<span class="tn-pg__counter-current">1</span>' +
+      '<span class="tn-pg__counter-sep" aria-hidden="true">/</span>' +
+      '<span class="tn-pg__counter-total">' +
       n +
+      "</span>" +
+      "</span>" +
       "</div>" +
       "</div>";
 

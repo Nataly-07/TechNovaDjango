@@ -122,6 +122,12 @@ LANGUAGE_CODE = "es-co"
 TIME_ZONE = "America/Bogota"
 USE_I18N = True
 USE_TZ = True
+# Localización numérica (plantillas con {% localize %} / floatformat con separadores).
+# Django 5+ ya no usa USE_L10N; el formateo local está activo con USE_I18N.
+USE_THOUSAND_SEPARATOR = True
+DECIMAL_SEPARATOR = ","
+THOUSAND_SEPARATOR = "."
+NUMBER_GROUPING = 3
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []

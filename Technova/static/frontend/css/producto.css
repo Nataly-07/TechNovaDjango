@@ -179,6 +179,16 @@
   font-weight: 600;
 }
 
+.producto-detalle-spec-val--medio {
+  color: #0369a1;
+  font-weight: 600;
+}
+
+.producto-detalle-spec-val--alto {
+  color: #047857;
+  font-weight: 600;
+}
+
 .producto-detalle-descripcion-bloque {
   margin-bottom: 1.25rem;
   padding: 1rem 1.1rem;

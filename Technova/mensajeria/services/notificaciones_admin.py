@@ -6,10 +6,11 @@ from __future__ import annotations
 from decimal import Decimal
 
 from mensajeria.models import Notificacion
+from producto.stock_niveles import STOCK_BAJO_MAX
 from usuario.infrastructure.models.usuario_model import Usuario
 
-# Umbral para avisar stock bajo (unidades)
-STOCK_BAJO_UMBRAL = 5
+# Aviso «stock bajo»: 1..STOCK_BAJO_MAX (alineado con inventario; 0 = agotado aparte).
+STOCK_BAJO_UMBRAL = STOCK_BAJO_MAX
 
 
 def _ids_admins() -> list[int]:
@@ -221,7 +222,7 @@ def notificar_producto_nuevo(producto_id: int, nombre: str, stock: int) -> None:
 
 def notificar_stock_bajo(producto_id: int, nombre: str, stock: int) -> None:
     msg = (
-        f"Stock bajo ({STOCK_BAJO_UMBRAL} o menos unidades).\n"
+        f"Stock bajo (1–{STOCK_BAJO_UMBRAL} unidades).\n"
         f"Producto: {nombre}\n"
         f"ID: {producto_id}\n"
         f"Stock actual: {stock}"

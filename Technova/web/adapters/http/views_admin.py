@@ -16,6 +16,7 @@ from mensajeria.models import MensajeDirecto, Notificacion
 from pago.models import MedioPago, Pago
 from producto.domain.entities import ProductoEntidad
 from producto.models import Producto, ProductoCatalogoExtra
+from producto.stock_niveles import STOCK_BAJO_MAX
 from common.container import get_producto_service, get_proveedor_service
 from proveedor.domain.entities import ProveedorEntidad
 from proveedor.models import Proveedor
@@ -240,7 +241,9 @@ def admin_inventario(request):
     )
 
     total_productos = Producto.objects.count()
-    productos_bajo_stock = Producto.objects.filter(activo=True, stock__gt=0, stock__lt=10).count()
+    productos_bajo_stock = Producto.objects.filter(
+        activo=True, stock__gte=1, stock__lte=STOCK_BAJO_MAX
+    ).count()
     productos_agotados = Producto.objects.filter(activo=True, stock=0).count()
 
     categorias_opts = sorted(

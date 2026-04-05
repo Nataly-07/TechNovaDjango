@@ -1,4 +1,4 @@
-{% load static %}
+{% load static currency_extras %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="{% static 'frontend/css/promocion-btn.css' %}?v=2">
   <link rel="stylesheet" href="{% static 'frontend/css/technova-producto-gallery.css' %}?v=9">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="{% static 'frontend/js/technova-currency.js' %}"></script>
   <script>
     window.INV_FICHA_PLACEHOLDER = "{% filter escapejs %}{% static 'frontend/imagenes/logo-technova.svg' %}{% endfilter %}";
     window.INV_URL_PRODUCTO_INFO = function (pk) {
@@ -72,11 +73,19 @@
     window.recalcularPrecioPromocion =
       window.recalcularPrecioPromocion ||
       function recalcularPrecioPromocion() {
-        var baseTxt =
-          (document.getElementById("productoPrecioBase") || {}).textContent || "";
-        var m = String(baseTxt).match(/-?\d+[.,]?\d*/);
-        var base = m ? parseFloat(String(m[0]).replace(",", ".")) : 0;
-        if (!Number.isFinite(base) || base < 0) base = 0;
+        var base =
+          typeof window.__promoPrecioBaseNum === "number" &&
+          Number.isFinite(window.__promoPrecioBaseNum)
+            ? window.__promoPrecioBaseNum
+            : 0;
+        if (!base) {
+          var baseTxt =
+            (document.getElementById("productoPrecioBase") || {}).textContent || "";
+          var m = String(baseTxt).match(/-?[\d.]+(?:,[\d]+)?/);
+          var raw = m ? String(m[0]).replace(/\./g, "").replace(",", ".") : "0";
+          base = parseFloat(raw);
+          if (!Number.isFinite(base) || base < 0) base = 0;
+        }
 
         var tipo =
           (document.getElementById("tipoDescuento") || {}).value || "fijo";
@@ -125,9 +134,12 @@
             window.__promoPrecioBaseNum = precio;
           } catch (_e) {}
 
-          var precioFixed = parseFloat(precio).toFixed(2);
-          document.getElementById("productoPrecio").textContent = "$" + precioFixed;
-          document.getElementById("productoPrecioBase").textContent = "$" + precioFixed;
+          var precioFmt =
+            typeof window.TechnovaFormatCOP === "function"
+              ? window.TechnovaFormatCOP(precio)
+              : "$" + parseFloat(precio).toFixed(2);
+          document.getElementById("productoPrecio").textContent = precioFmt;
+          document.getElementById("productoPrecioBase").textContent = precioFmt;
 
           // Default UX para que el resultado se vea instantáneo
           var tipoEl = document.getElementById("tipoDescuento");
@@ -335,14 +347,26 @@
         if (name === "productos") {
           var params = new URLSearchParams(window.location.search || "");
           var urlHasFilter =
-            (params.get("busqueda") || "").trim() || (params.get("categoria") || "").trim();
+            (params.get("busqueda") || "").trim() ||
+            (params.get("categoria") || "").trim() ||
+            (params.get("nivel_stock") || "").trim();
           if (filtersWereActive || urlHasFilter) {
-            window.location.href = window._inventarioBaseUrl;
+            var nv = (params.get("nivel_stock") || "").trim();
+            var target = window._inventarioBaseUrl;
+            if (nv) {
+              target += (target.indexOf("?") >= 0 ? "&" : "?") + "nivel_stock=" + encodeURIComponent(nv);
+            }
+            window.location.href = target;
             return;
           }
           if (params.get("tab")) {
             try {
-              history.replaceState({}, "", window._inventarioBaseUrl);
+              var uClean = new URL(window._inventarioBaseUrl, window.location.origin);
+              var nv2 = (params.get("nivel_stock") || "").trim();
+              if (nv2) {
+                uClean.searchParams.set("nivel_stock", nv2);
+              }
+              history.replaceState({}, "", uClean.pathname + uClean.search);
             } catch (_e) {}
           }
         } else {
@@ -520,7 +544,7 @@
   <div class="dashboard-wrapper">
     {% include "frontend/layouts/sidebar_admin.html" %}
     <main class="main-content main-content--visible">
-      <div class="inventario-container inv-module container-fluid" data-inv-filters-active="{% if busqueda or categoria %}1{% else %}0{% endif %}">
+      <div class="inventario-container inv-module container-fluid" data-inv-filters-active="{% if busqueda or categoria %}1{% else %}0{% endif %}" data-inv-nivel-stock="{{ nivel_stock|default:'' }}">
         <div class="inventario-header inv-page-header">
           <div class="inv-page-header__titles">
             <p class="inv-page-header__eyebrow">Inventario</p>
@@ -544,28 +568,28 @@
         </div>
         {% endfor %}
 
-        <div class="stats-bar stats-bar--inventario inv-stats">
-          <div class="stat-card stat-inv-total inv-stat-card" data-inv-kpi="total">
+        <div class="stats-bar stats-bar--inventario inv-stats" role="toolbar" aria-label="Filtros rápidos por nivel de stock">
+          <a href="{% url 'web_admin_inventario' %}" class="stat-card stat-inv-total inv-stat-card inv-stat-card--filter{% if not nivel_stock and not busqueda and not categoria %} inv-stat-card--filter-active{% endif %}" data-inv-kpi="total" data-inv-filter="todos">
             <span class="inv-stat-card__icon" aria-hidden="true"><i class="bx bx-package"></i></span>
             <div class="inv-stat-card__body">
               <h4>Total productos</h4>
               <p class="number">{{ total_productos }}</p>
             </div>
-          </div>
-          <div class="stat-card stat-inv-bajo inv-stat-card" data-inv-kpi="bajo">
+          </a>
+          <a href="{% url 'web_admin_inventario' %}?nivel_stock=bajo" class="stat-card stat-inv-bajo inv-stat-card inv-stat-card--filter{% if nivel_stock == 'bajo' %} inv-stat-card--filter-active{% endif %}" data-inv-kpi="bajo" data-inv-filter="bajo">
             <span class="inv-stat-card__icon" aria-hidden="true"><i class="bx bx-trending-down"></i></span>
             <div class="inv-stat-card__body">
-              <h4>Bajo stock</h4>
+              <h4>Bajo Stock</h4>
               <p class="number">{{ productos_bajo_stock }}</p>
             </div>
-          </div>
-          <div class="stat-card stat-inv-agotado inv-stat-card" data-inv-kpi="agotado">
+          </a>
+          <a href="{% url 'web_admin_inventario' %}?nivel_stock=agotado" class="stat-card stat-inv-agotado inv-stat-card inv-stat-card--filter{% if nivel_stock == 'agotado' %} inv-stat-card--filter-active{% endif %}" data-inv-kpi="agotado" data-inv-filter="agotado">
             <span class="inv-stat-card__icon" aria-hidden="true"><i class="bx bx-error-circle"></i></span>
             <div class="inv-stat-card__body">
               <h4>Agotados</h4>
               <p class="number">{{ productos_agotados }}</p>
             </div>
-          </div>
+          </a>
         </div>
 
         <div class="inv-filtros-shell">
@@ -574,6 +598,9 @@
             <span>Filtros de búsqueda</span>
           </div>
           <form class="filtros-section inv-filtros-form" method="get" action="{% url 'web_admin_inventario' %}">
+            {% if nivel_stock %}
+            <input type="hidden" name="nivel_stock" value="{{ nivel_stock }}">
+            {% endif %}
             <div class="filtro-group">
               <label for="filtroCategoria">Categoría</label>
               <select id="filtroCategoria" name="categoria">
@@ -627,11 +654,11 @@
                   <td>
                     {% if p.promocion_activa %}
                       <div class="inv-price-stack">
-                        <span class="inv-price-old">${{ p.precio_base|floatformat:2 }}</span>
-                        <span class="inv-price-promo">${{ p.precio_promocion|floatformat:2 }}</span>
+                        <span class="inv-price-old">{{ p.precio_base|format_cop }}</span>
+                        <span class="inv-price-promo">{{ p.precio_promocion|format_cop }}</span>
                       </div>
                     {% else %}
-                      <span class="inv-price">${{ p.precio_base|floatformat:2 }}</span>
+                      <span class="inv-price">{{ p.precio_base|format_cop }}</span>
                     {% endif %}
                   </td>
                   <td>{{ p.marca|default:"—" }}</td>
@@ -640,8 +667,8 @@
                     {{ p.stock }}
                     {% if p.activo %}
                       {% if p.stock == 0 %}<span class="stock-badge agotado">Agotado</span>
-                      {% elif p.stock < 10 %}<span class="stock-badge bajo">Bajo</span>
-                      {% elif p.stock < 50 %}<span class="stock-badge medio">Medio</span>
+                      {% elif p.stock <= 7 %}<span class="stock-badge bajo">Bajo</span>
+                      {% elif p.stock <= 20 %}<span class="stock-badge medio">Medio</span>
                       {% else %}<span class="stock-badge alto">Alto</span>
                       {% endif %}
                     {% endif %}
@@ -897,7 +924,9 @@
           </div>
           <div class="form-group field-neutral" data-field-wrap="costo_unitario">
             <label for="costo_unitario"><i class="bx bx-dollar-circle"></i> Costo unitario *</label>
-            <input type="text" name="costo_unitario" id="costo_unitario" inputmode="decimal" required placeholder="0.00" aria-describedby="feed-costo_unitario">
+            <input type="text" name="costo_unitario" id="costo_unitario" inputmode="decimal" required placeholder="Ej. 2500000 o 2500000,50" aria-describedby="feed-costo_unitario inv-hint-costo">
+            <small id="inv-hint-costo" class="inv-currency-input-hint">Escribe el número sin puntos de miles; usa coma solo para decimales.</small>
+            <p class="inv-currency-preview" id="inv-preview-costo-add" aria-live="polite"></p>
             <p class="field-feedback" id="feed-costo_unitario" role="status"></p>
           </div>
         </div>
@@ -910,7 +939,9 @@
           </div>
           <div class="form-group field-neutral" data-field-wrap="precio_venta">
             <label for="precio_venta"><i class="bx bx-money"></i> Precio de venta *</label>
-            <input type="text" name="precio_venta" id="precio_venta" inputmode="decimal" required placeholder="0.00" aria-describedby="feed-precio_venta">
+            <input type="text" name="precio_venta" id="precio_venta" inputmode="decimal" required placeholder="Ej. 9600000 o 9600000,99" aria-describedby="feed-precio_venta inv-hint-precio">
+            <small id="inv-hint-precio" class="inv-currency-input-hint">Mismo formato: valor plano; la vista formateada aparece debajo.</small>
+            <p class="inv-currency-preview" id="inv-preview-precio-add" aria-live="polite"></p>
             <p class="field-feedback" id="feed-precio_venta" role="status"></p>
           </div>
         </div>
@@ -1024,7 +1055,9 @@
           </div>
           <div class="form-group field-neutral" data-edit-wrap="costo_unitario">
             <label for="edit_costo_unitario"><i class="bx bx-dollar-circle"></i> Costo unitario *</label>
-            <input type="text" name="costo_unitario" id="edit_costo_unitario" inputmode="decimal" required placeholder="0.00" aria-describedby="edit-feed-costo_unitario">
+            <input type="text" name="costo_unitario" id="edit_costo_unitario" inputmode="decimal" required placeholder="Ej. 2500000 o 2500000,50" aria-describedby="edit-feed-costo_unitario inv-hint-edit-costo">
+            <small id="inv-hint-edit-costo" class="inv-currency-input-hint">Sin puntos de miles; coma solo para decimales.</small>
+            <p class="inv-currency-preview" id="inv-preview-costo-edit" aria-live="polite"></p>
             <p class="field-feedback" id="edit-feed-costo_unitario" role="status"></p>
           </div>
         </div>
@@ -1037,7 +1070,9 @@
           </div>
           <div class="form-group field-neutral" data-edit-wrap="precio_venta">
             <label for="edit_precio_venta"><i class="bx bx-money"></i> Precio de venta *</label>
-            <input type="text" name="precio_venta" id="edit_precio_venta" inputmode="decimal" required placeholder="0.00" aria-describedby="edit-feed-precio_venta">
+            <input type="text" name="precio_venta" id="edit_precio_venta" inputmode="decimal" required placeholder="Ej. 9600000 o 9600000,99" aria-describedby="edit-feed-precio_venta inv-hint-edit-precio">
+            <small id="inv-hint-edit-precio" class="inv-currency-input-hint">Vista formateada debajo (solo lectura).</small>
+            <p class="inv-currency-preview" id="inv-preview-precio-edit" aria-live="polite"></p>
             <p class="field-feedback" id="edit-feed-precio_venta" role="status"></p>
           </div>
         </div>
@@ -1082,7 +1117,10 @@
   <div id="modalProducto" class="modal modal-producto-ficha" role="dialog" aria-modal="true" aria-labelledby="modalProductoTitulo">
     <div class="modal-content modal-content--ficha-producto">
       <div class="modal-header">
-        <h3 id="modalProductoTitulo" style="margin:0;"><i class="bx bx-detail" aria-hidden="true"></i> Ficha técnica del producto</h3>
+        <h3 id="modalProductoTitulo" class="modal-producto-ficha__titulo" style="margin:0;">
+          <i class="bx bx-detail" aria-hidden="true"></i>
+          <span id="modalProductoTituloTexto">Detalle del producto</span>
+        </h3>
         <button type="button" class="close-modal" onclick="window.cerrarProducto()" aria-label="Cerrar">&times;</button>
       </div>
       <div id="modalProductoBody" class="modal-producto-ficha__body"></div>
@@ -1562,6 +1600,7 @@
           costoEl.addEventListener('input', function () {
             validateCostoProd();
             recalcPrecioDesdeMargen();
+            invSyncCurrencyPreview('costo_unitario', 'inv-preview-costo-add');
           });
         }
         var margenEl = document.getElementById('margen_pct');
@@ -1576,6 +1615,7 @@
           precioEl.addEventListener('input', function () {
             validatePrecioVentaProd();
             syncMargenDesdePrecio();
+            invSyncCurrencyPreview('precio_venta', 'inv-preview-precio-add');
           });
         }
         var formProd = document.getElementById('formAgregarProducto');
@@ -1640,8 +1680,27 @@
     function invFmtMoney(n) {
       if (n === null || n === undefined || n === '') return '—';
       var x = Number(n);
-      if (isNaN(x)) return '—';
+      if (!Number.isFinite(x)) return '—';
+      if (typeof window.TechnovaFormatCOP === 'function') {
+        return window.TechnovaFormatCOP(x);
+      }
       return '$' + x.toFixed(2);
+    }
+
+    function invSyncCurrencyPreview(inputId, previewId) {
+      var inp = document.getElementById(inputId);
+      var prev = document.getElementById(previewId);
+      if (!inp || !prev) return;
+      var v = parseDecimalJS(inp.value);
+      if (v === null || !Number.isFinite(v)) {
+        prev.textContent = '';
+        return;
+      }
+      prev.textContent =
+        'Vista: ' +
+        (typeof window.TechnovaFormatCOP === 'function'
+          ? window.TechnovaFormatCOP(v)
+          : invFmtMoney(v));
     }
     function invFmtPct(n) {
       if (n === null || n === undefined) return '—';
@@ -1677,10 +1736,6 @@
     function renderFichaProducto(p) {
       var ph = window.INV_FICHA_PLACEHOLDER || '';
       var galUrls = invUrlsGaleriaProducto(p);
-      var galleryHint =
-        galUrls.length < 2
-          ? '<p class="inv-ficha__gallery-hint" role="status">Solo hay una imagen en ficha. El carrusel y las flechas aparecen al añadir <strong>imágenes adicionales</strong> en <strong>Editar producto</strong>.</p>'
-          : '';
       var promoBlock = '';
       if (p.promocion_activa && p.precio_promocion != null) {
         promoBlock =
@@ -1707,10 +1762,13 @@
       document.getElementById('modalProductoBody').innerHTML =
         '<div class="inv-ficha">' +
         '<div class="inv-ficha__hero inv-ficha__hero--gallery">' +
+        '<div class="inv-ficha__hero-split">' +
+        '<div class="inv-ficha__hero-col inv-ficha__hero-col--gallery">' +
         '<div class="inv-ficha__img-wrap inv-ficha__gallery-wrap">' +
         '<div class="inv-ficha__gallery-host" id="inv-ficha-gallery-host"></div>' +
-        galleryHint +
         '</div>' +
+        '</div>' +
+        '<div class="inv-ficha__hero-col inv-ficha__hero-col--meta">' +
         '<div class="inv-ficha__hero-meta">' +
         '<span class="inv-ficha__id">#' +
         escapeHtml(String(p.id)) +
@@ -1718,6 +1776,17 @@
         '<h4 class="inv-ficha__nombre">' +
         escapeHtml(p.nombre || '—') +
         '</h4>' +
+        '<p class="inv-ficha__precio-hero">' +
+        invFmtMoney(
+          p.precio != null && Number.isFinite(Number(p.precio))
+            ? p.precio
+            : p.precio_venta != null
+              ? p.precio_venta
+              : p.precio_base != null
+                ? p.precio_base
+                : p.costo_unitario
+        ) +
+        '</p>' +
         '<p class="inv-ficha__codigo"><code>' +
         escapeHtml(p.codigo || '—') +
         '</code></p>' +
@@ -1728,8 +1797,10 @@
         '</span>' +
         '</div>' +
         '</div>' +
+        '</div>' +
+        '</div>' +
         promoBlock +
-        '<section class="inv-ficha__section">' +
+        '<section class="inv-ficha__section inv-ficha__section--general">' +
         '<h5 class="inv-ficha__h5"><i class="bx bx-info-circle" aria-hidden="true"></i> Información general</h5>' +
         '<dl class="inv-ficha__dl">' +
         '<div><dt>Marca</dt><dd>' +
@@ -1783,6 +1854,11 @@
         '</div>' +
         '</section>' +
         '</div>';
+      var tituloSpan = document.getElementById('modalProductoTituloTexto');
+      if (tituloSpan) {
+        tituloSpan.textContent =
+          'Detalle del Producto: ' + (p.nombre || '—') + ' | ID: #' + String(p.id);
+      }
       var gh = document.getElementById('inv-ficha-gallery-host');
       function mountInvGallery() {
         if (gh && window.TechnovaProductoGallery) {
@@ -1811,6 +1887,8 @@
       }
       body.innerHTML =
         '<div class="inv-ficha-loading"><div class="inv-ficha-loading__spinner" aria-hidden="true"></div><p>Cargando ficha…</p></div>';
+      var ts = document.getElementById('modalProductoTituloTexto');
+      if (ts) ts.textContent = 'Detalle del producto';
       modal.classList.add('show');
       document.body.style.overflow = 'hidden';
       fetch(urlFn(id), {
@@ -1829,6 +1907,8 @@
           renderFichaProducto(data.producto);
         })
         .catch(function () {
+          var tErr = document.getElementById('modalProductoTituloTexto');
+          if (tErr) tErr.textContent = 'Detalle del producto';
           body.innerHTML =
             '<p class="inv-ficha__error">No se pudo cargar la ficha del producto. Comprueba tu sesión e intenta de nuevo.</p>';
         });
@@ -2219,6 +2299,8 @@
           if (!document.getElementById('edit_margen_pct').value.trim() && costo > 0) {
             syncMargenDesdePrecioEdit();
           }
+          invSyncCurrencyPreview('edit_costo_unitario', 'inv-preview-costo-edit');
+          invSyncCurrencyPreview('edit_precio_venta', 'inv-preview-precio-edit');
           validateNombreEdit();
           validateCategoriaEdit();
           validateMarcaEdit();
@@ -2284,6 +2366,7 @@
         costoEl.addEventListener('input', function () {
           validateCostoEdit();
           recalcPrecioDesdeMargenEdit();
+          invSyncCurrencyPreview('edit_costo_unitario', 'inv-preview-costo-edit');
         });
       }
       var margenEl = document.getElementById('edit_margen_pct');
@@ -2298,6 +2381,7 @@
         precioEl.addEventListener('input', function () {
           validatePrecioVentaEdit();
           syncMargenDesdePrecioEdit();
+          invSyncCurrencyPreview('edit_precio_venta', 'inv-preview-precio-edit');
         });
       }
       var pwdEl = document.getElementById('edit_confirmacion_contrasena');
@@ -2360,9 +2444,13 @@
         return;
       }
       
-      document.getElementById('productoPrecio').textContent = '$' + parseFloat(precio).toFixed(2);
+      var precioFmt2 =
+        typeof window.TechnovaFormatCOP === 'function'
+          ? window.TechnovaFormatCOP(parseFloat(precio))
+          : '$' + parseFloat(precio).toFixed(2);
+      document.getElementById('productoPrecio').textContent = precioFmt2;
       var baseEl = document.getElementById('productoPrecioBase');
-      if (baseEl) baseEl.textContent = '$' + parseFloat(precio).toFixed(2);
+      if (baseEl) baseEl.textContent = precioFmt2;
       var tipo = document.getElementById('tipoDescuento');
       if (tipo) tipo.value = 'porcentaje';
       var valor = document.getElementById('valorDescuento');
@@ -2418,10 +2506,17 @@
       };
 
     function _leerPrecioBasePromo() {
+      if (
+        typeof window.__promoPrecioBaseNum === 'number' &&
+        Number.isFinite(window.__promoPrecioBaseNum) &&
+        window.__promoPrecioBaseNum > 0
+      ) {
+        return window.__promoPrecioBaseNum;
+      }
       const txt = (document.getElementById('productoPrecioBase')?.textContent || '').trim();
-      const m = txt.match(/-?\d+[.,]?\d*/);
+      const m = txt.match(/-?[\d.]+(?:,[\d]+)?/);
       if (!m) return 0;
-      const n = parseFloat(String(m[0]).replace(',', '.'));
+      const n = parseFloat(String(m[0]).replace(/\./g, '').replace(',', '.'));
       return Number.isFinite(n) ? n : 0;
     }
 
@@ -2759,20 +2854,27 @@
           const baseTxt = (document.getElementById('productoPrecioBase')?.textContent || '').trim();
           const regTxt = (document.getElementById('productoPrecio')?.textContent || '').trim();
           const txt = baseTxt || regTxt;
-          const m = txt.match(/-?\d+[.,]?\d*/);
+          const m = txt.match(/-?[\d.]+(?:,[\d]+)?/);
           if (!m) return 0;
-          const n = parseFloat(String(m[0]).replace(',', '.'));
+          const n = parseFloat(String(m[0]).replace(/\./g, '').replace(',', '.'));
           return Number.isFinite(n) ? n : 0;
         })();
+
+        const _fmtPromoCop = function (num) {
+          const x = Number(num);
+          return typeof window.TechnovaFormatCOP === 'function'
+            ? window.TechnovaFormatCOP(x)
+            : '$' + x.toFixed(2);
+        };
 
         formData.append('asunto', '¡Promoción Especial: ' + productoNombre + '!');
         
         // Crear mensaje con precio de promoción
         let mensajeCompleto = `¡No te pierdas esta increíble promoción!\n\n`;
         mensajeCompleto += `📦 ${productoNombre}\n`;
-        mensajeCompleto += `💰 Precio regular: $${productoPrecioNum.toFixed(2)}\n`;
-        mensajeCompleto += `🎉 Precio promoción: $${parseFloat(precioPromocion).toFixed(2)}\n`;
-        mensajeCompleto += `💸 Ahorro: $${(productoPrecioNum - parseFloat(precioPromocion)).toFixed(2)}\n\n`;
+        mensajeCompleto += `💰 Precio regular: ${_fmtPromoCop(productoPrecioNum)}\n`;
+        mensajeCompleto += `🎉 Precio promoción: ${_fmtPromoCop(parseFloat(precioPromocion))}\n`;
+        mensajeCompleto += `💸 Ahorro: ${_fmtPromoCop(productoPrecioNum - parseFloat(precioPromocion))}\n\n`;
         
         if (mensajePersonalizado.trim()) {
           mensajeCompleto += `📝 ${mensajePersonalizado}\n\n`;
@@ -2817,7 +2919,7 @@
         .then(data => {
           console.log('✅ Datos recibidos:', data); // ✅ DEBUG: Ver datos
           if (data.success) {
-            alert('✅ ¡Promoción enviada con éxito!\n\n' + data.message + '\n\n📊 Enviado a ' + usuarioIds.length + ' usuario(s)\n💰 Precio promoción: $' + parseFloat(precioPromocion).toFixed(2));
+            alert('✅ ¡Promoción enviada con éxito!\n\n' + data.message + '\n\n📊 Enviado a ' + usuarioIds.length + ' usuario(s)\n💰 Precio promoción: ' + _fmtPromoCop(parseFloat(precioPromocion)));
             cerrarModalPromocion();
             usuariosSeleccionadosGlobal.clear();
             if (window.usuariosSeleccionados) window.usuariosSeleccionados.clear();

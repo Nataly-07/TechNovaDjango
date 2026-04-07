@@ -767,18 +767,34 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  {# JSON embebido para evitar errores de parseo en el editor #}
+  <script id="tn_ventasSemanaLabels" type="application/json">{{ ventas_semana_labels_json|default:"[]" }}</script>
+  <script id="tn_ventasSemanaSeries" type="application/json">{{ ventas_semana_series_json|default:"[]" }}</script>
+  <script id="tn_categoriasDonutSeries" type="application/json">{{ categorias_donut_series_json|default:"[]" }}</script>
+  <script id="tn_ventasMesLabels" type="application/json">{{ ventas_mes_labels_json|default:"[]" }}</script>
+  <script id="tn_ventasMesSeries" type="application/json">{{ ventas_mes_series_json|default:"[]" }}</script>
+  <script id="tn_sparkVentas30" type="application/json">{{ sparkline_ventas_30d_json|default:"[]" }}</script>
+  <script id="tn_sparkGanancias30" type="application/json">{{ sparkline_ganancias_30d_json|default:"[]" }}</script>
+  <script id="tn_sparkPedidos24h" type="application/json">{{ sparkline_pedidos_24h_json|default:"[]" }}</script>
+  <script id="tn_sparkClientes7d" type="application/json">{{ sparkline_clientes_7d_json|default:"[]" }}</script>
   <script>
     (function () {
-      const ventasSemanaLabels = {{ ventas_semana_labels_json|default:"[]"|safe }};
-      const ventasSemanaSeries = {{ ventas_semana_series_json|default:"[]"|safe }};
-      const categoriasDonutSeries = {{ categorias_donut_series_json|default:"[]"|safe }};
-      const ventasMesLabels = {{ ventas_mes_labels_json|default:"[]"|safe }};
-      const ventasMesSeries = {{ ventas_mes_series_json|default:"[]"|safe }};
+      function readJsonScript(id) {
+        var el = document.getElementById(id);
+        if (!el) return [];
+        try { return JSON.parse(el.textContent || '[]'); } catch (e) { return []; }
+      }
 
-      const sparkVentas30 = {{ sparkline_ventas_30d_json|default:"[]"|safe }};
-      const sparkGanancias30 = {{ sparkline_ganancias_30d_json|default:"[]"|safe }};
-      const sparkPedidos24h = {{ sparkline_pedidos_24h_json|default:"[]"|safe }};
-      const sparkClientes7d = {{ sparkline_clientes_7d_json|default:"[]"|safe }};
+      const ventasSemanaLabels = readJsonScript('tn_ventasSemanaLabels');
+      const ventasSemanaSeries = readJsonScript('tn_ventasSemanaSeries');
+      const categoriasDonutSeries = readJsonScript('tn_categoriasDonutSeries');
+      const ventasMesLabels = readJsonScript('tn_ventasMesLabels');
+      const ventasMesSeries = readJsonScript('tn_ventasMesSeries');
+
+      const sparkVentas30 = readJsonScript('tn_sparkVentas30');
+      const sparkGanancias30 = readJsonScript('tn_sparkGanancias30');
+      const sparkPedidos24h = readJsonScript('tn_sparkPedidos24h');
+      const sparkClientes7d = readJsonScript('tn_sparkClientes7d');
 
       function formatMoney(value) {
         const n = Number(value) || 0;

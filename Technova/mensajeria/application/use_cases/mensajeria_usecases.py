@@ -82,3 +82,79 @@ class MensajeriaQueryService:
 
     def crear_mensaje_empleado(self, data: dict) -> int:
         return self.repository.crear_mensaje_empleado(data)
+
+    def historial_staff_chat(self, empleado_thread_id: int) -> list[dict]:
+        return self.repository.historial_staff_chat(empleado_thread_id)
+
+    def resumen_conversaciones_staff_admin(self) -> list[dict]:
+        return self.repository.resumen_conversaciones_staff_admin()
+
+    def buscar_empleados_staff_chat(self, query: str, *, limit: int = 40) -> list[dict]:
+        return self.repository.buscar_empleados_staff_chat(query, limit=limit)
+
+    def crear_mensaje_staff_chat(
+        self,
+        *,
+        empleado_usuario_id: int,
+        remitente_usuario_id: int,
+        tipo_remitente: str,
+        asunto: str,
+        mensaje: str,
+        tipo_mensaje: str = "general",
+        reclamo_id: int | None = None,
+        prioridad: str = "normal",
+    ) -> dict | None:
+        return self.repository.crear_mensaje_staff_chat(
+            empleado_usuario_id=empleado_usuario_id,
+            remitente_usuario_id=remitente_usuario_id,
+            tipo_remitente=tipo_remitente,
+            asunto=asunto,
+            mensaje=mensaje,
+            tipo_mensaje=tipo_mensaje,
+            reclamo_id=reclamo_id,
+            prioridad=prioridad,
+        )
+
+    def marcar_staff_chat_leido(self, empleado_thread_id: int, lector_id: int, lector_rol: str) -> int:
+        return self.repository.marcar_staff_chat_leido(empleado_thread_id, lector_id, lector_rol)
+
+    def detalle_reclamo_staff_chat(self, reclamo_id: int) -> dict | None:
+        return self.repository.detalle_reclamo_staff_chat(reclamo_id)
+
+    # ---- Contextos SSR (DTOs listos para templates) ----
+    def admin_mensajes_ssr_context(
+        self,
+        *,
+        conversacion_id: int | None,
+        marcar_leidos: bool,
+        admin_usuario_id: int,
+    ) -> dict:
+        return self.repository.admin_mensajes_ssr_context(
+            conversacion_id=conversacion_id,
+            marcar_leidos=marcar_leidos,
+            admin_usuario_id=admin_usuario_id,
+        )
+
+    def empleado_mensajes_ssr_context(
+        self,
+        *,
+        empleado_id: int,
+        conversacion_admin_id: int | None,
+        marcar_leidos: bool,
+    ) -> dict:
+        return self.repository.empleado_mensajes_ssr_context(
+            empleado_id=empleado_id,
+            conversacion_admin_id=conversacion_admin_id,
+            marcar_leidos=marcar_leidos,
+        )
+
+    def cliente_mensajes_ssr_context(
+        self,
+        *,
+        usuario_id: int,
+        conversacion_id: str | None,
+    ) -> dict:
+        return self.repository.cliente_mensajes_ssr_context(
+            usuario_id=usuario_id,
+            conversacion_id=conversacion_id,
+        )

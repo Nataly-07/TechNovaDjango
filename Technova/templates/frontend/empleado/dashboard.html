@@ -25,13 +25,13 @@
       <p>Gestión de usuarios (pendiente)</p>
     </div>
   </div>
-  <div class="card empleado-card-mock">
+  <a href="{% url 'web_empleado_seccion' seccion='mensajes' %}" class="card empleado-card-mock" style="text-decoration:none;color:inherit;">
     <div class="card-icon"><i class="bx bx-message"></i></div>
     <div class="card-content">
       <h3>Mensajes</h3>
-      <p>Buzón de mensajes (pendiente)</p>
+      <p>Canal con el administrador (como en Spring Boot)</p>
     </div>
-  </div>
+  </a>
   <div class="card empleado-card-mock">
     <div class="card-icon"><i class="bx bx-shopping-bag"></i></div>
     <div class="card-content">
@@ -184,6 +184,8 @@
 </div>
 {% elif seccion == 'atencion-cliente' %}
 {% include "frontend/empleado/atencion-cliente.html" %}
+{% elif seccion == 'mensajes' %}
+{% include "frontend/empleado/mensajes.html" %}
 {% elif seccion == 'reclamos' %}
 {% include "frontend/empleado/reclamos.html" %}
 {% elif seccion == 'pedidos' %}

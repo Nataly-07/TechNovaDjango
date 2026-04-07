@@ -33,8 +33,9 @@
   .ticket-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #eef2f7}
   .ticket-header h3{margin:0;font-size:1.08rem;font-weight:900;color:#0f172a}
   .status-badge{padding:6px 12px;border-radius:999px;font-size:.78rem;font-weight:900;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .status-badge.status-abierta{background:#ede9fe;color:#5b21b6}
   .status-badge.status-en_proceso{background:#dbeafe;color:#1e40af}
-  .status-badge.status-resuelto{background:#dcfce7;color:#166534}
+  .status-badge.status-resuelto,.status-badge.status-cerrada{background:#dcfce7;color:#166534}
   .ticket-body p{margin:0;color:#475569;line-height:1.6}
   .ticket-meta{margin-top:10px;display:flex;gap:12px;flex-wrap:wrap;color:#64748b;font-size:.85rem;font-weight:700}
   .ticket-meta span{display:inline-flex;align-items:center;gap:6px}
@@ -114,10 +115,12 @@
         <div class="ticket-card" data-ticket-id="{{ ticket.id }}">
           <div class="ticket-header">
             <h3>{{ ticket.tema|default:"Sin tema" }}</h3>
-            {% if ticket.respuesta %}
-            <span class="status-badge status-resuelto"><i class="bx bx-check-circle"></i> Resuelto</span>
+            {% if ticket.estado == 'cerrada' %}
+            <span class="status-badge status-cerrada"><i class="bx bx-check-circle"></i> Cerrada</span>
+            {% elif ticket.estado == 'en_proceso' %}
+            <span class="status-badge status-en_proceso"><i class="bx bx-loader"></i> En proceso</span>
             {% else %}
-            <span class="status-badge status-en_proceso"><i class="bx bx-loader"></i> En Proceso</span>
+            <span class="status-badge status-abierta"><i class="bx bx-message-dots"></i> Abierta</span>
             {% endif %}
           </div>
           <div class="ticket-body">
@@ -269,13 +272,14 @@
           var tema = ticket.tema || 'Detalle de Consulta';
           if (title) title.textContent = tema;
           var fecha = formatearFecha(ticket.fechaConsulta || ticket.fecha_consulta);
+          var st = String(ticket.estado || '').toLowerCase();
           var tieneRespuesta = !!(ticket.respuesta && String(ticket.respuesta).trim());
-          var estadoTexto = tieneRespuesta ? 'Resuelto' : 'En Proceso';
-          var estadoClass = tieneRespuesta ? 'resuelto' : 'en_proceso';
+          var estadoTexto = st === 'cerrada' ? 'Cerrada' : (st === 'en_proceso' ? 'En proceso' : 'Abierta');
+          var estadoClass = st === 'cerrada' ? 'cerrada' : (st === 'en_proceso' ? 'en_proceso' : 'abierta');
           body.innerHTML =
             '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;color:#64748b;font-weight:800;">' +
               '<span style="display:inline-flex;align-items:center;gap:6px;"><i class="bx bx-calendar"></i>' + escapeHtml(fecha) + '</span>' +
-              '<span class="status-badge status-' + estadoClass + '"><i class="bx ' + (tieneRespuesta ? 'bx-check-circle' : 'bx-loader') + '"></i>' + estadoTexto + '</span>' +
+              '<span class="status-badge status-' + estadoClass + '"><i class="bx ' + (estadoClass === 'cerrada' ? 'bx-check-circle' : (estadoClass === 'en_proceso' ? 'bx-loader' : 'bx-message-dots')) + '"></i>' + estadoTexto + '</span>' +
             '</div>' +
             '<div style="margin-bottom:16px;">' +
               '<h4 style="margin:0 0 8px 0;color:#0f172a;font-weight:900;">Descripción</h4>' +

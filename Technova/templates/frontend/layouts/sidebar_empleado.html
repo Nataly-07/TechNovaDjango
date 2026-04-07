@@ -16,7 +16,7 @@
       </a>
     </div>
     <div class="enlace{% if seccion == 'mensajes' %} enlace--activo{% endif %}">
-      <a href="{% url 'web_empleado_seccion' seccion='mensajes' %}">
+      <a href="{% url 'web_empleado_mensajes' %}">
         <i class="bx bx-message"></i> Mensajes
       </a>
     </div>
@@ -28,11 +28,6 @@
     <div class="enlace{% if seccion == 'pedidos' %} enlace--activo{% endif %}">
       <a href="{% url 'web_empleado_seccion' seccion='pedidos' %}">
         <i class="bx bx-cart"></i> Pedidos
-      </a>
-    </div>
-    <div class="enlace{% if seccion == 'venta-punto-fisico' %} enlace--activo{% endif %}">
-      <a href="{% url 'web_empleado_seccion' seccion='venta-punto-fisico' %}">
-        <i class="bx bx-store"></i> Venta Punto Físico
       </a>
     </div>
     <div class="enlace{% if seccion == 'atencion-cliente' %} enlace--activo{% endif %}">

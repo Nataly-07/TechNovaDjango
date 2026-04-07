@@ -147,3 +147,32 @@ def evaluar_resolucion(request, reclamo_id: int):
     if data is None:
         return error_response("Reclamo no encontrado.", status=404)
     return success_response(data)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@require_auth(roles=["admin"])
+def asignar_reclamo_empleado(request, reclamo_id: int):
+    try:
+        payload = parse_json_body(request)
+    except ValueError as exc:
+        return error_response(str(exc), status=400)
+    raw_eid = payload.get("empleado_usuario_id")
+    if raw_eid is None:
+        return error_response("empleado_usuario_id es obligatorio.", status=400)
+    try:
+        empleado_usuario_id = int(raw_eid)
+    except (TypeError, ValueError):
+        return error_response("empleado_usuario_id invalido.", status=400)
+    data = get_atencion_query_service().asignar_reclamo_a_empleado(
+        reclamo_id,
+        empleado_usuario_id,
+        admin_usuario_id=request.usuario_actual.id,
+    )
+    if data is None:
+        return error_response("Reclamo no encontrado o empleado invalido.", status=404)
+    return success_response(
+        data=data,
+        message="Reclamo asignado y hilo de chat creado.",
+        status=200,
+    )

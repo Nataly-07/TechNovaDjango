@@ -1,6 +1,7 @@
 from django.urls import path
 
 from atencion_cliente.adapters.api.reclamos_views import (
+    asignar_reclamo_empleado,
     cerrar_reclamo,
     crear_reclamo,
     detalle_o_eliminar_reclamo,
@@ -21,6 +22,11 @@ urlpatterns = [
         "<int:reclamo_id>/enviar-al-admin/",
         enviar_reclamo_admin,
         name="reclamo_enviar_admin",
+    ),
+    path(
+        "<int:reclamo_id>/asignar-empleado/",
+        asignar_reclamo_empleado,
+        name="reclamo_asignar_empleado",
     ),
     path("<int:reclamo_id>/responder/", responder_reclamo, name="reclamo_responder"),
     path("<int:reclamo_id>/cerrar/", cerrar_reclamo, name="reclamo_cerrar"),

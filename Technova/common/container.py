@@ -2,6 +2,9 @@ from atencion_cliente.application.use_cases.atencion_cliente_usecases import (
     AtencionClienteService,
     AtencionQueryService,
 )
+from atencion_cliente.infrastructure.adapters.atencion_notificaciones_adapter import (
+    AtencionNotificacionesDjango,
+)
 from atencion_cliente.infrastructure.repositories.atencion_cliente_repository_impl import (
     AtencionClienteOrmRepository,
 )
@@ -95,7 +98,10 @@ def get_orden_query_service() -> OrdenQueryService:
 
 
 def get_atencion_service() -> AtencionClienteService:
-    return AtencionClienteService(AtencionClienteOrmRepository())
+    return AtencionClienteService(
+        AtencionClienteOrmRepository(),
+        notificaciones=AtencionNotificacionesDjango(),
+    )
 
 
 def get_atencion_query_service() -> AtencionQueryService:

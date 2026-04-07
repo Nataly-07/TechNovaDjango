@@ -12,10 +12,16 @@ from atencion_cliente.models import AtencionCliente
 
 
 def _solicitud_to_dict(s: AtencionCliente) -> dict:
+    email = ""
+    try:
+        email = s.usuario.correo_electronico or ""
+    except Exception:  # noqa: BLE001
+        email = ""
     return {
         "id": s.id,
         "usuarioId": s.usuario_id,  # compat JS legacy
         "usuario_id": s.usuario_id,
+        "emailUsuario": email,
         "fechaConsulta": s.fecha_consulta.isoformat(),
         "fecha_consulta": s.fecha_consulta.isoformat(),
         "tema": s.tema,
@@ -42,19 +48,40 @@ def listar_solicitudes_por_usuario(request, usuario_id: int):
     return success_response({"items": query_service.listar_solicitudes(usuario_id)})
 
 
+def _mapear_estado_filtro_java(estado_raw: str) -> str | list[str] | None:
+    """
+    Compatibilidad con query params del front Java/SpringBoot.
+    abierto→abierta, cerrado/resuelto→cerrada, pendientes→lista.
+    """
+    e = (estado_raw or "").strip().lower()
+    if e in ("pendientes", "pendiente"):
+        return [AtencionCliente.Estado.ABIERTA, AtencionCliente.Estado.EN_PROCESO]
+    if e in ("abierto", "abierta", "open"):
+        return AtencionCliente.Estado.ABIERTA
+    if e in ("en_proceso", "en proceso", "proceso"):
+        return AtencionCliente.Estado.EN_PROCESO
+    if e in ("cerrado", "cerrada", "resuelto", "resuelta", "closed"):
+        return AtencionCliente.Estado.CERRADA
+    if e in ("todas", "todos", "all", ""):
+        return None
+    return e
+
+
 @require_GET
 @require_auth(roles=["admin", "empleado"])
 def listar_solicitudes_por_estado(request, estado: str):
     """
-    Java lista por estado; en Django usamos estados: abierta/en_proceso/cerrada.
-    Se acepta 'pendientes' como alias a (abierta + en_proceso).
+    Java lista por estado; Django usa abierta/en_proceso/cerrada.
+    Acepta alias del front legacy (abierto, resuelto, pendientes, todas).
     """
-    e = (estado or "").strip().lower()
-    qs = AtencionCliente.objects.order_by("-id")
-    if e == "pendientes":
-        qs = qs.filter(estado__in=[AtencionCliente.Estado.ABIERTA, AtencionCliente.Estado.EN_PROCESO])
+    mapped = _mapear_estado_filtro_java(estado)
+    qs = AtencionCliente.objects.select_related("usuario").order_by("-fecha_consulta", "-id")
+    if mapped is None:
+        pass
+    elif isinstance(mapped, list):
+        qs = qs.filter(estado__in=mapped)
     else:
-        qs = qs.filter(estado=e)
+        qs = qs.filter(estado=mapped)
     return success_response({"items": [_solicitud_to_dict(s) for s in qs]})
 
 
@@ -136,7 +163,7 @@ def detalle_solicitud(request, solicitud_id: int):
     - Staff puede ver cualquiera.
     - Cliente solo la suya.
     """
-    s = AtencionCliente.objects.filter(id=solicitud_id).first()
+    s = AtencionCliente.objects.select_related("usuario").filter(id=solicitud_id).first()
     if s is None:
         return error_response("Solicitud no encontrada.", status=404)
     if request.usuario_actual.rol not in ("admin", "empleado") and s.usuario_id != request.usuario_actual.id:
@@ -152,9 +179,6 @@ def responder_solicitud(request, solicitud_id: int):
     Responder una solicitud (equivalente a /api/atencion-cliente/{id}/responder en Java).
     Espera JSON: { "respuesta": "..." } o form-data.
     """
-    s = AtencionCliente.objects.filter(id=solicitud_id).first()
-    if s is None:
-        return error_response("Solicitud no encontrada.", status=404)
     respuesta = None
     try:
         payload = parse_json_body(request)
@@ -162,43 +186,33 @@ def responder_solicitud(request, solicitud_id: int):
     except ValueError:
         respuesta = request.POST.get("respuesta")
     respuesta = (respuesta or "").strip()
-    if not respuesta:
-        return error_response("La respuesta no puede estar vacía.", status=400)
-    s.respuesta = respuesta
-    if s.estado == AtencionCliente.Estado.ABIERTA:
-        s.estado = AtencionCliente.Estado.EN_PROCESO
-    s.save(update_fields=["respuesta", "estado", "actualizado_en"])
-    return success_response(
-        {
-            "id": s.id,
-            "usuarioId": s.usuario_id,
-            "fechaConsulta": s.fecha_consulta.isoformat(),
-            "tema": s.tema,
-            "descripcion": s.descripcion,
-            "estado": s.estado,
-            "respuesta": s.respuesta,
-        }
-    )
+    try:
+        get_atencion_service().responder_ticket(solicitud_id, respuesta)
+    except ValueError as exc:
+        msg = str(exc)
+        st = 404 if "no encontrado" in msg.lower() else 400
+        return error_response(msg, status=st)
+    s = AtencionCliente.objects.select_related("usuario").get(pk=solicitud_id)
+    return success_response(_solicitud_to_dict(s))
 
 
 @csrf_exempt
 @require_http_methods(["PUT"])
 @require_auth(roles=["admin", "empleado"])
 def cerrar_solicitud(request, solicitud_id: int):
-    s = AtencionCliente.objects.filter(id=solicitud_id).first()
-    if s is None:
-        return error_response("Solicitud no encontrada.", status=404)
-    s.estado = AtencionCliente.Estado.CERRADA
-    s.save(update_fields=["estado", "actualizado_en"])
-    return success_response({"id": s.id, "estado": s.estado})
+    try:
+        get_atencion_service().cerrar_ticket(solicitud_id)
+    except ValueError as exc:
+        return error_response(str(exc), status=404)
+    s = AtencionCliente.objects.select_related("usuario").get(pk=solicitud_id)
+    return success_response(_solicitud_to_dict(s))
 
 
 @csrf_exempt
 @require_http_methods(["DELETE"])
 @require_auth(roles=["admin", "empleado"])
 def eliminar_solicitud(request, solicitud_id: int):
-    deleted, _ = AtencionCliente.objects.filter(id=solicitud_id).delete()
-    if deleted <= 0:
+    if not get_atencion_service().eliminar_ticket(solicitud_id):
         return error_response("Solicitud no encontrada.", status=404)
     return success_response({"ok": True})
 

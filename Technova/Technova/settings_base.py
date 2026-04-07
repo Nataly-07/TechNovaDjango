@@ -41,6 +41,7 @@ CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins_raw.split(",") if o.str
 CORS_ALLOW_CREDENTIALS = _env_bool("DJANGO_CORS_ALLOW_CREDENTIALS", False)
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -65,6 +66,7 @@ INSTALLED_APPS = [
     "carrito",
     "pago",
     "correos",
+    "channels",
 ]
 
 MIDDLEWARE = [
@@ -99,6 +101,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "Technova.wsgi.application"
 ASGI_APPLICATION = "Technova.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 
 DATABASES = {
     "default": {

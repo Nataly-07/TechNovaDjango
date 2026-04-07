@@ -1,4 +1,5 @@
 {% load static %}
+{% url 'web_empleado_seccion' seccion='atencion-cliente' as empleado_atencion_url %}
 <link rel="stylesheet" href="{% static 'frontend/css/atencion.css' %}?v=2">
 <style>
   body.empleado-page{background:#e8f0f8}
@@ -43,6 +44,7 @@
   .ticket-header h3{margin:0;color:#0f172a;font-size:1.08rem;font-weight:900}
   .ticket-status{padding:6px 12px;border-radius:10px;font-size:.82rem;font-weight:900;display:flex;align-items:center;gap:6px}
   .ticket-status.en_proceso{background:#fef3c7;color:#92400e}
+  .ticket-status.abierta{background:#ede9fe;color:#5b21b6}
   .ticket-status.resuelto{background:#d1fae5;color:#065f46}
   .ticket-body{color:#475569;margin-bottom:10px}
   .ticket-meta{display:flex;gap:16px;font-size:.88rem;color:#64748b;font-weight:800;flex-wrap:wrap}
@@ -133,10 +135,12 @@
         <div class="ticket-card" data-ticket-id="{{ ticket.id }}">
           <div class="ticket-header">
             <h3>{{ ticket.tema|default:"Sin tema" }}</h3>
-            {% if ticket.respuesta %}
-            <span class="ticket-status resuelto"><i class="bx bx-check-circle"></i> Resuelto</span>
+            {% if ticket.estado == 'cerrada' %}
+            <span class="ticket-status resuelto"><i class="bx bx-check-circle"></i> Cerrada</span>
+            {% elif ticket.estado == 'en_proceso' %}
+            <span class="ticket-status en_proceso"><i class="bx bx-loader"></i> En proceso</span>
             {% else %}
-            <span class="ticket-status en_proceso"><i class="bx bx-loader"></i> En Proceso</span>
+            <span class="ticket-status abierta"><i class="bx bx-message-dots"></i> Abierta</span>
             {% endif %}
           </div>
           <div class="ticket-body">
@@ -315,7 +319,7 @@
 
     function filtrarPorEstado(estado){
       state.estadoFiltro = estado;
-      var url = '/empleado/atencion-cliente?estado=' + encodeURIComponent(estado);
+      var url = '{{ empleado_atencion_url }}?estado=' + encodeURIComponent(estado);
       var busq = q('#searchInput')?.value?.trim();
       if (busq) url += '&busqueda=' + encodeURIComponent(busq);
       window.location.href = url;
@@ -355,10 +359,11 @@
           var ticket = payload.data || payload;
           q('#modalTicketTitle').textContent = ticket.tema || 'Sin tema';
           var nombre = state.nombresUsuarios[ticket.usuarioId] || ('Usuario ID: ' + ticket.usuarioId);
-          var fecha = formatearFecha(ticket.fechaConsulta);
+          var fecha = formatearFecha(ticket.fechaConsulta || ticket.fecha_consulta);
+          var st = String(ticket.estado || '').toLowerCase();
           var tieneRespuesta = !!(ticket.respuesta && String(ticket.respuesta).trim());
-          var estadoTexto = tieneRespuesta ? 'Resuelto' : 'En Proceso';
-          var estadoClass = tieneRespuesta ? 'resuelto' : 'en_proceso';
+          var estadoTexto = st === 'cerrada' ? 'Cerrada' : (st === 'en_proceso' ? 'En proceso' : 'Abierta');
+          var estadoClass = st === 'cerrada' ? 'resuelto' : (st === 'en_proceso' ? 'en_proceso' : 'abierta');
           var respuestaHtml = tieneRespuesta
             ? '<div style="background:#ecfdf5;padding:14px;border-radius:12px;border-left:4px solid #10b981;"><h4 style="color:#065f46;margin:0 0 8px 0;display:flex;align-items:center;gap:8px;"><i class="bx bx-check-circle"></i> Respuesta</h4><p style="margin:0;color:#064e3b;font-weight:700;line-height:1.6;">'+ escapeHtml(ticket.respuesta) +'</p></div>'
             : '<div style="background:#f8fafc;padding:18px;border-radius:12px;border:2px dashed #e2e8f0;text-align:center;"><i class="bx bx-time" style="font-size:2rem;color:#64748b;display:block;margin-bottom:8px;"></i><p style="margin:0;color:#64748b;font-weight:900;">Esta consulta aún no tiene respuesta.</p><button type="button" id="btnResponderTicket" style="margin-top:12px;padding:10px 16px;background:#667eea;color:#fff;border:none;border-radius:12px;font-weight:900;cursor:pointer;"><i class="bx bx-reply"></i> Responder</button></div>';

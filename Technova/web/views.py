@@ -3,7 +3,6 @@ import logging
 import re
 import uuid
 import base64
-from collections import Counter
 from io import BytesIO
 from pathlib import Path
 from calendar import monthrange
@@ -20,8 +19,8 @@ from django.contrib.auth.hashers import make_password
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.db import IntegrityError
-from django.db.models import Count, DecimalField, ExpressionWrapper, F, Prefetch, Q, Sum
-from django.db.models.functions import TruncDay, TruncMonth, TruncWeek
+from django.db.models import CharField, Count, DecimalField, ExpressionWrapper, F, Prefetch, Q, Sum, Value
+from django.db.models.functions import Coalesce, TruncDay
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -605,10 +604,8 @@ EMPLEADO_SECCIONES: dict[str, str] = {
     "inicio": "Panel de empleado",
     "perfil": "Mi perfil",
     "usuarios": "Usuarios",
-    "mensajes": "Mensajes",
     "productos": "Visualización de artículos",
     "pedidos": "Pedidos",
-    "venta-punto-fisico": "Venta punto físico",
     "atencion-cliente": "Atención al cliente",
     "reclamos": "Reclamos",
     "notificaciones": "Notificaciones",
@@ -618,6 +615,8 @@ EMPLEADO_SECCIONES: dict[str, str] = {
 @_empleado_login_required
 def empleado_dashboard(request, seccion: str = "inicio"):
     """Shell del panel empleado (misma base visual que admin); módulos sin implementar."""
+    if seccion == "mensajes":
+        return redirect("web_empleado_mensajes")
     if seccion not in EMPLEADO_SECCIONES:
         return redirect("web_empleado_inicio")
     uid = request.session.get(SESSION_USUARIO_ID)
@@ -697,8 +696,9 @@ def empleado_dashboard(request, seccion: str = "inicio"):
                     "usuarioId": uid_t,
                     "tema": t.get("tema") or "",
                     "descripcion": t.get("descripcion") or "",
-                    "fechaConsulta": t.get("fecha_consulta") or t.get("fechaConsulta"),
+                    "fechaConsulta": t.get("fechaConsulta") or t.get("fecha_consulta"),
                     "respuesta": t.get("respuesta") or "",
+                    "estado": (t.get("estado") or "").strip().lower(),
                     "clienteNombre": nombre,
                 }
             )
@@ -2886,14 +2886,306 @@ def _reporte_rango_label(raw_desde: str, raw_hasta: str) -> str:
     return f"Rango: {raw_desde} → {raw_hasta}"
 
 
+def _reporte_add_months(d: date, delta: int) -> date:
+    """Suma meses a una fecha (día recortado al último día del mes destino)."""
+    m = d.month - 1 + delta
+    y = d.year + m // 12
+    m = m % 12 + 1
+    last = monthrange(y, m)[1]
+    return date(y, m, min(d.day, last))
+
+
+# Umbral explícito para alerta de stock en reporte BI (independiente de STOCK_BAJO_MAX del catálogo)
+_REPORTE_STOCK_ALERTA_CRITICO = 3
+
+_MESES_CORTO = ("Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")
+
+
+def _reporte_norm_kpi_item(item) -> tuple[str, str, str]:
+    """Normaliza KPI para PDF/preview: (etiqueta, valor, clave de icono)."""
+    if isinstance(item, dict):
+        return (
+            str(item.get("label") or ""),
+            str(item.get("valor") or ""),
+            str(item.get("icon") or "dot"),
+        )
+    if isinstance(item, (list, tuple)) and len(item) >= 2:
+        ic = str(item[2]) if len(item) >= 3 else "dot"
+        return (str(item[0]), str(item[1]), ic)
+    return ("", "", "dot")
+
+
 def _cop(valor: Decimal | int | float | None) -> str:
+    """COP para PDF: miles con punto (formato colombiano habitual), sin decimales."""
     if valor is None:
         return "$0"
     try:
-        # COP sin decimales para reportes
-        return f"${Decimal(str(valor)):,.0f}"
+        d = Decimal(str(valor))
+        n = int(d.quantize(Decimal("1")))
+        s = f"{abs(n):,}".replace(",", ".")
+        if n < 0:
+            return f"-${s}"
+        return f"${s}"
     except Exception:  # noqa: BLE001
         return f"${valor}"
+
+
+def _format_cop_axis_short(val: float) -> str:
+    """Eje Y / etiquetas compactas en gráficas (ej. $2.4M, $850k)."""
+    v = max(0.0, float(val))
+    if v >= 1_000_000_000:
+        return f"${v / 1_000_000_000:.1f}B"
+    if v >= 1_000_000:
+        return f"${v / 1_000_000:.1f}M"
+    if v >= 1_000:
+        return f"${v / 1_000:.0f}k"
+    return f"${int(round(v))}"
+
+
+def _cop_decimales(valor: Decimal | int | float | None) -> str:
+    """COP con miles en punto y dos decimales tras coma (ej. $10.500.000,00)."""
+    if valor is None:
+        return "$0,00"
+    try:
+        d = Decimal(str(valor)).quantize(Decimal("0.01"))
+        sign = "-" if d < 0 else ""
+        d = abs(d)
+        intpart = int(d)
+        frac_part = d - Decimal(intpart)
+        frac = int((frac_part * 100).quantize(Decimal("1")))
+        if frac >= 100:
+            intpart += 1
+            frac = 0
+        s_int = f"{intpart:,}".replace(",", ".")
+        return f"{sign}${s_int},{frac:02d}"
+    except Exception:  # noqa: BLE001
+        return f"${valor}"
+
+
+_MARCA_ICON_NEEDLES = (
+    ("apple", "apple"),
+    ("iphone", "apple"),
+    ("samsung", "samsung"),
+    ("xiaomi", "xiaomi"),
+    ("huawei", "huawei"),
+    ("sony", "sony"),
+    ("lg", "lg"),
+    ("motorola", "motorola"),
+    ("google", "google"),
+    ("pixel", "google"),
+    ("oneplus", "oneplus"),
+    ("oppo", "oppo"),
+    ("vivo", "vivo"),
+    ("realme", "realme"),
+    ("asus", "asus"),
+    ("acer", "acer"),
+    ("hp", "hp"),
+    ("lenovo", "lenovo"),
+    ("dell", "dell"),
+    ("msi", "msi"),
+)
+
+
+def _reporte_marca_icon_abs_path(marca: str) -> str | None:
+    """Ruta absoluta a PNG en static/frontend/marcas/{nombre}.png si existe."""
+    try:
+        from django.contrib.staticfiles import finders
+    except Exception:  # noqa: BLE001
+        return None
+    m = (marca or "").lower()
+    for needle, fname in _MARCA_ICON_NEEDLES:
+        if needle in m:
+            p = finders.find(f"frontend/marcas/{fname}.png")
+            return str(p) if p else None
+    return None
+
+
+def _hex_to_rgb01(h: str) -> tuple[float, float, float]:
+    h = (h or "#000000").lstrip("#")
+    if len(h) != 6:
+        return (0.2, 0.2, 0.35)
+    return tuple(int(h[i : i + 2], 16) / 255.0 for i in (0, 2, 4))
+
+
+def _lerp_color_hex(hex_a: str, hex_b: str, t: float):
+    """Interpola entre dos colores hex (ReportLab Color). Usado en degradados morado→azul."""
+    from reportlab.lib import colors as rl_colors
+
+    r1, g1, b1 = _hex_to_rgb01(hex_a)
+    r2, g2, b2 = _hex_to_rgb01(hex_b)
+    u = max(0.0, min(1.0, float(t)))
+    return rl_colors.Color(r1 * (1 - u) + r2 * u, g1 * (1 - u) + g2 * u, b1 * (1 - u) + b2 * u)
+
+
+def _reporte_poly_points_flat(pts: list[tuple[float, float]]) -> list[float]:
+    o: list[float] = []
+    for x, y in pts:
+        o.extend((float(x), float(y)))
+    return o
+
+
+try:
+    from reportlab.platypus import Flowable as _ReportLabFlowable
+except Exception:  # noqa: BLE001
+    _ReportLabFlowable = object
+
+
+class _ReporteRadialTop5Flowable(_ReportLabFlowable):
+    """Anillos concéntricos tipo gauge (referencia radial BI): arco proporcional al volumen."""
+
+    def __init__(self, items: list[dict], width: float = 460, height: float = 212):
+        if _ReportLabFlowable is not object:
+            _ReportLabFlowable.__init__(self)
+        self._items = items
+        self.width = width
+        self.height = height
+
+    def wrap(self, availWidth, availHeight):  # noqa: ANN001, N802
+        return self.width, self.height
+
+    def draw(self):
+        c = self.canv
+        cx = 118.0
+        cy = self.height * 0.52
+        max_r = 78.0
+        dr = 13.5
+        sweep_max = 310.0
+
+        c.saveState()
+        c.setLineCap(1)
+
+        n = len(self._items)
+        for i in range(n):
+            it = self._items[i]
+            r = max_r - i * dr
+            frac = float(it.get("arc_frac") or 0)
+            frac = max(0.06, min(1.0, frac))
+            extent = -sweep_max * frac
+            rgb_t = _hex_to_rgb01(str(it.get("track_hex") or "#e5e7eb"))
+            c.setStrokeColorRGB(*rgb_t)
+            c.setLineWidth(7.2)
+            c.circle(cx, cy, r, stroke=1, fill=0)
+
+            rgb = _hex_to_rgb01(str(it.get("color_hex") or "#7c3aed"))
+            c.setStrokeColorRGB(rgb[0] * 0.95, rgb[1] * 0.95, rgb[2] * 0.95)
+            c.setLineWidth(8.0)
+            x1, y1 = cx - r, cy - r
+            x2, y2 = cx + r, cy + r
+            c.arc(x1, y1, x2, y2, 90, extent)
+
+        c.restoreState()
+
+        leg_x = 228.0
+        y0 = self.height - 36.0
+        for i, it in enumerate(self._items):
+            iy = y0 - i * 30.0
+            ch = str(it.get("nombre") or "")[:34]
+            qty = int(it.get("cantidad") or 0)
+            px = str(it.get("precio_txt") or "")
+            line = f"{ch}  ·  {qty} u.  ·  {px}"
+            rgb = _hex_to_rgb01(str(it.get("color_hex") or "#7c3aed"))
+            c.saveState()
+            c.setFillColorRGB(*rgb)
+            c.circle(leg_x + 4, iy + 3.2, 4.8, stroke=0, fill=1)
+            c.setFillColorRGB(0.12, 0.16, 0.22)
+            c.setFont("Helvetica-Bold", 8.2)
+            c.drawString(leg_x + 14, iy, line)
+            c.restoreState()
+
+
+def _reporte_top_categoria_ventas(fd: date, fh: date) -> str:
+    row = (
+        DetalleVenta.objects.filter(
+            venta__fecha_venta__gte=fd,
+            venta__fecha_venta__lte=fh,
+            venta__estado__in=[Venta.Estado.ABIERTA, Venta.Estado.FACTURADA],
+        )
+        .values("producto__categoria")
+        .annotate(u=Sum("cantidad"))
+        .order_by("-u")
+        .first()
+    )
+    return ((row or {}).get("producto__categoria") or "").strip()
+
+
+def _reporte_dominio_marca_por_categoria(cat_dom: str) -> tuple[list[str], list[float], int]:
+    """Marcas dentro de una categoría de catálogo (conteo SKU activos)."""
+    cat_dom = (cat_dom or "").strip()
+    if not cat_dom:
+        return [], [], 0
+    rows = list(
+        Producto.objects.filter(activo=True, categoria__iexact=cat_dom)
+        .values("marca")
+        .annotate(n=Count("id"))
+        .order_by("-n")
+    )
+    labels: list[str] = []
+    vals: list[float] = []
+    for r in rows:
+        m = (r["marca"] or "").strip() or "Sin marca"
+        labels.append(m)
+        vals.append(float(r["n"]))
+    total = int(sum(vals)) if vals else 0
+    return labels, vals, total
+
+
+def _reporte_top5_productos_volumen(fd: date, fh: date) -> list[dict]:
+    q = (
+        DetalleVenta.objects.filter(
+            venta__fecha_venta__gte=fd,
+            venta__fecha_venta__lte=fh,
+            venta__estado__in=[Venta.Estado.ABIERTA, Venta.Estado.FACTURADA],
+        )
+        .values(
+            "producto__id",
+            "producto__nombre",
+            "producto__precio_venta",
+            "producto__costo_unitario",
+        )
+        .annotate(cantidad=Sum("cantidad"))
+        .order_by("-cantidad")[:5]
+    )
+    return list(q)
+
+
+def _reporte_pdf_compute_col_widths(headers: list[str], *, total_mm: float = 180.0):
+    """Anchos de columna en mm: más espacio a nombre/cliente/correo; ID y marcas más estrechos."""
+    from reportlab.lib.units import mm as mm_u
+
+    if not headers:
+        return None
+    weights: list[float] = []
+    for h in headers:
+        t = (h or "").strip().lower()
+        if t == "id":
+            w = 14.0
+        elif "código" in t or "codigo" in t:
+            w = 24.0
+        elif "factura" in t:
+            w = 22.0
+        elif "nombre" in t or "producto" in t or "cliente" in t:
+            w = 64.0
+        elif "correo" in t or "email" in t:
+            w = 42.0
+        elif "categoría" in t or "categoria" in t:
+            w = 28.0
+        elif "marca" in t:
+            w = 20.0
+        elif "fecha" in t:
+            w = 22.0
+        elif "estado" in t:
+            w = 20.0
+        elif "documento" in t:
+            w = 26.0
+        elif "precio" in t or "monto" in t or "total" in t or "cop" in t:
+            w = 26.0
+        elif "stock" in t or "cantidad" in t or "pedidos" in t or "unidades" in t:
+            w = 18.0
+        else:
+            w = 22.0
+        weights.append(w)
+    scale = total_mm / sum(weights)
+    return [w * scale * mm_u for w in weights]
 
 
 def _reporte_logo_path() -> Path | None:
@@ -2923,17 +3215,46 @@ def _reporte_label_corta(texto: str, max_len: int = 14) -> str:
     return t[: max_len - 1] + "…"
 
 
-# Paleta alineada con factura cliente (cyan → índigo / violeta)
+# Paleta marca TechNova (ejecutivo / referencia Ariova-BI)
 _REPORTE_CHART_COLORS_HEX = (
-    "#06b6d4",
-    "#6366f1",
-    "#8b5cf6",
-    "#14b8a6",
-    "#22d3ee",
-    "#a78bfa",
-    "#0d9488",
-    "#4f46e5",
+    "#6f42c1",
+    "#007bff",
+    "#e83e8c",
+    "#5a32a3",
+    "#6610f2",
+    "#17a2b8",
+    "#fd7e14",
+    "#20c997",
 )
+
+# Gráficas lineales / área (referencia BI neon — serie 1 morado, serie 2 azul)
+_REPORTE_LINE_PRIMARY_HEX = "#6f42c1"
+_REPORTE_LINE_SECONDARY_HEX = "#007bff"
+_REPORTE_LINE_AREA_ALPHA_PEAK = 0.4
+
+
+def _reporte_pdf_header_columna_derecha(h: str) -> bool:
+    """Alineación derecha en tablas PDF para montos, cantidades y similares."""
+    t = (h or "").strip().lower()
+    if not t:
+        return False
+    claves = (
+        "precio",
+        "monto",
+        "total",
+        "(cop)",
+        "cop)",
+        "stock",
+        "cantidad",
+        "unidades",
+        "pedidos",
+        "valor",
+        "ingreso",
+        "recaud",
+        "exitoso",
+        "fallido",
+    )
+    return any(c in t for c in claves)
 
 
 def _reporte_pdf_graficas_flowables(
@@ -2941,10 +3262,12 @@ def _reporte_pdf_graficas_flowables(
     *,
     h2_style,
     muted_style,
+    frame_w_pt: float | None = None,
+    chart_scale: float = 1.0,
 ) -> list:
     """
-    Construye flowables de gráficas (barras / líneas / pastel) para el PDF.
-    Cada ítem de graficas: { "titulo", "tipo": "barras"|"lineas"|"pastel", "labels": [...], "valores": [float,...] }
+    Construye flowables de gráficas para el PDF (barras, líneas, pastel, rosca, barras agrupadas).
+    Ítem típico: { "titulo", "tipo", "labels", "valores" } o barras agrupadas con "series".
     """
     if not graficas:
         return []
@@ -2952,17 +3275,41 @@ def _reporte_pdf_graficas_flowables(
         from reportlab.graphics import renderPDF
         from reportlab.graphics.charts.barcharts import VerticalBarChart
         from reportlab.graphics.charts.legends import Legend
-        from reportlab.graphics.charts.linecharts import HorizontalLineChart
         from reportlab.graphics.charts.piecharts import Pie
-        from reportlab.graphics.shapes import Drawing
-        from reportlab.graphics.widgets.markers import makeMarker
+        from reportlab.graphics.shapes import Circle, Drawing, Ellipse, Line, Path, Polygon, Rect, String
         from reportlab.lib import colors
+        from reportlab.lib.styles import ParagraphStyle
         from reportlab.platypus import Flowable, Paragraph, Spacer, Table, TableStyle
     except Exception:  # noqa: BLE001
         return []
 
+    from web.reporte_pdf_graficas import reporte_pdf_draw_line as _draw_line
+    from web.reporte_pdf_graficas import reporte_pdf_draw_multi_area as _draw_multi_area
+
+    from reportlab.lib.pagesizes import A4 as _A4_pdf
+    from reportlab.lib.units import mm as _mm_pdf
+
+    fw = float(frame_w_pt) if frame_w_pt is not None else float(_A4_pdf[0] - 14 * _mm_pdf - 14 * _mm_pdf - 15)
     out: list = []
-    chart_canvas_w = 488  # ancho útil para centrar en A4 con márgenes del doc
+    chart_canvas_w = fw * 0.98
+
+    class _ScaledDrawingFlowable(Flowable):
+        """Escala el drawing (p. ej. −15 %) para compactar el PDF."""
+
+        def __init__(self, drawing: Drawing, scale: float):
+            self.drawing = drawing
+            self.scale = float(scale)
+            self.h = float(drawing.height) * self.scale
+            self.w = float(drawing.width) * self.scale
+
+        def wrap(self, availWidth, availHeight):  # noqa: ANN001
+            return self.w, self.h
+
+        def draw(self):
+            self.canv.saveState()
+            self.canv.scale(self.scale, self.scale)
+            renderPDF.draw(self.drawing, self.canv, 0, 0)
+            self.canv.restoreState()
 
     class _DrawingFlowable(Flowable):
         def __init__(self, drawing: Drawing):
@@ -2976,22 +3323,301 @@ def _reporte_pdf_graficas_flowables(
         def draw(self):
             renderPDF.draw(self.drawing, self.canv, 0, 0)
 
+    st_rosca_leg = ParagraphStyle(
+        "rosca_leg_rep",
+        parent=muted_style,
+        fontName="Helvetica",
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor("#1e293b"),
+    )
+
+    def _drawing_flowable(drawing: Drawing) -> Flowable:
+        return _DrawingFlowable(drawing)
+
+    def _parse_dominio_marca(spec: dict) -> tuple[list, list, float, str, int] | None:
+        raw_lbl = [str(x) for x in (spec.get("labels") or [])]
+        try:
+            vals = [float(x) for x in (spec.get("valores") or [])]
+        except (TypeError, ValueError):
+            return None
+        pairs = [(str(l).strip() or "Sin marca", float(v)) for l, v in zip(raw_lbl, vals) if float(v) > 0]
+        if not pairs:
+            return None
+        names = [p[0] for p in pairs]
+        vals2 = [p[1] for p in pairs]
+        total = sum(vals2)
+        if total <= 0:
+            return None
+        cat = (spec.get("categoria_etiqueta") or "").strip() or "Categoría"
+        total_cat = int(spec.get("total_categoria") or round(total))
+        cat_short = _reporte_label_corta(cat, 22)
+        return names, vals2, total, cat_short, total_cat
+
+    def _draw_dominio_marca_pie_only(spec: dict) -> Drawing | None:
+        """Rosca sin leyenda (la leyenda va en columna a la derecha en el layout espejo)."""
+        parsed = _parse_dominio_marca(spec)
+        if not parsed:
+            return None
+        _, vals2, _tot, cat_short, total_cat = parsed
+        pie_w = 165  # +25% respecto a ~132
+        d_w, d_h = 300, 280
+        cx = d_w / 2
+        cy = d_h / 2.0
+        d = Drawing(d_w, d_h)
+        pc = Pie()
+        pc.x = cx - pie_w / 2
+        pc.y = cy - pie_w / 2
+        pc.width = pie_w
+        pc.height = pie_w
+        pc.sameRadii = True
+        pc.startAngle = 90
+        pc.data = vals2
+        pc.labels = [""] * len(vals2)
+        pc.simpleLabels = 0
+        pc.checkLabelOverlap = 0
+        pc.sideLabels = 0
+        pc.slices.strokeWidth = 1.0
+        pc.slices.strokeColor = colors.white
+        pc.slices.fontSize = 1
+        for i in range(len(vals2)):
+            pc.slices[i].fillColor = _palette_color(i)
+            pc.slices[i].strokeColor = colors.white
+            pc.slices[i].strokeWidth = 1.0
+        d.add(
+            Ellipse(
+                cx,
+                cy - 4,
+                pie_w * 0.48,
+                pie_w * 0.14,
+                fillColor=colors.Color(0, 0, 0, alpha=0.1),
+                strokeColor=None,
+                strokeWidth=0,
+            )
+        )
+        d.add(pc)
+        rhole = min(pc.width, pc.height) * 0.36
+        d.add(
+            Circle(
+                cx,
+                cy,
+                rhole,
+                fillColor=colors.white,
+                strokeColor=colors.HexColor("#e5e7eb"),
+                strokeWidth=0.65,
+            )
+        )
+        fs_big = 16 if len(str(total_cat)) <= 4 else 14
+        d.add(
+            String(
+                cx,
+                cy + 8,
+                f"Total {cat_short}",
+                textAnchor="middle",
+                fontName="Helvetica-Bold",
+                fontSize=8.5,
+                fillColor=colors.HexColor("#475569"),
+            )
+        )
+        d.add(
+            String(
+                cx,
+                cy - 8,
+                str(total_cat),
+                textAnchor="middle",
+                fontName="Helvetica-Bold",
+                fontSize=fs_big,
+                fillColor=colors.HexColor("#6f42c1"),
+            )
+        )
+        d.add(
+            String(
+                cx,
+                cy - 24,
+                "SKU",
+                textAnchor="middle",
+                fontName="Helvetica",
+                fontSize=7.5,
+                fillColor=colors.HexColor("#94a3b8"),
+            )
+        )
+        return d
+
+    def _platypus_dominio_legend(names: list[str], vals2: list[float], total: float, leg_w: float) -> Table:
+        from reportlab.platypus import Image as RLImage
+
+        rows: list[list] = []
+        for i, name in enumerate(names):
+            v = float(vals2[i])
+            col = _palette_color(i)
+            dot = Drawing(12, 12)
+            dot.add(Circle(6, 6, 5.2, fillColor=col, strokeColor=colors.white, strokeWidth=0.45))
+            pct = 100.0 * v / total
+            nm = _reporte_label_corta(name, 40)
+            txt = (
+                f"<b>{_xml_escape(nm)}</b>  "
+                f"{int(v)} SKU  "
+                f"<font color='#64748b'>({pct:.1f}%)</font>"
+            )
+            p = Paragraph(txt, st_rosca_leg)
+            ip = _reporte_marca_icon_abs_path(name)
+            cell_mid: Flowable | Spacer
+            if ip:
+                try:
+                    cell_mid = RLImage(ip, width=11, height=11)
+                except Exception:  # noqa: BLE001
+                    cell_mid = Spacer(12, 12)
+            else:
+                cell_mid = Spacer(12, 12)
+            rows.append([_drawing_flowable(dot), cell_mid, p])
+        tw = Table(
+            rows,
+            colWidths=[16, 16, max(80.0, leg_w - 32)],
+        )
+        tw.setStyle(
+            TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                    ("TOPPADDING", (0, 0), (-1, -1), 2),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
+        return tw
+
+    def _flowable_dominio_marca_espejo(spec: dict) -> Table | None:
+        """Rosca a la izquierda (grande) + leyendas a la derecha (8.5 pt)."""
+        parsed = _parse_dominio_marca(spec)
+        if not parsed:
+            return None
+        names, vals2, total, _cs, _tc = parsed
+        pie = _draw_dominio_marca_pie_only(spec)
+        if not pie:
+            return None
+        col_left = fw * 0.50
+        col_right = fw * 0.50
+        sc = min(float(chart_scale) * 1.25, (col_left - 14.0) / float(pie.width))
+        sc = max(0.5, float(sc))
+        pie_fb = _ScaledDrawingFlowable(pie, sc)
+        leg = _platypus_dominio_legend(names, vals2, total, col_right - 12)
+        tbl = Table([[pie_fb, leg]], colWidths=[col_left, col_right])
+        tbl.setStyle(
+            TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ]
+            )
+        )
+        return tbl
+
     def _wrap_centered(drawing: Drawing) -> Table:
-        df = _DrawingFlowable(drawing)
+        df = _ScaledDrawingFlowable(drawing, chart_scale)
         tbl = Table([[df]], colWidths=[chart_canvas_w])
         tbl.setStyle(
             TableStyle(
                 [
                     ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                    ("TOPPADDING", (0, 0), (-1, -1), 0),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
                 ]
             )
         )
         return tbl
+
+    def _wrap_any_chart(obj):  # noqa: ANN001
+        if isinstance(obj, Drawing):
+            return _wrap_centered(obj)
+        return Table(
+            [[obj]],
+            colWidths=[chart_canvas_w],
+            style=TableStyle(
+                [
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ]
+            ),
+        )
+
+    def _wrap_full_width_drawing(piece) -> Table:  # noqa: ANN001
+        """Escala una gráfica vectorial al ancho útil (p. ej. ranking de facturación)."""
+        if isinstance(piece, Drawing):
+            fit = min(float(chart_scale) * 1.25, max(0.52, (fw - 8.0) / float(piece.width)))
+            df = _ScaledDrawingFlowable(piece, fit)
+            tbl = Table([[df]], colWidths=[fw])
+            tbl.setStyle(
+                TableStyle(
+                    [
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                        ("TOPPADDING", (0, 0), (-1, -1), 6),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ]
+                )
+            )
+            return tbl
+        return _wrap_any_chart(piece)
+
+    def _split_dom_rank_pdf(specs: list[dict]) -> tuple[dict | None, dict | None, list[dict]]:
+        dom = None
+        rank = None
+        rest: list[dict] = []
+        for s in specs:
+            t = (s.get("tipo") or "").lower()
+            tit = (s.get("titulo") or "").lower()
+            if t == "rosca_dominio_marca" and dom is None:
+                dom = s
+            elif t == "barras_horizontales" and "ranking" in tit and rank is None:
+                rank = s
+            else:
+                rest.append(s)
+        return dom, rank, rest
+
+    def _wrap_for_col(piece, col_w: float):
+        """Escala un Drawing para caber en una columna (layout 2×1)."""
+        if isinstance(piece, Drawing):
+            fit = min(float(chart_scale) * 1.25, max(0.38, (float(col_w) - 8.0) / float(piece.width)))
+            df = _ScaledDrawingFlowable(piece, fit)
+            tbl = Table([[df]], colWidths=[col_w])
+            tbl.setStyle(
+                TableStyle(
+                    [
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                        ("TOPPADDING", (0, 0), (-1, -1), 2),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                    ]
+                )
+            )
+            return tbl
+        return Table(
+            [[piece]],
+            colWidths=[col_w],
+            style=TableStyle(
+                [
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ]
+            ),
+        )
 
     def _palette_color(i: int):
         return colors.HexColor(_REPORTE_CHART_COLORS_HEX[i % len(_REPORTE_CHART_COLORS_HEX)])
@@ -3040,52 +3666,97 @@ def _reporte_pdf_graficas_flowables(
         d.add(bc)
         return d
 
-    def _draw_line(labels: list[str], vals: list[float]) -> Drawing | None:
+    def _draw_bar_horizontal(labels: list[str], vals: list[float]) -> Drawing | None:
+        """Barras horizontales a ancho de página: categoría encima de la barra, COP a la derecha."""
         if not vals or len(labels) != len(vals):
             return None
-        d = Drawing(460, 218)
-        lc = HorizontalLineChart()
-        lc.x = 48
-        lc.y = 48
-        lc.height = 118
-        lc.width = 364
-        lc.categoryNames = labels
-        lc.data = [tuple(vals)]
-        lc.joinedLines = 1
-        lc.lines[0].strokeColor = _palette_color(0)
-        lc.lines[0].strokeWidth = 2.25
-        lc.lines[0].symbol = makeMarker("Circle", size=4)
-        lc.lines[0].symbol.fillColor = _palette_color(0)
-        lc.lines[0].symbol.strokeColor = colors.white
-        lc.lines[0].symbol.strokeWidth = 0.75
-
-        lc.categoryAxis.strokeColor = colors.HexColor("#cbd5e1")
-        lc.categoryAxis.labels.fontName = "Helvetica"
-        lc.categoryAxis.labels.fontSize = 8
-        lc.categoryAxis.labels.fillColor = colors.HexColor("#334155")
-        if len(labels) > 6:
-            lc.categoryAxis.labels.angle = 35
-
-        va = lc.valueAxis
-        va.valueMin = 0
-        m = max(vals) if vals else 0
-        va.valueMax = None if m <= 0 else m * 1.15
-        va.visibleGrid = 1
-        va.gridStrokeColor = colors.HexColor("#e2e8f0")
-        va.gridStrokeWidth = 0.6
-        va.strokeColor = colors.HexColor("#94a3b8")
-        va.labels.fontName = "Helvetica"
-        va.labels.fontSize = 8
-        va.labels.fillColor = colors.HexColor("#64748b")
-
-        lc.lineLabelFormat = "%.0f"
-        lc.lineLabels.fontName = "Helvetica"
-        lc.lineLabels.fontSize = 7
-        lc.lineLabels.fillColor = colors.HexColor("#1e293b")
-        d.add(lc)
+        n = len(vals)
+        m = max(float(x) for x in vals) if vals else 0.0
+        if m <= 0:
+            return None
+        dw = max(520.0, float(fw) * 0.96)
+        bar_h = 28.0
+        lbl_gap = 11.0
+        gap = 16.0
+        row_h = lbl_gap + bar_h + gap
+        bar_x0 = 130.0
+        margin_r = 58.0
+        bar_w_max = max(220.0, dw - bar_x0 - margin_r)
+        val_right = dw - 16.0
+        y0 = 38.0
+        d_h = min(440.0, y0 + float(n) * row_h + 40.0)
+        d = Drawing(dw, d_h)
+        d.add(
+            Line(
+                bar_x0,
+                y0 - 4,
+                bar_x0 + bar_w_max,
+                y0 - 4,
+                strokeColor=colors.HexColor("#e8ecf4"),
+                strokeWidth=0.45,
+            )
+        )
+        for i in range(n):
+            v = float(vals[i])
+            y_bar = y0 + float(i) * row_h
+            bw = (v / m) * bar_w_max
+            strips = 56
+            for j in range(strips):
+                wj = bw / strips if strips else bw
+                xj = bar_x0 + j * wj
+                t = (j + 0.5) / max(strips, 1)
+                col = _lerp_color_hex("#6f42c1", "#007bff", t)
+                d.add(
+                    Rect(
+                        xj,
+                        y_bar,
+                        max(wj + 0.15, 0.28),
+                        bar_h,
+                        fillColor=col,
+                        strokeColor=None,
+                        strokeWidth=0,
+                    )
+                )
+            d.add(
+                Rect(
+                    bar_x0,
+                    y_bar,
+                    bw,
+                    bar_h,
+                    fillColor=None,
+                    strokeColor=colors.HexColor("#e2e8f0"),
+                    strokeWidth=0.5,
+                )
+            )
+            lbl = _reporte_label_corta(labels[i], 52)
+            d.add(
+                String(
+                    bar_x0,
+                    y_bar + bar_h + 9,
+                    lbl,
+                    fontName="Helvetica-Bold",
+                    fontSize=8.5,
+                    fillColor=colors.HexColor("#1e293b"),
+                )
+            )
+            try:
+                val_txt = _cop(Decimal(str(int(round(v)))))
+            except Exception:  # noqa: BLE001
+                val_txt = f"${v:,.0f}".replace(",", ".")
+            d.add(
+                String(
+                    val_right,
+                    y_bar + bar_h * 0.35,
+                    val_txt,
+                    textAnchor="end",
+                    fontName="Helvetica-Bold",
+                    fontSize=8.5,
+                    fillColor=colors.HexColor("#0f172a"),
+                )
+            )
         return d
 
-    def _draw_pie(labels: list[str], vals: list[float]) -> Drawing | None:
+    def _draw_pie(labels: list[str], vals: list[float], *, donut: bool = False) -> Drawing | None:
         pairs = [(str(l).strip(), float(v)) for l, v in zip(labels, vals) if float(v) > 0]
         if not pairs:
             return None
@@ -3140,51 +3811,299 @@ def _reporte_pdf_graficas_flowables(
             )
             for i in range(len(vals2))
         ]
+        cx = pc.x + pc.width / 2
+        cy = pc.y + pc.height / 2
+        d.add(
+            Ellipse(
+                cx,
+                cy - 4,
+                pc.width * 0.46,
+                pc.height * 0.13,
+                fillColor=colors.Color(0, 0, 0, alpha=0.1),
+                strokeColor=None,
+                strokeWidth=0,
+            )
+        )
         d.add(pc)
+        if donut:
+            rh = min(pc.width, pc.height) * 0.44
+            d.add(
+                Circle(
+                    cx,
+                    cy,
+                    rh,
+                    fillColor=colors.white,
+                    strokeColor=colors.HexColor("#e8eaed"),
+                    strokeWidth=0.45,
+                )
+            )
+            tot_disp = f"{int(round(total))}"
+            d.add(
+                String(
+                    cx,
+                    cy + 5,
+                    "Total",
+                    textAnchor="middle",
+                    fontName="Helvetica-Bold",
+                    fontSize=9,
+                    fillColor=colors.HexColor("#475569"),
+                )
+            )
+            d.add(
+                String(
+                    cx,
+                    cy - 10,
+                    tot_disp,
+                    textAnchor="middle",
+                    fontName="Helvetica-Bold",
+                    fontSize=18,
+                    fillColor=colors.HexColor("#6f42c1"),
+                )
+            )
         d.add(leg)
         return d
 
-    out.append(Paragraph("Análisis visual (gráficas)", h2_style))
-    out.append(
-        Paragraph(
-            "Tendencias, comparaciones y rankings. Valores en el eje vertical; categorías en el horizontal.",
-            muted_style,
-        )
-    )
-    out.append(Spacer(1, 6))
+    def _draw_grouped_bar(labels: list[str], series: list[tuple[str, list[float]]]) -> Drawing | None:
+        if len(labels) < 1 or len(series) < 2:
+            return None
+        data_rows = [list(map(float, s[1])) for s in series]
+        if any(len(r) != len(labels) for r in data_rows):
+            return None
+        d = Drawing(460, 248)
+        bc = VerticalBarChart()
+        bc.x = 44
+        bc.y = 78
+        bc.height = 112
+        bc.width = 368
+        bc.data = data_rows
+        bc.categoryAxis.categoryNames = labels
+        bc.categoryAxis.strokeColor = colors.HexColor("#cbd5e1")
+        bc.categoryAxis.strokeWidth = 0.5
+        bc.categoryAxis.labels.fontName = "Helvetica"
+        bc.categoryAxis.labels.fontSize = 7.5
+        bc.categoryAxis.labels.fillColor = colors.HexColor("#334155")
+        if len(labels) > 8:
+            bc.categoryAxis.labels.angle = 35
+        bc.groupSpacing = 5
+        bc.barSpacing = 2
+        va = bc.valueAxis
+        va.valueMin = 0
+        m = max((max(r) if r else 0) for r in data_rows)
+        va.valueMax = None if m <= 0 else m * 1.18
+        va.visibleGrid = 1
+        va.gridStrokeColor = colors.HexColor("#e2e8f0")
+        va.gridStrokeWidth = 0.6
+        va.strokeColor = colors.HexColor("#94a3b8")
+        va.labels.fontName = "Helvetica"
+        va.labels.fontSize = 8
+        va.labels.fillColor = colors.HexColor("#64748b")
+        for si in range(len(data_rows)):
+            for ci in range(len(labels)):
+                bc.bars[(si, ci)].fillColor = _palette_color(si * 4 + ci % 3)
+                bc.bars[(si, ci)].strokeColor = colors.white
+                bc.bars[(si, ci)].strokeWidth = 0.35
+        bc.barLabelFormat = "%.0f"
+        bc.barLabels.fontName = "Helvetica"
+        bc.barLabels.fontSize = 6
+        bc.barLabels.fillColor = colors.HexColor("#1e293b")
+        d.add(bc)
+        leg = Legend()
+        leg.x = 44
+        leg.y = 18
+        leg.boxAnchor = "sw"
+        leg.fontName = "Helvetica"
+        leg.fontSize = 8
+        leg.leading = 10
+        leg.dx = 8
+        leg.dy = 8
+        leg.dxTextSpace = 4
+        leg.deltax = 120
+        leg.deltay = 11
+        leg.columnMaximum = 4
+        leg.strokeWidth = 0
+        leg.strokeColor = None
+        leg.colorNamePairs = [(_palette_color(si * 4), str(s[0])[:32]) for si, s in enumerate(series)]
+        d.add(leg)
+        return d
 
-    for spec in graficas:
-        titulo = (spec.get("titulo") or "Gráfica").strip()
+    def _piece_from_spec(spec: dict) -> Drawing | Flowable | None:
         tipo = (spec.get("tipo") or "barras").strip().lower()
         raw_labels = [str(x) for x in (spec.get("labels") or [])]
         try:
             vals = [float(x) for x in (spec.get("valores") or [])]
         except (TypeError, ValueError):
-            continue
-        if tipo in ("pastel", "pie", "piechart"):
+            vals = []
+        if tipo in ("pastel", "pie", "piechart", "rosca", "donut", "doughnut", "rosca_dominio_marca"):
             labels = raw_labels
         else:
             labels = [_reporte_label_corta(x, 20) for x in raw_labels]
-        if len(labels) != len(vals):
-            continue
-        drawing = None
-        if tipo in ("barras", "bar"):
-            drawing = _draw_bar(labels, vals)
-        elif tipo in ("lineas", "linea", "line"):
-            drawing = _draw_line(labels, vals)
-        elif tipo in ("pastel", "pie", "piechart"):
-            drawing = _draw_pie(labels, vals)
-        else:
-            drawing = _draw_bar(labels, vals)
-        if drawing is None:
+        piece: Drawing | Flowable | None = None
+
+        if tipo in ("lineas_area_multiserie", "area_multiserie", "lineas_multiples"):
+            raw_series = spec.get("series") or []
+            series_pairs2: list[tuple[str, list[float]]] = []
+            for s in raw_series:
+                if not isinstance(s, dict):
+                    continue
+                sl = str(s.get("label") or "")
+                try:
+                    sv = [float(x) for x in (s.get("valores") or [])]
+                except (TypeError, ValueError):
+                    continue
+                series_pairs2.append((sl, sv))
+            labs_m = [_reporte_label_corta(x, 20) for x in raw_labels]
+            if len(series_pairs2) >= 2 and labs_m and all(len(labs_m) == len(s[1]) for s in series_pairs2):
+                piece = _draw_multi_area(labs_m, series_pairs2)
+
+        elif tipo in ("radial_top5", "top5_radial", "ranking_radial"):
+            raw_items = spec.get("items") or []
+            parsed_rad: list[dict] = []
+            max_q = 0
+            for it in raw_items:
+                if not isinstance(it, dict):
+                    continue
+                q = int(it.get("cantidad") or 0)
+                max_q = max(max_q, q)
+                parsed_rad.append(it)
+            if max_q <= 0 and parsed_rad:
+                max_q = 1
+            rad_colors = ["#6f42c1", "#007bff", "#e83e8c", "#5a32a3", "#6610f2"]
+            track_hex = ["#ede9fe", "#dbeafe", "#fce7f3", "#f3e8ff", "#e0e7ff"]
+            built: list[dict] = []
+            for idx, it in enumerate(parsed_rad):
+                if not isinstance(it, dict):
+                    continue
+                q = int(it.get("cantidad") or 0)
+                frac = (q / max_q) if max_q else 1.0
+                built.append(
+                    {
+                        "nombre": str(it.get("nombre") or "—"),
+                        "cantidad": q,
+                        "precio_txt": str(it.get("precio_txt") or "—"),
+                        "arc_frac": frac,
+                        "color_hex": str(it.get("color_hex") or rad_colors[idx % len(rad_colors)]),
+                        "track_hex": str(it.get("track_hex") or track_hex[idx % len(track_hex)]),
+                    }
+                )
+            if built:
+                piece = _ReporteRadialTop5Flowable(built)
+
+        elif tipo in ("rosca_dominio_marca", "donut_dominio_marca"):
+            piece = _flowable_dominio_marca_espejo(spec)
+
+        elif tipo in ("barras_agrupadas", "grouped_bar", "barras_grupo"):
+            raw_series = spec.get("series") or []
+            series_pairs: list[tuple[str, list[float]]] = []
+            for s in raw_series:
+                if not isinstance(s, dict):
+                    continue
+                sl = str(s.get("label") or "")
+                try:
+                    sv = [float(x) for x in (s.get("valores") or [])]
+                except (TypeError, ValueError):
+                    continue
+                series_pairs.append((sl, sv))
+            if len(series_pairs) >= 2 and labels and all(len(labels) == len(s[1]) for s in series_pairs):
+                piece = _draw_grouped_bar(labels, series_pairs)
+        elif len(labels) == len(vals):
+            if tipo in ("barras_horizontales", "horizontal_bar", "bar_h", "barras_h"):
+                piece = _draw_bar_horizontal(labels, vals)
+            elif tipo in ("barras", "bar"):
+                piece = _draw_bar(labels, vals)
+            elif tipo in ("lineas", "linea", "line"):
+                piece = _draw_line(labels, vals)
+            elif tipo in ("pastel", "pie", "piechart"):
+                piece = _draw_pie(labels, vals, donut=False)
+            elif tipo in ("rosca", "donut", "doughnut"):
+                piece = _draw_pie(labels, vals, donut=True)
+            else:
+                piece = _draw_bar(labels, vals)
+        return piece
+
+    dom_s, rank_s, rest_specs = _split_dom_rank_pdf(list(graficas))
+    _sec_gap = 20
+
+    if dom_s and rank_s:
+        p_dom = _flowable_dominio_marca_espejo(dom_s)
+        p_rank = _piece_from_spec(rank_s)
+        if p_dom and p_rank:
+            out.append(
+                Paragraph(f"<b>{_xml_escape((dom_s.get('titulo') or 'Gráfica').strip())}</b>", h2_style)
+            )
+            out.append(Spacer(1, 8))
+            out.append(p_dom)
+            out.append(Spacer(1, _sec_gap))
+            out.append(
+                Paragraph(f"<b>{_xml_escape((rank_s.get('titulo') or 'Gráfica').strip())}</b>", h2_style)
+            )
+            out.append(Spacer(1, 8))
+            out.append(_wrap_full_width_drawing(p_rank))
+            out.append(Spacer(1, _sec_gap))
+
+    for spec in rest_specs:
+        titulo = (spec.get("titulo") or "Gráfica").strip()
+        piece = _piece_from_spec(spec)
+        if piece is None:
             out.append(Paragraph(f"<i>{titulo}</i> — sin datos suficientes para graficar.", muted_style))
-            out.append(Spacer(1, 6))
+            out.append(Spacer(1, _sec_gap))
             continue
-        out.append(Paragraph(f"<b>{titulo}</b>", muted_style))
-        out.append(Spacer(1, 4))
-        out.append(_wrap_centered(drawing))
-        out.append(Spacer(1, 10))
+        out.append(Paragraph(f"<b>{titulo}</b>", h2_style))
+        out.append(Spacer(1, 8))
+        out.append(_wrap_any_chart(piece))
+        out.append(Spacer(1, _sec_gap))
     return out
+
+
+def _reporte_exec_canvas_factory(*, generado_por: str):
+    """Canvas con pie fijo: numeración 'Página i de n' y marca TechNova."""
+
+    from reportlab.lib import colors as rl_colors
+    from reportlab.lib.units import mm as rl_mm
+    from reportlab.pdfgen import canvas as pdfcanvas
+
+    gp_short = (generado_por or "").strip()[:90]
+
+    class _ReporteExecCanvas(pdfcanvas.Canvas):
+        def __init__(self, *args, **kwargs):
+            pdfcanvas.Canvas.__init__(self, *args, **kwargs)
+            self._saved_page_states = []
+
+        def showPage(self):
+            self._saved_page_states.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            n_pages = len(self._saved_page_states)
+            for state in self._saved_page_states:
+                self.__dict__.update(state)
+                self._rep_draw_footer(n_pages)
+                pdfcanvas.Canvas.showPage(self)
+            pdfcanvas.Canvas.save(self)
+
+        def _rep_draw_footer(self, n_pages: int) -> None:
+            w, _h = self._pagesize
+            lm = 14 * rl_mm
+            rm = 14 * rl_mm
+            y_line = 12 * rl_mm
+            y_txt = 7.2 * rl_mm
+            y_sub = 4.0 * rl_mm
+            self.saveState()
+            self.setStrokeColor(rl_colors.HexColor("#d1d5db"))
+            self.setLineWidth(0.55)
+            self.line(lm, y_line, w - rm, y_line)
+            self.setFont("Helvetica", 8)
+            self.setFillColor(rl_colors.HexColor("#6b7280"))
+            self.drawString(lm, y_txt, "Reporte generado automáticamente por TechNova")
+            self.setFont("Helvetica-Bold", 8.5)
+            self.setFillColor(rl_colors.HexColor("#4b5563"))
+            self.drawRightString(w - rm, y_txt, f"Página {self._pageNumber} de {n_pages}")
+            if gp_short:
+                self.setFont("Helvetica-Oblique", 7.5)
+                self.setFillColor(rl_colors.HexColor("#9ca3af"))
+                self.drawCentredString(w / 2, y_sub, f"Generado por: {gp_short}")
+            self.restoreState()
+
+    return _ReporteExecCanvas
 
 
 def _reporte_build_pdf(titulo: str, filtros: list[str], headers: list[str], rows: list[list[str]]) -> bytes:
@@ -3242,54 +4161,61 @@ def _reporte_build_pdf_v2(
     titulo: str,
     subtitulo: str,
     rango: str,
-    kpis: list[tuple[str, str]],
+    kpis: list,
     secciones: list[tuple[str, list[str], list[list[str]]]],
     graficas: list[dict] | None = None,
+    generado_por: str = "",
+    cajas_impacto: list[tuple[str, str]] | None = None,
 ) -> bytes:
     """
-    PDF mejorado: logo + encabezado + KPIs + gráficas + secciones con tablas + footer con paginado.
+    PDF ejecutivo TechNova: franja de marca, KPIs hero, gráficas vectoriales, tablas cebradas y pie con paginación.
     """
     try:
+        from reportlab.graphics import renderPDF
+        from reportlab.graphics.shapes import Circle, Drawing, Line, Rect
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import mm
-        from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+        from reportlab.platypus import Flowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
     except Exception as exc:
         raise RuntimeError("No se encontró la librería 'reportlab'.") from exc
 
     buffer = BytesIO()
+    _canvas_cls = _reporte_exec_canvas_factory(generado_por=generado_por)
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
         leftMargin=14 * mm,
-        rightMargin=14 * mm,
+        rightMargin=14 * mm + 15,
         topMargin=18 * mm,
-        bottomMargin=16 * mm,
+        bottomMargin=22 * mm,
         title=titulo,
+        canvasmaker=_canvas_cls,
     )
+    # Ancho útil del marco (100 % del área imprimible). Antes se mezclaban 174/180 mm con padding en pt,
+    # y la fila del encabezado superaba el ancho interior → texto cortado a la derecha.
+    frame_w = float(A4[0] - doc.leftMargin - doc.rightMargin)
+    frame_w_mm = float(frame_w / mm)
 
     styles = getSampleStyleSheet()
-    # Inspiración: factura_compra.html — gradiente 135deg cyan → índigo, bloques redondeados, verde en totales
     c_slate = colors.HexColor("#334155")
     c_muted = colors.HexColor("#64748b")
-    c_line = colors.HexColor("#e2e8f0")
-    c_head_tbl = colors.HexColor("#f1f5f9")
-    c_row_alt = colors.HexColor("#f8fafc")
-    c_green = colors.HexColor("#16a34a")
-    c_cyan = colors.HexColor("#06b6d4")
-    c_indigo = colors.HexColor("#6366f1")
-    c_violet = colors.HexColor("#7c3aed")
-    c_teal = colors.HexColor("#0d9488")
+    c_line = colors.HexColor("#e5e7eb")
+    c_brand = colors.HexColor("#6f42c1")
+    c_brand_blue = colors.HexColor("#007bff")
+    c_brand_pink = colors.HexColor("#e83e8c")
+    c_head_tbl = colors.HexColor("#5a32a3")
+    c_row_alt = colors.HexColor("#f9fafb")
 
     h2 = ParagraphStyle(
         "t_h2_rep",
         parent=styles["Heading2"],
         fontName="Helvetica-Bold",
         fontSize=12,
-        textColor=c_teal,
-        spaceBefore=14,
-        spaceAfter=8,
+        textColor=c_brand,
+        spaceBefore=6,
+        spaceAfter=4,
     )
     muted = ParagraphStyle(
         "t_muted_rep",
@@ -3299,25 +4225,175 @@ def _reporte_build_pdf_v2(
         leading=12,
     )
 
+    st_kpi_h = ParagraphStyle(
+        "kpi_sec_hdr_rep",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=11,
+        textColor=colors.HexColor("#5b21b6"),
+        leading=14,
+        spaceBefore=0,
+        spaceAfter=7,
+    )
     st_kpi_lbl = ParagraphStyle(
         "kpi_lbl_rep",
         parent=styles["Normal"],
-        fontSize=9,
-        textColor=c_muted,
-        leading=11,
+        fontSize=7,
+        textColor=colors.HexColor("#64748b"),
+        leading=10,
+        fontName="Helvetica",
+        spaceAfter=3,
     )
     st_kpi_val = ParagraphStyle(
         "kpi_val_rep",
         parent=styles["Normal"],
         fontName="Helvetica-Bold",
-        fontSize=14,
-        textColor=c_green,
-        leading=16,
+        fontSize=15.5,
+        textColor=colors.HexColor("#0f172a"),
+        leading=17,
     )
 
-    # Logo directamente sobre el gradiente (sin caja blanca)
+    st_imp_lbl = ParagraphStyle(
+        "imp_lbl_rep",
+        parent=styles["Normal"],
+        fontSize=8,
+        textColor=colors.HexColor("#6b7280"),
+        leading=10,
+        fontName="Helvetica",
+    )
+    st_imp_val = ParagraphStyle(
+        "imp_val_rep",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=15,
+        textColor=colors.HexColor("#111827"),
+        leading=17,
+    )
+    st_imp_val_ok = ParagraphStyle(
+        "imp_val_ok_rep",
+        parent=st_imp_val,
+        fontName="Helvetica-Bold",
+        fontSize=11,
+        textColor=colors.HexColor("#16a34a"),
+        leading=14,
+    )
+
+    st_tbl_hdr = ParagraphStyle(
+        "tbl_hdr_rep",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=8.5,
+        leading=10,
+        textColor=colors.white,
+    )
+    st_tbl_cell = ParagraphStyle(
+        "tbl_cell_rep",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=8,
+        leading=11,
+        textColor=c_slate,
+        wordWrap="CJK",
+    )
+    st_tbl_cell_r = ParagraphStyle(
+        "tbl_cell_r_rep",
+        parent=st_tbl_cell,
+        alignment=2,
+    )
+    st_tbl_cell_long = ParagraphStyle(
+        "tbl_cell_long_rep",
+        parent=st_tbl_cell,
+        fontSize=7.5,
+        leading=10,
+        textColor=c_slate,
+        wordWrap="CJK",
+    )
+
+    class _BrandTopHairline(Flowable):
+        def wrap(self, availWidth, availHeight):  # noqa: ANN001
+            self._hair_w = availWidth
+            return availWidth, 3.8
+
+        def draw(self):
+            self.canv.setStrokeColor(colors.HexColor("#6f42c1"))
+            self.canv.setLineWidth(2.2)
+            self.canv.line(0, 1.4, self._hair_w, 1.4)
+
+    class _MiniDrawFb(Flowable):
+        def __init__(self, drawing: Drawing):
+            self.drawing = drawing
+            self.h = float(drawing.height)
+            self.w = float(drawing.width)
+
+        def wrap(self, availWidth, availHeight):  # noqa: ANN001
+            return self.w, self.h
+
+        def draw(self):
+            renderPDF.draw(self.drawing, self.canv, 0, 0)
+
+    def _kpi_icon_widget(icon_key: str, tone_i: int = 0) -> Flowable:
+        key = (icon_key or "dot").lower()
+        W, H = 22.0, 22.0
+        d = Drawing(W, H)
+        tone_icons = (
+            (colors.HexColor("#7c3aed"), colors.HexColor("#3b82f6"), colors.HexColor("#ddd6fe")),
+            (colors.HexColor("#2563eb"), colors.HexColor("#38bdf8"), colors.HexColor("#dbeafe")),
+            (colors.HexColor("#c026d3"), colors.HexColor("#f472b6"), colors.HexColor("#fce7f3")),
+        )
+        accent, soft, ink = tone_icons[tone_i % len(tone_icons)]
+        if key in ("sku", "grid", "box", "producto"):
+            for i in range(3):
+                for j in range(3):
+                    d.add(
+                        Rect(
+                            2.4 + j * 6,
+                            2.4 + i * 6,
+                            4.6,
+                            4.6,
+                            rx=0.7,
+                            ry=0.7,
+                            fillColor=accent if (i + j) % 2 == 0 else soft,
+                            strokeColor=ink,
+                            strokeWidth=0.2,
+                        )
+                    )
+        elif key in ("money", "cop", "ingreso", "recaudo"):
+            d.add(Circle(11, 11, 8.5, fillColor=accent, strokeColor=soft, strokeWidth=0.8))
+            d.add(Line(11, 8, 11, 14, strokeColor=colors.white, strokeWidth=1.1))
+            d.add(Line(8, 11, 14, 11, strokeColor=colors.white, strokeWidth=1.0))
+        elif key in ("ticket", "avg", "promedio"):
+            d.add(Rect(5, 6, 12, 10, rx=1.5, ry=1.5, fillColor=soft, strokeColor=ink, strokeWidth=0.4))
+            d.add(Line(7, 9, 15, 9, strokeColor=accent, strokeWidth=0.8))
+            d.add(Line(7, 11.5, 13, 11.5, strokeColor=accent, strokeWidth=0.8))
+        elif key in ("users", "user", "personas"):
+            d.add(Circle(8, 10, 3.2, fillColor=accent, strokeColor=colors.white, strokeWidth=0.4))
+            d.add(Circle(14.5, 10, 3.2, fillColor=soft, strokeColor=colors.white, strokeWidth=0.4))
+            d.add(Rect(9.5, 14, 7, 3, rx=1, ry=1, fillColor=accent, strokeColor=None, strokeWidth=0))
+        elif key in ("chart", "line", "tendencia"):
+            d.add(Line(4, 6, 8, 14, strokeColor=soft, strokeWidth=1.2))
+            d.add(Line(8, 14, 12, 9, strokeColor=accent, strokeWidth=1.2))
+            d.add(Line(12, 9, 18, 16, strokeColor=accent, strokeWidth=1.2))
+        elif key in ("check", "ok", "exito"):
+            d.add(Circle(11, 11, 8, fillColor=colors.HexColor("#16a34a"), strokeColor=ink, strokeWidth=0.5))
+            d.add(Line(7, 11, 10, 14, strokeColor=colors.white, strokeWidth=1.4))
+            d.add(Line(10, 14, 16, 8, strokeColor=colors.white, strokeWidth=1.4))
+        elif key in ("fail", "error", "x"):
+            d.add(Circle(11, 11, 8, fillColor=colors.HexColor("#dc2626"), strokeColor=ink, strokeWidth=0.5))
+            d.add(Line(7.5, 7.5, 14.5, 14.5, strokeColor=colors.white, strokeWidth=1.3))
+            d.add(Line(14.5, 7.5, 7.5, 14.5, strokeColor=colors.white, strokeWidth=1.3))
+        elif key in ("clock", "time", "mes", "calendario"):
+            d.add(Circle(11, 11, 8.5, fillColor=soft, strokeColor=accent, strokeWidth=0.7))
+            d.add(Line(11, 11, 11, 7.5, strokeColor=accent, strokeWidth=1.1))
+            d.add(Line(11, 11, 14.5, 12, strokeColor=accent, strokeWidth=1.1))
+        elif key in ("card", "pago", "metodo"):
+            d.add(Rect(4, 7, 14, 10, rx=1.8, ry=1.8, fillColor=accent, strokeColor=ink, strokeWidth=0.5))
+            d.add(Rect(4.5, 10.5, 10, 2, fillColor=soft, strokeColor=None, strokeWidth=0))
+        else:
+            d.add(Circle(11, 11, 3.2, fillColor=accent, strokeColor=soft, strokeWidth=0.6))
+        return _MiniDrawFb(d)
+
     logo_path = _reporte_logo_path()
-    logo_cell = Paragraph("", muted)
+    logo_cell: Flowable | Paragraph = Paragraph("", muted)
     if logo_path is not None:
         try:
             logo_cell = Image(str(logo_path), width=22 * mm, height=22 * mm)
@@ -3325,198 +4401,327 @@ def _reporte_build_pdf_v2(
             logo_cell = Paragraph("", muted)
 
     gen_txt = timezone.localtime().strftime("%d/%m/%Y %H:%M")
-    st_hdr_brand = ParagraphStyle(
-        "hdr_brand_rep",
-        parent=styles["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=14,
-        textColor=colors.white,
-        leading=16,
-        spaceAfter=2,
-    )
-    st_hdr_doc = ParagraphStyle(
-        "hdr_doc_rep",
-        parent=styles["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=10.5,
-        textColor=colors.white,
-        leading=13,
-        alignment=2,  # derecha
-        spaceShrinkage=0.05,
-    )
-
-    # rango ya viene como "Rango: fecha → fecha" desde pdf_v2; no repetir el prefijo
     rango_txt = (rango or "").strip()
     if rango_txt.lower().startswith("rango:"):
-        rango_display = rango_txt
+        rango_val = rango_txt
     else:
-        rango_display = f"Rango: {rango_txt}" if rango_txt else "—"
+        rango_val = rango_txt if rango_txt else "—"
+    gp_lbl = (generado_por or "").strip() or "Sistema Technova"
 
-    left_hdr = Paragraph(
-        f"<b>TECHNOVA</b><br/><font name='Helvetica' size='9' color='#cffafe'>{_xml_escape(str(subtitulo or ''))}</font>",
-        st_hdr_brand,
+    st_meta_lbl = ParagraphStyle(
+        "rep_meta_lbl",
+        parent=styles["Normal"],
+        alignment=2,
+        fontName="Helvetica-Bold",
+        fontSize=7,
+        leading=10,
+        textColor=colors.HexColor("#64748b"),
+        spaceAfter=2,
     )
-    right_hdr = Paragraph(
-        f"<font name='Helvetica-Bold' size='10' color='white'>{_xml_escape(str(titulo or ''))}</font><br/>"
-        f"<font name='Helvetica' size='8' color='#e0e7ff'>{_xml_escape(rango_display)}<br/>"
-        f"Generado: {_xml_escape(gen_txt)}</font>",
-        st_hdr_doc,
+    st_meta_lbl_first = ParagraphStyle(
+        "rep_meta_lbl_first",
+        parent=st_meta_lbl,
+        spaceBefore=0,
+    )
+    st_meta_lbl_gap = ParagraphStyle(
+        "rep_meta_lbl_gap",
+        parent=st_meta_lbl,
+        spaceBefore=4,
+    )
+    st_meta_val = ParagraphStyle(
+        "rep_meta_val",
+        parent=styles["Normal"],
+        alignment=2,
+        fontName="Helvetica",
+        fontSize=7.5,
+        leading=11,
+        textColor=colors.HexColor("#334155"),
+        spaceAfter=0,
     )
 
-    # La celda del banner tiene LEFTPADDING/RIGHTPADDING 14 mm: el ancho útil es 180 − 28 mm.
-    # Si la tabla interior suma 180 mm, el texto se sale del cabecero (clip a la derecha).
-    _hdr_pad_h = 14 * mm
-    _hdr_outer_w = 180 * mm
-    _hdr_inner_w = _hdr_outer_w - 2 * _hdr_pad_h
-    _s = _hdr_inner_w / (180 * mm)
-    _w_logo = 24 * mm * _s
-    _w_brand = 68 * mm * _s
-    _w_meta = 88 * mm * _s
+    enc_pad_left = 12
+    enc_pad_right = 12 + 15
+    stripe_w = 6 * mm
+    logo_col_w = 28 * mm
+    content_inner = frame_w - enc_pad_left - enc_pad_right
+    inner_w = content_inner - stripe_w
+    meta_col_w = inner_w - logo_col_w
 
-    hdr_inner = Table([[logo_cell, left_hdr, right_hdr]], colWidths=[_w_logo, _w_brand, _w_meta])
-    hdr_inner.setStyle(
+    meta_table = Table(
+        [
+            [Paragraph("Emisión:", st_meta_lbl_first)],
+            [Paragraph(_xml_escape(gen_txt), st_meta_val)],
+            [Paragraph("Autor:", st_meta_lbl_gap)],
+            [Paragraph(_xml_escape(gp_lbl), st_meta_val)],
+            [Paragraph("Período:", st_meta_lbl_gap)],
+            [Paragraph(_xml_escape(rango_val), st_meta_val)],
+        ],
+        colWidths=[meta_col_w],
+    )
+    meta_table.setStyle(
         TableStyle(
             [
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("LEFTPADDING", (1, 0), (1, 0), 4),
-                ("RIGHTPADDING", (1, 0), (1, 0), 4),
-                ("LEFTPADDING", (2, 0), (2, 0), 0),
-                ("RIGHTPADDING", (2, 0), (2, 0), 10),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 22),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 1), (0, 1), 4),
+                ("BOTTOMPADDING", (0, 3), (0, 3), 4),
             ]
         )
     )
 
-    encabezado_tbl = Table([[hdr_inner]], colWidths=[_hdr_outer_w])
+    st_title_line = ParagraphStyle(
+        "rep_title_line",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=15,
+        textColor=colors.HexColor("#111827"),
+        spaceBefore=0,
+        spaceAfter=0,
+    )
+    title_sub_block = Paragraph(
+        f"<b>{_xml_escape(str(titulo or 'Reporte'))}</b> "
+        f"<font name='Helvetica-Bold' size='9' color='#6f42c1'> — {_xml_escape(str(subtitulo or 'Business Intelligence'))}</font>",
+        st_title_line,
+    )
+
+    inner_top = Table([[logo_cell, meta_table]], colWidths=[logo_col_w, meta_col_w])
+    inner_top.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+
+    inner_card = Table(
+        [[inner_top], [title_sub_block]],
+        colWidths=[inner_w],
+    )
+    inner_card.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f9f9f9")),
+                ("ROUNDEDCORNERS", [12, 12, 12, 12]),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (0, 0), 4),
+                ("BOTTOMPADDING", (0, -1), (-1, -1), 6),
+                ("TOPPADDING", (0, 1), (-1, -1), 2),
+            ]
+        )
+    )
+
+    stripe = Table([[Paragraph("", muted)]], colWidths=[stripe_w])
+    stripe.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), c_brand),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+
+    enc_row = Table([[stripe, inner_card]], colWidths=[stripe_w, inner_w])
+    enc_row.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+
+    encabezado_tbl = Table([[enc_row]], colWidths=[frame_w])
     encabezado_tbl.setStyle(
         TableStyle(
             [
-                ("ROUNDEDCORNERS", [16, 16, 16, 16]),
-                (
-                    "BACKGROUND",
-                    (0, 0),
-                    (-1, -1),
-                    [
-                        "LINEARGRADIENT",
-                        (0, 1),
-                        (1, 0),
-                        True,
-                        [
-                            colors.HexColor("#22d3ee"),
-                            colors.HexColor("#06b6d4"),
-                            colors.HexColor("#4f46e5"),
-                            colors.HexColor("#7c3aed"),
-                        ],
-                        [0.0, 0.3, 0.65, 1.0],
-                    ],
-                ),
-                ("LEFTPADDING", (0, 0), (-1, -1), 14),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 14),
-                ("TOPPADDING", (0, 0), (-1, -1), 14),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 14),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ROUNDEDCORNERS", [14, 14, 14, 14]),
+                ("BOX", (0, 0), (-1, -1), 0.65, colors.HexColor("#d1d5db")),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f9f9f9")),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("LEFTPADDING", (0, 0), (-1, -1), enc_pad_left),
+                ("RIGHTPADDING", (0, 0), (-1, -1), enc_pad_right),
             ]
         )
     )
 
-    kpi_rows = []
-    for i in range(0, len(kpis), 2):
-        left = kpis[i]
-        right = kpis[i + 1] if i + 1 < len(kpis) else ("", "")
-        kpi_rows.append([left, right])
+    kpi_tone_bg = (
+        colors.HexColor("#faf8ff"),
+        colors.HexColor("#f0f7ff"),
+        colors.HexColor("#fff7fb"),
+    )
+    kpi_tone_border = (
+        colors.HexColor("#e4dcff"),
+        colors.HexColor("#cce4ff"),
+        colors.HexColor("#ffd6ef"),
+    )
+    kpi_tone_bar = (
+        colors.HexColor("#7c3aed"),
+        colors.HexColor("#2563eb"),
+        colors.HexColor("#db2777"),
+    )
+    kpi_tone_val_hex = ("#4c1d95", "#1e3a8a", "#9d174d")
 
-    def _kpi_cell(label: str, value: str, accent: colors.Color) -> Table:
-        t = Table(
-            [
-                [Paragraph(f"<b>{label}</b>", st_kpi_lbl)],
-                [Paragraph(f"{value}", st_kpi_val)],
-            ],
-            colWidths=[84 * mm],
+    def _kpi_cell(
+        label: str,
+        value: str,
+        icon_key: str,
+        col_w: float,
+        tone_i: int,
+    ) -> Table:
+        ti = tone_i % len(kpi_tone_bg)
+        icon_w = _kpi_icon_widget(icon_key, ti)
+        txt_col_w = max(float(col_w) - 9 * mm - 10, 16 * mm)
+        bg_c = kpi_tone_bg[ti]
+        bd_c = kpi_tone_border[ti]
+        bar_c = kpi_tone_bar[ti]
+        vhex = kpi_tone_val_hex[ti]
+        lbl_para = Paragraph(
+            f"<font color='#5c6578'>{_xml_escape(str(label))}</font>",
+            st_kpi_lbl,
         )
-        t.setStyle(
+        val_para = Paragraph(
+            f"<font color='{vhex}'><b>{_xml_escape(str(value))}</b></font>",
+            st_kpi_val,
+        )
+        txt = Table(
+            [
+                [lbl_para],
+                [val_para],
+            ],
+            colWidths=[txt_col_w],
+        )
+        txt.setStyle(
             TableStyle(
                 [
-                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fafcff")),
-                    ("BOX", (0, 0), (-1, -1), 0.55, c_line),
-                    ("ROUNDEDCORNERS", [12, 12, 12, 12]),
-                    ("LINEBEFORE", (0, 0), (0, -1), 4, accent),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                    ("TOPPADDING", (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ]
+            )
+        )
+        row = Table([[icon_w, txt]], colWidths=[9 * mm, txt_col_w])
+        row.setStyle(
+            TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("BACKGROUND", (0, 0), (-1, -1), bg_c),
+                    ("BOX", (0, 0), (-1, -1), 0.4, bd_c),
+                    ("ROUNDEDCORNERS", [16, 16, 16, 16]),
+                    ("LINEBEFORE", (0, 0), (0, -1), 4, bar_c),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 10),
                     ("TOPPADDING", (0, 0), (-1, -1), 10),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
                 ]
             )
         )
-        return t
+        return row
 
-    kpi_tbl_data = []
-    accents = [c_cyan, c_indigo, c_violet, c_teal]
-    for r_i, row in enumerate(kpi_rows):
-        l = row[0]
-        r = row[1]
-        kpi_tbl_data.append(
-            [
-                _kpi_cell(l[0], l[1], accents[(r_i * 2) % len(accents)]),
-                _kpi_cell(r[0], r[1], accents[(r_i * 2 + 1) % len(accents)]) if r[0] else "",
-            ]
-        )
+    def _impact_val_paragraph(lbl: str, val: str) -> Paragraph:
+        tl = (lbl or "").lower()
+        sv = str(val).strip()
+        if sv in ("0", "0.0") and ("agotado" in tl or "bajo" in tl):
+            return Paragraph("✓ Disponibilidad de Inventario", st_imp_val_ok)
+        return Paragraph(_xml_escape(str(val)), st_imp_val)
 
-    kpi_tbl = Table(kpi_tbl_data, colWidths=[90 * mm, 90 * mm])
-    kpi_tbl.setStyle(
-        TableStyle(
-            [
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                ("TOPPADDING", (0, 0), (-1, -1), 4),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-            ]
-        )
-    )
+    nk = [_reporte_norm_kpi_item(x) for x in kpis]
+    kpi_n = len(nk)
+    kpi_col_w = frame_w / max(kpi_n, 1)
+    if kpi_n:
+        kpi_row = [
+            _kpi_cell(nk[i][0], nk[i][1], nk[i][2], kpi_col_w, i)
+            for i in range(kpi_n)
+        ]
+        kpi_tbl = Table([kpi_row], colWidths=[kpi_col_w] * kpi_n)
+    else:
+        kpi_tbl = Table([[Paragraph("", muted)]], colWidths=[frame_w])
+    _kpi_gap = 7
+    _kpi_ts = [
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ]
+    if kpi_n > 1:
+        for ci in range(kpi_n - 1):
+            _kpi_ts.append(("RIGHTPADDING", (ci, 0), (ci, 0), _kpi_gap))
+    elif kpi_n == 1:
+        _kpi_ts.append(("RIGHTPADDING", (0, 0), (0, 0), 0))
+    kpi_tbl.setStyle(TableStyle(_kpi_ts))
 
     def _tabla(headers: list[str], rows: list[list[str]], _idx: int) -> Table:
-        del _idx  # reservado por si se alternan acentos en el futuro
-        data = [headers] + rows
-        t = Table(data, repeatRows=1)
-        t.setStyle(
-            TableStyle(
-                [
-                    ("ROUNDEDCORNERS", [10, 10, 10, 10]),
-                    ("BOX", (0, 0), (-1, -1), 0.65, c_line),
-                    ("BACKGROUND", (0, 0), (-1, 0), c_head_tbl),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), c_slate),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, 0), 9),
-                    ("BOTTOMPADDING", (0, 0), (-1, 0), 9),
-                    ("TOPPADDING", (0, 0), (-1, 0), 9),
-                    ("LINEBELOW", (0, 0), (-1, 0), 1.5, c_cyan),
-                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, c_row_alt]),
-                    ("TEXTCOLOR", (0, 1), (-1, -1), c_slate),
-                    ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-                    ("FONTSIZE", (0, 1), (-1, -1), 8.5),
-                    ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#f1f5f9")),
-                    ("LINEBELOW", (0, 1), (-1, -2), 0.25, c_line),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                    ("TOPPADDING", (0, 1), (-1, -1), 7),
-                    ("BOTTOMPADDING", (0, 1), (-1, -1), 7),
-                ]
-            )
-        )
+        del _idx
+        hdr_cells = [Paragraph(_xml_escape(str(h)), st_tbl_hdr) for h in headers]
+        body_cells: list[list] = []
+        for r in rows:
+            row_cells = []
+            for ci, cell in enumerate(r):
+                hname = headers[ci] if ci < len(headers) else ""
+                hn = (hname or "").strip().lower()
+                if "nombre" in hn or "producto" in hn:
+                    stc = st_tbl_cell_long
+                elif _reporte_pdf_header_columna_derecha(hname):
+                    stc = st_tbl_cell_r
+                else:
+                    stc = st_tbl_cell
+                row_cells.append(Paragraph(_xml_escape(str(cell)), stc))
+            body_cells.append(row_cells)
+        data = [hdr_cells] + body_cells
+        cw = _reporte_pdf_compute_col_widths(headers, total_mm=frame_w_mm)
+        t = Table(data, colWidths=cw, repeatRows=1)
+        c_line_tbl = colors.HexColor("#dddddd")
+        ts = [
+            ("ROUNDEDCORNERS", [10, 10, 10, 10]),
+            ("BOX", (0, 0), (-1, -1), 0.45, c_line_tbl),
+            ("BACKGROUND", (0, 0), (-1, 0), c_head_tbl),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+            ("TOPPADDING", (0, 0), (-1, 0), 10),
+            ("LINEBELOW", (0, 0), (-1, 0), 0.4, c_line_tbl),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, c_row_alt]),
+            ("LINEBELOW", (0, 1), (-1, -2), 0.35, c_line_tbl),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 1), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 8),
+        ]
+        t.setStyle(TableStyle(ts))
         return t
 
     elements: list = []
+    elements.append(_BrandTopHairline())
+    elements.append(Spacer(1, 3))
     elements.append(encabezado_tbl)
-    elements.append(Spacer(1, 16))
-    elements.append(Paragraph("Resumen general", h2))
-    elements.append(Spacer(1, 4))
+    elements.append(Spacer(1, 8))
+    elements.append(Paragraph("Indicadores ejecutivos (KPIs)", st_kpi_h))
+    elements.append(Spacer(1, 3))
     elements.append(kpi_tbl)
 
     g_specs = list(graficas or [])
     if g_specs:
-        elements.extend(_reporte_pdf_graficas_flowables(g_specs, h2_style=h2, muted_style=muted))
+        elements.append(Spacer(1, 20))
+        elements.extend(
+            _reporte_pdf_graficas_flowables(
+                g_specs, h2_style=h2, muted_style=muted, frame_w_pt=frame_w, chart_scale=1.0
+            )
+        )
 
     elements.append(Paragraph("Detalle y tablas", h2))
-    elements.append(Spacer(1, 6))
+    elements.append(Spacer(1, 10))
 
     for idx, (sec_title, headers, rows) in enumerate(secciones):
         elements.append(Spacer(1, 6))
@@ -3527,28 +4732,51 @@ def _reporte_build_pdf_v2(
         elements.append(Spacer(1, 4))
         elements.append(_tabla(headers, rows, idx))
 
-    def _on_page(canvas, doc_):  # noqa: ANN001
-        canvas.saveState()
-        pw = doc_.pagesize[0]
-        y_line = 14 * mm
-        y_txt = 8 * mm
-        canvas.setStrokeColor(colors.HexColor("#cbd5e1"))
-        canvas.setLineWidth(0.6)
-        canvas.line(doc_.leftMargin, y_line, pw - doc_.rightMargin, y_line)
-        canvas.setFillColor(c_muted)
-        canvas.setFont("Helvetica", 8)
-        canvas.drawString(
-            doc_.leftMargin,
-            y_txt,
-            f"Technova — Generado el {timezone.localtime().strftime('%d/%m/%Y %H:%M')}",
+    cj = list(cajas_impacto or [])
+    if cj:
+        elements.append(Spacer(1, 6))
+        elements.append(Paragraph("Resumen operativo", h2))
+        elements.append(Spacer(1, 4))
+        n_box = min(3, len(cj))
+        box_cells: list = []
+        for i in range(n_box):
+            lbl, val = cj[i]
+            inner_box = Table(
+                [
+                    [Paragraph(_xml_escape(str(lbl)), st_imp_lbl)],
+                    [_impact_val_paragraph(str(lbl), str(val))],
+                ],
+                colWidths=[(frame_w / n_box) - 4 * mm],
+            )
+            inner_box.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f3f4f6")),
+                        ("BOX", (0, 0), (-1, -1), 0.45, colors.HexColor("#e5e7eb")),
+                        ("ROUNDEDCORNERS", [12, 12, 12, 12]),
+                        ("TOPPADDING", (0, 0), (-1, -1), 10),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ]
+                )
+            )
+            box_cells.append(inner_box)
+        col_w = frame_w / n_box
+        impact_row = Table([box_cells], colWidths=[col_w] * n_box)
+        impact_row.setStyle(
+            TableStyle(
+                [
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ]
+            )
         )
-        canvas.drawRightString(pw - doc_.rightMargin, y_txt, f"Página {canvas.getPageNumber()}")
-        canvas.setFont("Helvetica-Oblique", 7.5)
-        canvas.setFillColor(colors.HexColor("#94a3b8"))
-        canvas.drawCentredString(pw / 2, y_txt + 3.2 * mm, "Gracias por confiar en TECHNOVA.")
-        canvas.restoreState()
+        elements.append(impact_row)
 
-    doc.build(elements, onFirstPage=_on_page, onLaterPages=_on_page)
+    doc.build(elements)
     return buffer.getvalue()
 
 
@@ -3567,12 +4795,13 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
         precio_max_raw = (request.GET.get("precioMax") or "").strip()
         precio_min = _decimal_desde_post(precio_min_raw) if precio_min_raw else None
         precio_max = _decimal_desde_post(precio_max_raw) if precio_max_raw else None
-        items = list(
-            _reporte_filtrar_productos(
-                categoria=categoria, marca=marca, precio_min=precio_min, precio_max=precio_max
-            )
-            .select_related("proveedor")[:1000]
+        prod_f = _reporte_filtrar_productos(
+            categoria=categoria, marca=marca, precio_min=precio_min, precio_max=precio_max
         )
+        items = list(prod_f.select_related("proveedor")[:1000])
+        n_total_filtro = prod_f.count()
+        n_bajo_stock_f = prod_f.filter(activo=True, stock__gte=1, stock__lte=STOCK_BAJO_MAX).count()
+        n_agotados_f = prod_f.filter(activo=True, stock=0).count()
         rows = [
             [
                 str(p.id),
@@ -3586,51 +4815,166 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
             for p in items
         ]
 
-        # Productos más vendidos (según detalle de venta en el rango)
-        top_vendidos = []
-        if fd and fh:
-            top_vendidos = list(
-                DetalleVenta.objects.filter(venta__fecha_venta__gte=fd, venta__fecha_venta__lte=fh)
-                .values("producto__id", "producto__nombre")
-                .annotate(cantidad=Sum("cantidad"))
-                .order_by("-cantidad")[:10]
+        total_sku = Producto.objects.filter(activo=True).count()
+        valor_inv = (
+            Producto.objects.filter(activo=True)
+            .annotate(
+                pu=Coalesce(
+                    "precio_venta",
+                    "costo_unitario",
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                )
             )
+            .aggregate(
+                v=Sum(
+                    F("stock") * F("pu"),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                )
+            )["v"]
+            or Decimal("0")
+        )
+
+        ventas_rango = Venta.objects.filter(fecha_venta__gte=fd, fecha_venta__lte=fh).exclude(
+            estado=Venta.Estado.ANULADA
+        )
+        n_pedidos_rango = ventas_rango.count()
+        total_rango = ventas_rango.aggregate(s=Sum("total"))["s"] or Decimal("0")
+        ticket_prom = (total_rango / n_pedidos_rango) if n_pedidos_rango else Decimal("0")
+
+        top_vendidos = list(
+            DetalleVenta.objects.filter(
+                venta__fecha_venta__gte=fd,
+                venta__fecha_venta__lte=fh,
+                venta__estado__in=[Venta.Estado.ABIERTA, Venta.Estado.FACTURADA],
+            )
+            .values(
+                "producto__id",
+                "producto__nombre",
+                "producto__precio_venta",
+                "producto__costo_unitario",
+            )
+            .annotate(cantidad=Sum("cantidad"))
+            .order_by("-cantidad")[:10]
+        )
         top_rows = [[str(x["producto__id"]), x["producto__nombre"], str(x["cantidad"])] for x in top_vendidos]
 
-        stock_bajo = list(
-            Producto.objects.filter(activo=True, stock__lte=STOCK_BAJO_MAX).order_by("stock", "nombre")[:25]
+        stock_critico = list(
+            Producto.objects.filter(activo=True, stock__lte=_REPORTE_STOCK_ALERTA_CRITICO).order_by(
+                "stock", "nombre"
+            )[:50]
         )
-        stock_rows = [[str(p.id), p.nombre, str(p.stock)] for p in stock_bajo]
+        stock_crit_rows = [
+            [str(p.id), p.nombre, p.categoria or "—", str(p.stock)] for p in stock_critico
+        ]
+
+        raw_cats = list(
+            DetalleVenta.objects.filter(
+                venta__fecha_venta__gte=fd,
+                venta__fecha_venta__lte=fh,
+                venta__estado__in=[Venta.Estado.ABIERTA, Venta.Estado.FACTURADA],
+            )
+            .values("producto__categoria")
+            .annotate(
+                monto=Sum(
+                    F("cantidad") * F("precio_unitario"),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                )
+            )
+        )
+        cat_map: dict[str, Decimal] = {}
+        for r in raw_cats:
+            k = (r["producto__categoria"] or "").strip() or "Sin categoría"
+            cat_map[k] = cat_map.get(k, Decimal("0")) + (r["monto"] or Decimal("0"))
+        cat_sorted = sorted(cat_map.items(), key=lambda x: x[1], reverse=True)[:12]
+        cat_labels = [a[0] for a in cat_sorted]
+        cat_vals = [float(a[1]) for a in cat_sorted]
+
+        cat_catalog_rows = list(
+            prod_f.annotate(
+                cn=Coalesce("categoria", Value("", output_field=CharField(max_length=120))),
+            )
+            .values("cn")
+            .annotate(n=Count("id"))
+            .order_by("-n")[:14]
+        )
+        dist_cat_lbl: list[str] = []
+        dist_cat_val: list[float] = []
+        for r in cat_catalog_rows:
+            lab = (r["cn"] or "").strip() or "Sin categoría"
+            dist_cat_lbl.append(lab)
+            dist_cat_val.append(float(r["n"]))
 
         graficas_prod: list[dict] = []
-        if top_vendidos:
-            t = top_vendidos[:10]
-            graficas_prod.append(
-                {
-                    "titulo": "Ranking — cantidad vendida por producto (unidades)",
-                    "tipo": "barras",
-                    "labels": [x["producto__nombre"] for x in t],
-                    "valores": [float(x["cantidad"]) for x in t],
-                }
+        cat_dom_p = (categoria or "").strip()
+        if not cat_dom_p:
+            tc_auto = (
+                Producto.objects.filter(activo=True)
+                .exclude(categoria="")
+                .values("categoria")
+                .annotate(n=Count("id"))
+                .order_by("-n")
+                .first()
             )
-            tp_pie = [x for x in top_vendidos[:6] if float(x["cantidad"] or 0) > 0]
-            if tp_pie and sum(float(x["cantidad"]) for x in tp_pie) > 0:
+            cat_dom_p = ((tc_auto or {}).get("categoria") or "").strip()
+        if cat_dom_p:
+            dm_lbl, dm_val, dm_tot = _reporte_dominio_marca_por_categoria(cat_dom_p)
+            if dm_val and sum(dm_val) > 0:
                 graficas_prod.append(
                     {
-                        "titulo": "Participación top productos (unidades)",
-                        "tipo": "pastel",
-                        "labels": [x["producto__nombre"] for x in tp_pie],
-                        "valores": [float(x["cantidad"]) for x in tp_pie],
+                        "titulo": "Dominio de marca por categoría",
+                        "tipo": "rosca_dominio_marca",
+                        "labels": dm_lbl,
+                        "valores": dm_val,
+                        "categoria_etiqueta": cat_dom_p,
+                        "total_categoria": dm_tot,
                     }
                 )
-        if stock_bajo:
-            s = stock_bajo[:8]
+        top5_vol = _reporte_top5_productos_volumen(fd, fh)
+        if top5_vol:
             graficas_prod.append(
                 {
-                    "titulo": "Nivel de stock más bajo (unidades)",
-                    "tipo": "lineas",
-                    "labels": [p.nombre for p in s],
-                    "valores": [float(p.stock) for p in s],
+                    "titulo": "Top 5 productos más vendidos (volumen)",
+                    "tipo": "radial_top5",
+                    "items": [
+                        {
+                            "nombre": r["producto__nombre"] or "—",
+                            "cantidad": int(r["cantidad"] or 0),
+                            "precio_txt": _cop_decimales(
+                                r["producto__precio_venta"]
+                                if r["producto__precio_venta"] is not None
+                                else (r["producto__costo_unitario"] or 0)
+                            ),
+                        }
+                        for r in top5_vol
+                    ],
+                }
+            )
+        if dist_cat_val and sum(dist_cat_val) > 0:
+            graficas_prod.append(
+                {
+                    "titulo": "Distribución por categoría (catálogo filtrado)",
+                    "tipo": "pastel",
+                    "labels": dist_cat_lbl,
+                    "valores": dist_cat_val,
+                }
+            )
+        if cat_vals and sum(cat_vals) > 0:
+            graficas_prod.append(
+                {
+                    "titulo": "Ventas por categoría (COP)",
+                    "tipo": "rosca",
+                    "labels": cat_labels,
+                    "valores": cat_vals,
+                }
+            )
+        if len(cat_sorted) >= 2:
+            c5 = cat_sorted[:5]
+            graficas_prod.append(
+                {
+                    "titulo": "Ranking categorías por facturación (COP)",
+                    "tipo": "barras_horizontales",
+                    "labels": [a[0] for a in c5],
+                    "valores": [float(a[1]) for a in c5],
                 }
             )
 
@@ -3642,27 +4986,37 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
                 rango_label,
                 f"Categoría: {categoria or 'Todas'}",
                 f"Marca: {marca or 'Todas'}",
+                f"Dominio marca (categoría base): {categoria or (f'{cat_dom_p} (auto)' if cat_dom_p else '—')}",
                 f"Precio min: {precio_min_raw or '—'}",
                 f"Precio max: {precio_max_raw or '—'}",
                 f"Total registros: {len(rows)}",
             ],
             "pdf_v2": {
-                "subtitulo": "Sistema de Gestión",
+                "subtitulo": "Business Intelligence — Catálogo",
                 "rango": rango_label,
+                "cajas_impacto": [
+                    ("Total (catálogo filtrado)", str(n_total_filtro)),
+                    ("Bajo stock", str(n_bajo_stock_f)),
+                    ("Agotados", str(n_agotados_f)),
+                ],
                 "kpis": [
-                    ("Total productos (catálogo)", str(Producto.objects.count())),
-                    (
-                        "Productos stock crítico (0–7 u.)",
-                        str(Producto.objects.filter(activo=True, stock__lte=STOCK_BAJO_MAX).count()),
-                    ),
-                    ("Productos en reporte", str(len(rows))),
-                    ("Categoría/Marca", f"{categoria or 'Todas'} · {marca or 'Todas'}"),
+                    ("Total SKU", str(total_sku), "sku"),
+                    ("Valor total inventario", _cop(valor_inv), "money"),
+                    ("Ticket promedio (rango)", _cop(ticket_prom), "ticket"),
                 ],
                 "graficas": graficas_prod,
                 "secciones": [
-                    ("Productos más vendidos (rango)", ["ID", "Producto", "Cantidad"], top_rows),
-                    ("Productos con bajo stock", ["ID", "Producto", "Stock"], stock_rows),
-                    ("Listado (filtros de catálogo)", ["ID", "Código", "Nombre", "Categoría", "Marca", "Precio", "Stock"], rows[:80]),
+                    ("Top 10 productos más vendidos", ["ID", "Producto", "Unidades"], top_rows),
+                    (
+                        f"Alerta — stock crítico (≤{_REPORTE_STOCK_ALERTA_CRITICO} u.)",
+                        ["ID", "Producto", "Categoría", "Stock"],
+                        stock_crit_rows,
+                    ),
+                    (
+                        "Muestra de catálogo (filtros)",
+                        ["ID", "Código", "Nombre", "Categoría", "Marca", "Precio", "Stock"],
+                        rows[:60],
+                    ),
                 ],
             },
         }
@@ -3683,35 +5037,35 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
             for u in items
         ]
 
-        nuevos = 0
+        hoy = timezone.localdate()
+        total_u = Usuario.objects.count()
         activos = Usuario.objects.filter(activo=True).count()
-        recurrentes = 0
-        top_gasto_rows: list[list[str]] = []
-        graficas_usu: list[dict] = []
-        if items:
-            ctr = Counter((u.get_rol_display() or "?") for u in items)
-            if ctr:
-                graficas_usu.append(
-                    {
-                        "titulo": "Distribución por rol (listado filtrado)",
-                        "tipo": "pastel",
-                        "labels": list(ctr.keys()),
-                        "valores": [float(v) for v in ctr.values()],
-                    }
-                )
-        if fd and fh:
-            nuevos = Usuario.objects.filter(
-                creado_en__date__gte=fd, creado_en__date__lte=fh
-            ).count()
-            recurrentes = (
-                Venta.objects.filter(fecha_venta__gte=fd, fecha_venta__lte=fh)
-                .values("usuario_id")
-                .annotate(n=Count("id"))
-                .filter(n__gte=2)
-                .count()
+        nuevos_mes = Usuario.objects.filter(creado_en__year=hoy.year, creado_en__month=hoy.month).count()
+
+        end_m = fh.replace(day=1)
+        line_labels: list[str] = []
+        line_vals: list[float] = []
+        for k in range(11, -1, -1):
+            ref = _reporte_add_months(end_m, -k)
+            y, mo = ref.year, ref.month
+            line_labels.append(f"{_MESES_CORTO[mo - 1]} {str(y)[2:]}")
+            fd_m = date(y, mo, 1)
+            fh_m = date(y, mo, monthrange(y, mo)[1])
+            line_vals.append(
+                float(Usuario.objects.filter(creado_en__date__gte=fd_m, creado_en__date__lte=fh_m).count())
             )
+
+        role_rows = list(Usuario.objects.values("rol").annotate(n=Count("id")))
+        role_lbl = dict(Usuario.Rol.choices)
+        pie_labels = [str(role_lbl.get(r["rol"], r["rol"])) for r in role_rows]
+        pie_vals = [float(r["n"]) for r in role_rows]
+
+        top_gasto: list = []
+        top_gasto_rows: list[list[str]] = []
+        if fd and fh:
             top_gasto = list(
                 Venta.objects.filter(fecha_venta__gte=fd, fecha_venta__lte=fh)
+                .exclude(estado=Venta.Estado.ANULADA)
                 .values("usuario__id", "usuario__nombres", "usuario__apellidos", "usuario__correo_electronico")
                 .annotate(total=Sum("total"), pedidos=Count("id"))
                 .order_by("-total")[:10]
@@ -3726,39 +5080,42 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
                 ]
                 for x in top_gasto
             ]
-            if top_gasto:
-                tg = top_gasto[:10]
-                graficas_usu.append(
-                    {
-                        "titulo": "Clientes con mayor gasto (COP)",
-                        "tipo": "barras",
-                        "labels": [
-                            _reporte_label_corta(
-                                f'{(x["usuario__nombres"] or "").strip()} {(x["usuario__apellidos"] or "").strip()}'.strip()
-                                or "—",
-                                12,
-                            )
-                            for x in tg
-                        ],
-                        "valores": [float(x["total"] or 0) for x in tg],
-                    }
-                )
-            nu_mes = list(
-                Usuario.objects.filter(creado_en__date__gte=fd, creado_en__date__lte=fh)
-                .annotate(m=TruncMonth("creado_en"))
-                .values("m")
-                .annotate(n=Count("id"))
-                .order_by("m")
+
+        graficas_usu: list[dict] = []
+        graficas_usu.append(
+            {
+                "titulo": "Crecimiento — nuevos usuarios por mes",
+                "tipo": "lineas",
+                "labels": line_labels,
+                "valores": line_vals,
+            }
+        )
+        if pie_vals and sum(pie_vals) > 0:
+            graficas_usu.append(
+                {
+                    "titulo": "Distribución por rol",
+                    "tipo": "pastel",
+                    "labels": pie_labels,
+                    "valores": pie_vals,
+                }
             )
-            if nu_mes:
-                graficas_usu.append(
-                    {
-                        "titulo": "Nuevos usuarios por mes (altas)",
-                        "tipo": "lineas",
-                        "labels": [x["m"].strftime("%m/%Y") if x.get("m") else "—" for x in nu_mes],
-                        "valores": [float(x["n"]) for x in nu_mes],
-                    }
-                )
+        if top_gasto:
+            tg5 = top_gasto[:5]
+            graficas_usu.append(
+                {
+                    "titulo": "Top clientes por gasto en el período (COP)",
+                    "tipo": "barras_horizontales",
+                    "labels": [
+                        _reporte_label_corta(
+                            f'{(x["usuario__nombres"] or "").strip()} {(x["usuario__apellidos"] or "").strip()}'.strip()
+                            or "—",
+                            20,
+                        )
+                        for x in tg5
+                    ],
+                    "valores": [float(x["total"] or 0) for x in tg5],
+                }
+            )
 
         return {
             "titulo": "Reporte de Usuarios",
@@ -3771,17 +5128,20 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
                 f"Total registros: {len(rows)}",
             ],
             "pdf_v2": {
-                "subtitulo": "Sistema de Gestión",
+                "subtitulo": "Business Intelligence — Usuarios",
                 "rango": rango_label,
                 "kpis": [
-                    ("Nuevos usuarios (rango)", str(nuevos)),
-                    ("Usuarios activos", str(activos)),
-                    ("Clientes recurrentes (≥2 compras)", str(recurrentes)),
-                    ("Usuarios en reporte", str(len(rows))),
+                    ("Total usuarios", str(total_u), "users"),
+                    ("Usuarios activos", str(activos), "check"),
+                    ("Nuevos (este mes)", str(nuevos_mes), "clock"),
                 ],
                 "graficas": graficas_usu,
                 "secciones": [
-                    ("Clientes con mayor gasto (rango)", ["ID", "Cliente", "Correo", "Pedidos", "Total"], top_gasto_rows),
+                    (
+                        "Top 10 clientes con mayor gasto",
+                        ["ID", "Cliente", "Correo", "Pedidos", "Total (COP)"],
+                        top_gasto_rows,
+                    ),
                     ("Listado (filtros)", ["ID", "Nombre", "Correo", "Rol", "Estado", "Documento"], rows[:100]),
                 ],
             },
@@ -3813,7 +5173,7 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
             for p in pagos
         ]
 
-        total_pagos = qs.aggregate(s=Sum("monto"))["s"] or Decimal("0")
+        recaudado = qs.filter(estado_pago=Pago.EstadoPago.APROBADO).aggregate(s=Sum("monto"))["s"] or Decimal("0")
         ok = qs.filter(estado_pago=Pago.EstadoPago.APROBADO).count()
         fail = qs.filter(estado_pago=Pago.EstadoPago.RECHAZADO).count()
         line_sub = ExpressionWrapper(
@@ -3836,28 +5196,14 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
         )
         monto_met_rows = [[_metodo_pago_label(m["metodo_pago"]), _cop(m["total"])] for m in monto_por_metodo]
 
-        lbl_estado = dict(Pago.EstadoPago.choices)
+        metodos_pie = list(
+            MedioPago.objects.filter(pago__in=qs)
+            .values("metodo_pago")
+            .annotate(n=Count("pago_id", distinct=True))
+            .order_by("-n")[:10]
+        )
+
         graficas_pg: list[dict] = []
-        est_rows = list(qs.values("estado_pago").annotate(n=Count("id")))
-        if est_rows:
-            graficas_pg.append(
-                {
-                    "titulo": "Distribución de pagos por estado",
-                    "tipo": "pastel",
-                    "labels": [str(lbl_estado.get(x["estado_pago"], x["estado_pago"])) for x in est_rows],
-                    "valores": [float(x["n"]) for x in est_rows],
-                }
-            )
-        if monto_por_metodo:
-            mm = monto_por_metodo[:8]
-            graficas_pg.append(
-                {
-                    "titulo": "Monto por método de pago (COP)",
-                    "tipo": "barras",
-                    "labels": [_metodo_pago_label(x["metodo_pago"]) for x in mm],
-                    "valores": [float(x["total"] or 0) for x in mm],
-                }
-            )
         daily_pg = list(
             qs.annotate(d=TruncDay("fecha_pago")).values("d").annotate(n=Count("id")).order_by("d")[:60]
         )
@@ -3870,6 +5216,41 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
                     "valores": [float(x["n"]) for x in daily_pg],
                 }
             )
+        if metodos_pie:
+            graficas_pg.append(
+                {
+                    "titulo": "Métodos de pago más usados",
+                    "tipo": "pastel",
+                    "labels": [_metodo_pago_label(x["metodo_pago"]) for x in metodos_pie],
+                    "valores": [float(x["n"]) for x in metodos_pie],
+                }
+            )
+        estados_pg = list(qs.values("estado_pago").annotate(n=Count("id")).order_by("-n"))
+        lbl_ep = dict(Pago.EstadoPago.choices)
+        if estados_pg:
+            graficas_pg.append(
+                {
+                    "titulo": "Pagos por estado (flujo operativo)",
+                    "tipo": "rosca",
+                    "labels": [str(lbl_ep.get(x["estado_pago"], x["estado_pago"])) for x in estados_pg],
+                    "valores": [float(x["n"]) for x in estados_pg],
+                }
+            )
+        if monto_por_metodo:
+            mm6 = monto_por_metodo[:6]
+            graficas_pg.append(
+                {
+                    "titulo": "Monto acumulado por método de pago (COP)",
+                    "tipo": "barras",
+                    "labels": [_metodo_pago_label(x["metodo_pago"]) for x in mm6],
+                    "valores": [float(x["total"] or 0) for x in mm6],
+                }
+            )
+
+        pendientes = list(qs.filter(estado_pago=Pago.EstadoPago.PENDIENTE).order_by("-fecha_pago", "-id")[:40])
+        pend_rows = [
+            [str(p.id), p.numero_factura, str(p.fecha_pago), _cop(p.monto)] for p in pendientes
+        ]
 
         return {
             "titulo": "Reporte de Pagos",
@@ -3881,26 +5262,37 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
                 f"Total registros: {len(rows)}",
             ],
             "pdf_v2": {
-                "subtitulo": "Sistema de Gestión",
+                "subtitulo": "Business Intelligence — Pagos",
                 "rango": rango_label,
                 "kpis": [
-                    ("Total pagos (COP)", _cop(total_pagos)),
-                    ("Pagos exitosos", str(ok)),
-                    ("Pagos fallidos", str(fail)),
-                    ("Métodos de pago", str(len(metodos_rows))),
+                    ("Total recaudado (aprobad.)", _cop(recaudado), "money"),
+                    ("Pagos exitosos", str(ok), "check"),
+                    ("Pagos fallidos", str(fail), "fail"),
                 ],
                 "graficas": graficas_pg,
                 "secciones": [
+                    (
+                        "Pagos pendientes por confirmar",
+                        ["ID", "Factura", "Fecha pago", "Monto (COP)"],
+                        pend_rows,
+                    ),
                     ("Métodos de pago más usados", ["Método", "Cantidad"], metodos_rows),
-                    ("Monto total por método", ["Método", "Monto (COP)"], monto_met_rows),
-                    ("Listado de pagos", ["ID", "Factura", "Fecha pago", "Estado", "Monto (COP)"], rows[:120]),
+                    ("Monto total por método (líneas)", ["Método", "Monto (COP)"], monto_met_rows),
+                    ("Listado de pagos (muestra)", ["ID", "Factura", "Fecha pago", "Estado", "Monto (COP)"], rows[:100]),
                 ],
             },
         }
 
-    # Ventas
+    # Ventas — BI v2
     estado = (request.GET.get("estado") or "").strip().lower()
-    items = list(_reporte_filtrar_ventas(estado=estado, fecha_desde=raw_desde, fecha_hasta=raw_hasta)[:1000])
+    qv = _reporte_filtrar_ventas(estado=estado, fecha_desde=raw_desde, fecha_hasta=raw_hasta)
+    qv_na = qv.exclude(estado=Venta.Estado.ANULADA)
+    ag = qv_na.aggregate(s=Sum("total"), n=Count("id"))
+    total_ventas = ag["s"] or Decimal("0")
+    pedidos = int(ag["n"] or 0)
+    ticket = (total_ventas / pedidos) if pedidos else Decimal("0")
+
+    items = list(qv[:1000])
     rows = [
         [
             str(v.id),
@@ -3912,111 +5304,154 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
         for v in items
     ]
 
-    total_ventas = sum((v.total for v in items), Decimal("0"))
-    pedidos = len(items)
-    ticket = (total_ventas / pedidos) if pedidos else Decimal("0")
+    categoria_ventas = (request.GET.get("categoria") or "").strip()
+    cat_dom_v = categoria_ventas
+    if not cat_dom_v and fd and fh:
+        cat_dom_v = _reporte_top_categoria_ventas(fd, fh)
 
-    ventas_por_dia_rows: list[list[str]] = []
-    ventas_por_semana_rows: list[list[str]] = []
-    ventas_por_mes_rows: list[list[str]] = []
-    top_prod_rows: list[list[str]] = []
-    top_cli_rows: list[list[str]] = []
     graficas_v: list[dict] = []
-    if fd and fh:
-        ventas_por_dia = list(
-            Venta.objects.filter(fecha_venta__gte=fd, fecha_venta__lte=fh)
-            .values("fecha_venta")
-            .annotate(total=Sum("total"), pedidos=Count("id"))
-            .order_by("fecha_venta")[:120]
+    top5_v = _reporte_top5_productos_volumen(fd, fh) if fd and fh else []
+    if top5_v:
+        graficas_v.append(
+            {
+                "titulo": "Top 5 productos más vendidos (volumen)",
+                "tipo": "radial_top5",
+                "items": [
+                    {
+                        "nombre": r["producto__nombre"] or "—",
+                        "cantidad": int(r["cantidad"] or 0),
+                        "precio_txt": _cop_decimales(
+                            r["producto__precio_venta"]
+                            if r["producto__precio_venta"] is not None
+                            else (r["producto__costo_unitario"] or 0)
+                        ),
+                    }
+                    for r in top5_v
+                ],
+            }
         )
-        ventas_por_dia_rows = [
-            [str(x["fecha_venta"]), str(x["pedidos"]), _cop(x["total"])] for x in ventas_por_dia
-        ]
-        ventas_por_semana = list(
-            Venta.objects.filter(fecha_venta__gte=fd, fecha_venta__lte=fh)
-            .annotate(periodo=TruncWeek("fecha_venta"))
-            .values("periodo")
-            .annotate(total=Sum("total"), pedidos=Count("id"))
-            .order_by("periodo")[:52]
-        )
-        ventas_por_semana_rows = [
-            [
-                x["periodo"].strftime("%d/%m/%Y") if x.get("periodo") else "—",
-                str(x["pedidos"]),
-                _cop(x["total"]),
-            ]
-            for x in ventas_por_semana
-        ]
-        ventas_por_mes = list(
-            Venta.objects.filter(fecha_venta__gte=fd, fecha_venta__lte=fh)
-            .annotate(periodo=TruncMonth("fecha_venta"))
-            .values("periodo")
-            .annotate(total=Sum("total"), pedidos=Count("id"))
-            .order_by("periodo")[:36]
-        )
-        ventas_por_mes_rows = [
-            [
-                x["periodo"].strftime("%m/%Y") if x.get("periodo") else "—",
-                str(x["pedidos"]),
-                _cop(x["total"]),
-            ]
-            for x in ventas_por_mes
-        ]
-        top_prod = list(
-            DetalleVenta.objects.filter(venta__fecha_venta__gte=fd, venta__fecha_venta__lte=fh)
-            .values("producto__id", "producto__nombre")
-            .annotate(cantidad=Sum("cantidad"))
-            .order_by("-cantidad")[:10]
-        )
-        top_prod_rows = [[str(x["producto__id"]), x["producto__nombre"], str(x["cantidad"])] for x in top_prod]
-        top_cli = list(
-            Venta.objects.filter(fecha_venta__gte=fd, fecha_venta__lte=fh)
-            .values("usuario__id", "usuario__nombres", "usuario__apellidos", "usuario__correo_electronico")
-            .annotate(total=Sum("total"), pedidos=Count("id"))
-            .order_by("-total")[:10]
-        )
-        top_cli_rows = [
-            [
-                str(x["usuario__id"]),
-                f'{(x["usuario__nombres"] or "").strip()} {(x["usuario__apellidos"] or "").strip()}'.strip(),
-                x["usuario__correo_electronico"] or "—",
-                str(x["pedidos"]),
-                _cop(x["total"]),
-            ]
-            for x in top_cli
-        ]
-
-        if ventas_por_dia:
-            vd = ventas_por_dia[-25:]
-            lab_d = [x["fecha_venta"].strftime("%d/%m") if x.get("fecha_venta") else "—" for x in vd]
-            val_d = [float(x["total"] or 0) for x in vd]
-            graficas_v.append(
-                {"titulo": "Ventas diarias (COP)", "tipo": "barras", "labels": lab_d, "valores": val_d}
-            )
-            graficas_v.append(
-                {"titulo": "Tendencia de ventas diarias (COP)", "tipo": "lineas", "labels": lab_d, "valores": val_d}
-            )
-        if ventas_por_mes:
-            vm = ventas_por_mes[-12:]
+    if cat_dom_v:
+        dvl, dvv, dvt = _reporte_dominio_marca_por_categoria(cat_dom_v)
+        if dvv and sum(dvv) > 0:
             graficas_v.append(
                 {
-                    "titulo": "Ventas por mes (COP)",
-                    "tipo": "lineas",
-                    "labels": [x["periodo"].strftime("%m/%Y") if x.get("periodo") else "—" for x in vm],
-                    "valores": [float(x["total"] or 0) for x in vm],
+                    "titulo": "Dominio de marca por categoría",
+                    "tipo": "rosca_dominio_marca",
+                    "labels": dvl,
+                    "valores": dvv,
+                    "categoria_etiqueta": cat_dom_v,
+                    "total_categoria": dvt,
                 }
             )
-        if top_prod:
-            tp_chart = [x for x in top_prod[:6] if float(x["cantidad"] or 0) > 0]
-            if tp_chart:
-                graficas_v.append(
-                    {
-                        "titulo": "Participación top productos (unidades)",
-                        "tipo": "pastel",
-                        "labels": [x["producto__nombre"] for x in tp_chart],
-                        "valores": [float(x["cantidad"]) for x in tp_chart],
-                    }
+
+    if fd and fh:
+        end_m = fh.replace(day=1)
+        yoy_labels: list[str] = []
+        cur_serie: list[float] = []
+        prev_serie: list[float] = []
+        for k in range(11, -1, -1):
+            ref = _reporte_add_months(end_m, -k)
+            y, mo = ref.year, ref.month
+            yoy_labels.append(f"{_MESES_CORTO[mo - 1]} {str(y)[2:]}")
+            fd_c = date(y, mo, 1)
+            fh_c = date(y, mo, monthrange(y, mo)[1])
+            cur_serie.append(
+                float(
+                    Venta.objects.filter(fecha_venta__gte=fd_c, fecha_venta__lte=fh_c)
+                    .exclude(estado=Venta.Estado.ANULADA)
+                    .aggregate(s=Sum("total"))["s"]
+                    or 0
                 )
+            )
+            py, pm = y - 1, mo
+            fd_p = date(py, pm, 1)
+            fh_p = date(py, pm, monthrange(py, pm)[1])
+            prev_serie.append(
+                float(
+                    Venta.objects.filter(fecha_venta__gte=fd_p, fecha_venta__lte=fh_p)
+                    .exclude(estado=Venta.Estado.ANULADA)
+                    .aggregate(s=Sum("total"))["s"]
+                    or 0
+                )
+            )
+        graficas_v.append(
+            {
+                "titulo": "Ingresos mensuales vs año anterior (COP)",
+                "tipo": "lineas_area_multiserie",
+                "labels": yoy_labels,
+                "series": [
+                    {"label": "Año actual", "valores": cur_serie},
+                    {"label": "Año anterior", "valores": prev_serie},
+                ],
+            }
+        )
+
+        est_pairs = list(
+            Venta.objects.filter(
+                fecha_venta__gte=fd,
+                fecha_venta__lte=fh,
+                estado__in=[Venta.Estado.ABIERTA, Venta.Estado.FACTURADA],
+            )
+            .values("estado")
+            .annotate(n=Count("id"))
+        )
+        est_lbl = dict(Venta.Estado.choices)
+        donut_lbl = [str(est_lbl.get(x["estado"], x["estado"])) for x in est_pairs]
+        donut_vals = [float(x["n"]) for x in est_pairs]
+        if donut_vals and sum(donut_vals) > 0:
+            graficas_v.append(
+                {
+                    "titulo": "Ventas por estado (Abierta / Facturada)",
+                    "tipo": "rosca",
+                    "labels": donut_lbl,
+                    "valores": donut_vals,
+                }
+            )
+
+        labd: list[str] = []
+        valsd: list[float] = []
+        for i in range(13, -1, -1):
+            d0 = fh - timedelta(days=i)
+            if fd and d0 < fd:
+                continue
+            labd.append(d0.strftime("%d/%m"))
+            valsd.append(
+                float(
+                    Venta.objects.filter(fecha_venta=d0)
+                    .exclude(estado=Venta.Estado.ANULADA)
+                    .aggregate(s=Sum("total"))["s"]
+                    or 0
+                )
+            )
+        if labd:
+            graficas_v.append(
+                {
+                    "titulo": "Ingresos diarios — ventana móvil 14 días (COP)",
+                    "tipo": "lineas",
+                    "labels": labd,
+                    "valores": valsd,
+                }
+            )
+
+    ultimas = list(qv.order_by("-fecha_venta", "-id")[:20])
+    ultimas_rows = [
+        [
+            str(v.id),
+            f"{v.usuario.nombres} {v.usuario.apellidos}".strip() if v.usuario_id else "—",
+            str(v.fecha_venta),
+            v.get_estado_display(),
+            _cop(v.total),
+        ]
+        for v in ultimas
+    ]
+
+    _hero_im = next(
+        (i for i, g in enumerate(graficas_v) if "Ingresos mensuales" in (g.get("titulo") or "")),
+        None,
+    )
+    if _hero_im is not None and _hero_im > 0:
+        _g = graficas_v.pop(_hero_im)
+        graficas_v.insert(0, _g)
 
     return {
         "titulo": "Reporte de Ventas",
@@ -4025,25 +5460,25 @@ def _reporte_dataset_from_request(request, tipo: str) -> dict:
         "filtros": [
             rango_label,
             f"Estado: {estado or 'Todos'}",
+            f"Categoría (dominio marca): {categoria_ventas or (f'Automática ({cat_dom_v})' if cat_dom_v else '—')}",
             f"Total registros: {len(rows)}",
         ],
         "pdf_v2": {
-            "subtitulo": "Sistema de Gestión",
+            "subtitulo": "Business Intelligence — Ventas",
             "rango": rango_label,
             "kpis": [
-                ("Total ventas (COP)", _cop(total_ventas)),
-                ("Número de pedidos", str(pedidos)),
-                ("Ticket promedio (COP)", _cop(ticket)),
-                ("Productos top", str(len(top_prod_rows))),
+                ("Total ingresos (COP)", _cop(total_ventas), "money"),
+                ("Total ventas", str(pedidos), "chart"),
+                ("Ticket promedio (COP)", _cop(ticket), "ticket"),
             ],
             "graficas": graficas_v,
             "secciones": [
-                ("Ventas por día", ["Fecha", "Pedidos", "Monto (COP)"], ventas_por_dia_rows),
-                ("Ventas por semana", ["Inicio semana", "Pedidos", "Monto (COP)"], ventas_por_semana_rows),
-                ("Ventas por mes", ["Mes", "Pedidos", "Monto (COP)"], ventas_por_mes_rows),
-                ("Productos más vendidos", ["ID", "Producto", "Cantidad"], top_prod_rows),
-                ("Clientes que más compraron", ["ID", "Cliente", "Correo", "Pedidos", "Total (COP)"], top_cli_rows),
-                ("Listado de ventas", ["ID", "Cliente", "Fecha", "Estado", "Total (COP)"], rows[:120]),
+                ("Últimas 20 ventas realizadas", ["ID", "Cliente", "Fecha", "Estado", "Total (COP)"], ultimas_rows),
+                (
+                    "Listado filtrado (muestra)",
+                    ["ID", "Cliente", "Fecha", "Estado", "Total (COP)"],
+                    rows[:80],
+                ),
             ],
         },
     }
@@ -4115,6 +5550,71 @@ def admin_reportes(request):
         )
         ventas_por_mes.append({"mes": ref.strftime("%b %Y"), "total": total_mes})
 
+    # —— Dashboard: línea 12 meses + rosca categorías + tablas compactas ——
+    dash_line_labels: list[str] = []
+    dash_line_values: list[float] = []
+    end_m_dash = hoy.replace(day=1)
+    for k in range(11, -1, -1):
+        ref_m = _reporte_add_months(end_m_dash, -k)
+        y_m, mo_m = ref_m.year, ref_m.month
+        dash_line_labels.append(f"{_MESES_CORTO[mo_m - 1]} '{str(y_m)[2:]}")
+        tot_m = (
+            Venta.objects.filter(fecha_venta__year=y_m, fecha_venta__month=mo_m)
+            .exclude(estado=Venta.Estado.ANULADA)
+            .aggregate(s=Sum("total"))["s"]
+            or Decimal("0")
+        )
+        dash_line_values.append(float(tot_m))
+    dpc_list = list(productos_por_categoria)
+    if dpc_list:
+        dash_donut_labels = [str(x["categoria"]) for x in dpc_list]
+        dash_donut_values = [float(x["total"]) for x in dpc_list]
+    else:
+        n_sin = Producto.objects.filter(categoria="").count()
+        n_tot = Producto.objects.count()
+        dash_donut_labels = ["Sin categoría"] if n_sin else ["Catálogo"]
+        dash_donut_values = [float(n_sin or n_tot or 1)]
+
+    top5_dashboard = list(
+        DetalleVenta.objects.filter(
+            venta__fecha_venta__gte=fd,
+            venta__fecha_venta__lte=fh,
+            venta__estado__in=[Venta.Estado.ABIERTA, Venta.Estado.FACTURADA],
+        )
+        .values("producto__nombre")
+        .annotate(cantidad=Sum("cantidad"))
+        .order_by("-cantidad")[:5]
+    )
+    stock_critico_dashboard = list(
+        Producto.objects.filter(activo=True, stock__lte=_REPORTE_STOCK_ALERTA_CRITICO).order_by(
+            "stock", "nombre"
+        )[:5]
+    )
+
+    _rq: dict[str, str] = {"fechaDesde": fecha_desde, "fechaHasta": fecha_hasta}
+    if tipo == "productos":
+        if categoria:
+            _rq["categoria"] = categoria
+        if marca:
+            _rq["marca"] = marca
+        if precio_min_raw:
+            _rq["precioMin"] = precio_min_raw
+        if precio_max_raw:
+            _rq["precioMax"] = precio_max_raw
+    elif tipo == "usuarios":
+        if rol:
+            _rq["rol"] = rol
+        if busqueda:
+            _rq["busqueda"] = busqueda
+    elif tipo == "ventas":
+        if estado:
+            _rq["estado"] = estado
+        if categoria:
+            _rq["categoria"] = categoria
+    elif tipo == "pagos" and estado_pago:
+        _rq["estadoPago"] = estado_pago
+    reportes_action_query = urllib_parse.urlencode(_rq)
+
     ctx = {
         "usuario": usuario,
         "tipo": tipo,
@@ -4142,10 +5642,17 @@ def admin_reportes(request):
         "usuarios_por_rol": usuarios_por_rol,
         "productos_por_categoria": list(productos_por_categoria),
         "ventas_por_mes": ventas_por_mes,
-        "preview_productos": list(productos_qs[:50]),
-        "preview_usuarios": list(usuarios_qs[:50]),
-        "preview_ventas": list(ventas_qs[:50]),
-        "preview_pagos": list(pagos_qs[:50]),
+        "preview_productos": list(productos_qs[:15]),
+        "preview_usuarios": list(usuarios_qs[:15]),
+        "preview_ventas": list(ventas_qs[:15]),
+        "preview_pagos": list(pagos_qs[:15]),
+        "dash_charts_dict": {
+            "line": {"labels": dash_line_labels, "data": dash_line_values},
+            "donut": {"labels": dash_donut_labels, "data": dash_donut_values},
+        },
+        "top5_dashboard": top5_dashboard,
+        "stock_critico_dashboard": stock_critico_dashboard,
+        "reportes_action_query": reportes_action_query,
     }
     return render(request, "frontend/admin/reportes.html", ctx)
 
@@ -4158,6 +5665,9 @@ def admin_reportes_preview(request, tipo: str):
     except ValueError:
         messages.error(request, "Tipo de reporte no válido.")
         return redirect("web_admin_reportes")
+    pdf_v2 = data.get("pdf_v2") or {}
+    kpi_items = [_reporte_norm_kpi_item(x) for x in (pdf_v2.get("kpis") or [])]
+    charts_json = json.dumps(pdf_v2.get("graficas") or [], ensure_ascii=False)
     return render(
         request,
         "frontend/admin/reportes_preview.html",
@@ -4167,18 +5677,22 @@ def admin_reportes_preview(request, tipo: str):
             "headers": data["headers"],
             "rows": data["rows"],
             "filtros": data["filtros"],
-            "pdf_v2": data.get("pdf_v2") or {},
+            "pdf_v2": pdf_v2,
+            "kpi_items": kpi_items,
+            "charts_json": charts_json,
         },
     )
 
 
 @_admin_login_required
 def admin_reportes_pdf(request, tipo: str):
-    _admin_usuario_sesion(request)
+    usuario = _admin_usuario_sesion(request)
     tipo = (tipo or "").strip().lower()
     if tipo not in {"productos", "usuarios", "ventas", "pagos"}:
         messages.error(request, "Tipo de reporte no válido.")
         return redirect("web_admin_reportes")
+
+    generado_por = f"{usuario.nombres} {usuario.apellidos}".strip() or usuario.correo_electronico
 
     try:
         data = _reporte_dataset_from_request(request, tipo)
@@ -4190,6 +5704,8 @@ def admin_reportes_pdf(request, tipo: str):
             kpis=list(v2.get("kpis") or []),
             secciones=list(v2.get("secciones") or []),
             graficas=list(v2.get("graficas") or []),
+            generado_por=generado_por,
+            cajas_impacto=list(v2.get("cajas_impacto") or []),
         )
     except RuntimeError:
         messages.error(
@@ -4201,6 +5717,12 @@ def admin_reportes_pdf(request, tipo: str):
     filename = f"reporte_{tipo}_{timezone.localtime().strftime('%Y%m%d_%H%M%S')}.pdf"
     response = HttpResponse(pdf, content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    try:
+        from web.reporte_pdf_graficas import REPORTE_PDF_GRAFICAS_BUILD
+
+        response["X-TechNova-Pdf-Graficas"] = REPORTE_PDF_GRAFICAS_BUILD
+    except Exception:  # noqa: BLE001
+        pass
     return response
 
 
@@ -4943,8 +6465,9 @@ def atencion_cliente(request):
             "id": t.get("id"),
             "tema": t.get("tema") or "",
             "descripcion": t.get("descripcion") or "",
-            "fechaConsulta": t.get("fecha_consulta") or t.get("fechaConsulta"),
+            "fechaConsulta": t.get("fechaConsulta") or t.get("fecha_consulta"),
             "respuesta": t.get("respuesta") or "",
+            "estado": (t.get("estado") or "").strip().lower(),
         }
         for t in (tickets_raw or [])
     ]

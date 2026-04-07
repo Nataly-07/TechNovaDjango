@@ -1,0 +1,190 @@
+{% extends "frontend/empleado/base_empleado.html" %}
+{% load static %}
+{% block head_title %}Mensajes — Technova{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'frontend/css/mensajes-spring.css' %}?v=1">
+{% endblock %}
+{% block empleado_content %}
+<div class="mensajes-container">
+  <div class="header-banner">
+    <h1><i class="bx bx-message"></i> Mensajes</h1>
+    <p>Gestiona tus mensajes con el administrador</p>
+  </div>
+
+  <div class="tabs-container">
+    <div class="tabs-header">
+      <button type="button" class="tab-button active" data-tab="mensajes">
+        <i class="bx bx-message"></i> Mensajes
+      </button>
+      <button type="button" class="tab-button" data-tab="reclamos">
+        <i class="bx bx-error-circle"></i> Reclamos
+      </button>
+    </div>
+
+    <div id="tabMensajes" class="tab-content active">
+      <div class="chat-container">
+        <div class="conversaciones-list">
+          <div class="conversaciones-header">
+            <h3><i class="bx bx-message-rounded"></i> Conversaciones</h3>
+          </div>
+          {% if conversaciones_list %}
+          {% for row in conversaciones_list %}
+          <div class="conversacion-item{% if conversacion_id == row.admin_id %} active{% endif %}"
+               data-conversacion-key="{{ row.admin_id }}">
+            <div class="conversacion-avatar">{{ row.inicial }}</div>
+            <div class="conversacion-info">
+              <div class="conversacion-nombre">{{ row.nombre }}</div>
+              <div class="conversacion-preview">
+                {% if row.lista.0 %}{{ row.lista.0.asunto|default:"Sin mensajes" }}{% else %}Sin mensajes{% endif %}
+              </div>
+            </div>
+            <div class="conversacion-meta">
+              {% if row.lista.0 %}
+              <div class="conversacion-fecha">{{ row.lista.0.creado_en|date:"d/m H:i" }}</div>
+              {% endif %}
+              {% if row.no_leidos > 0 %}
+              <div class="no-leido-badge">{{ row.no_leidos }}</div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+          {% else %}
+          <div style="padding: 40px 20px; text-align: center; color: #94a3b8;">
+            <i class="bx bx-inbox" style="font-size: 3rem; opacity: 0.5; margin-bottom: 10px; display: block;"></i>
+            <p>No hay conversaciones</p>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="chat-area">
+          {% if conversacion_id %}
+          <div class="chat-header">
+            <div class="chat-header-avatar">
+              {% if admin_conversacion %}{{ admin_conversacion.nombres|slice:":1"|upper }}{% else %}A{% endif %}
+            </div>
+            <div class="chat-header-info">
+              <h3>
+                {% if admin_conversacion %}
+                  {{ admin_conversacion.nombres }} {{ admin_conversacion.apellidos }}
+                {% else %}
+                  Administrador
+                {% endif %}
+              </h3>
+            </div>
+          </div>
+          <div class="chat-messages" id="chatMessages">
+            {% for mensaje in mensajes_conversacion %}
+            <div class="message {% if mensaje.tipoRemitente == 'admin' %}received{% else %}sent{% endif %}">
+              <div class="message-bubble">{{ mensaje.mensaje }}</div>
+              <div class="message-time">{{ mensaje.createdAt|date:"d/m/Y H:i" }}</div>
+            </div>
+            {% empty %}
+            {% endfor %}
+          </div>
+          <div class="chat-input-area">
+            <form class="chat-input-form" id="formEnviarMensaje">
+              {% csrf_token %}
+              <input type="text" class="chat-input" id="mensajeInput" placeholder="Escribe un mensaje..." required>
+              <button type="submit" class="btn-send"><i class="bx bx-send"></i> Enviar</button>
+            </form>
+          </div>
+          {% else %}
+          <div class="empty-chat">
+            <i class="bx bx-message-rounded-dots"></i>
+            <h3>Selecciona una conversación</h3>
+            <p>Elige una conversación de la lista para comenzar a chatear</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div id="tabReclamos" class="tab-content">
+      <div style="padding: 60px 20px; text-align: center; color: #7f8c8d;">
+        <i class="bx bx-error-circle" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.5; display: block;"></i>
+        <h3>Reclamos</h3>
+        <p>Usa el módulo Reclamos del panel para gestionar tus tickets.</p>
+        <p><a href="{% url 'web_empleado_seccion' seccion='reclamos' %}">Ir a Reclamos</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var datosIniciales = {
+    usuarioId: {{ usuario.id }},
+    conversacionId: {% if conversacion_id %}{{ conversacion_id }}{% else %}null{% endif %},
+    csrfToken: "{{ csrf_token }}"
+  };
+  function getCookie(name) {
+    var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? decodeURIComponent(v[2]) : null;
+  }
+  function mostrarTab(tab, el) {
+    document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+    document.querySelectorAll('.tab-button').forEach(function(b) { b.classList.remove('active'); });
+    var map = { mensajes: 'Mensajes', reclamos: 'Reclamos' };
+    var tid = 'tab' + (map[tab] || (tab.charAt(0).toUpperCase() + tab.slice(1)));
+    var te = document.getElementById(tid);
+    if (te) te.classList.add('active');
+    if (el) el.classList.add('active');
+  }
+  function abrirConversacion(id) {
+    window.location.href = '/empleado/mensajes?conversacionId=' + id;
+  }
+  function enviarMensaje(ev) {
+    ev.preventDefault();
+    var texto = document.getElementById('mensajeInput');
+    if (!texto || !texto.value.trim()) return;
+    if (!datosIniciales.conversacionId) {
+      alert('Selecciona una conversación');
+      return;
+    }
+    var headers = {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': datosIniciales.csrfToken || getCookie('csrftoken'),
+      'X-Requested-With': 'XMLHttpRequest'
+    };
+    fetch('/api/mensajes-empleado', {
+      method: 'POST',
+      headers: headers,
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        empleadoId: datosIniciales.usuarioId,
+        remitenteId: datosIniciales.conversacionId,
+        tipoRemitente: 'empleado',
+        asunto: 'Mensaje',
+        mensaje: texto.value.trim(),
+        tipo: 'general',
+        prioridad: 'normal'
+      })
+    }).then(function(r) {
+      if (!r.ok) return r.text().then(function(t) { throw new Error(t); });
+      return r.json();
+    }).then(function() {
+      texto.value = '';
+      location.reload();
+    }).catch(function(e) {
+      console.error(e);
+      alert('Error al enviar: ' + e.message);
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.conversacion-item[data-conversacion-key]').forEach(function(item) {
+      item.addEventListener('click', function() {
+        var id = this.getAttribute('data-conversacion-key');
+        if (id) abrirConversacion(id);
+      });
+    });
+    document.querySelectorAll('.tab-button[data-tab]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        mostrarTab(this.getAttribute('data-tab'), this);
+      });
+    });
+    var f = document.getElementById('formEnviarMensaje');
+    if (f) f.addEventListener('submit', enviarMensaje);
+    var cm = document.getElementById('chatMessages');
+    if (cm) cm.scrollTop = 0;
+  });
+</script>
+{% endblock %}

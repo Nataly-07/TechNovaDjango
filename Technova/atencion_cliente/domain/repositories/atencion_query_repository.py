@@ -47,3 +47,7 @@ class AtencionQueryPort(ABC):
     @abstractmethod
     def evaluar_resolucion_reclamo(self, reclamo_id: int, evaluacion: str) -> dict | None:
         raise NotImplementedError
+
+    @abstractmethod
+    def asignar_reclamo_a_empleado(self, reclamo_id: int, empleado_usuario_id: int) -> dict | None:
+        raise NotImplementedError

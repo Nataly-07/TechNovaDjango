@@ -1,16 +1,11 @@
 """
-ASGI config for Technova project.
-
-It exposes the ASGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/6.0/howto/deployment/asgi/
+ASGI: solo HTTP (Django). El módulo Mensajes usa POST + recarga como en Spring Boot.
 """
 
 import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Technova.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Technova.settings")
 
 application = get_asgi_application()

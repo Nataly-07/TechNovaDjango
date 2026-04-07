@@ -1,0 +1,354 @@
+{% extends "frontend/base_admin.html" %}
+{% load static %}
+{% block title %}Mensajes — Technova{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'frontend/css/mensajes-spring.css' %}?v=1">
+{% endblock %}
+{% block content %}
+<div class="mensajes-container">
+  <div class="header-banner">
+    <h1><i class="bx bx-message"></i> Mensajes</h1>
+    <p>Gestiona los mensajes con los empleados</p>
+  </div>
+
+  <div class="tabs-container">
+    <div class="tabs-header">
+      <button type="button" class="tab-button active" data-tab="mensajes">
+        <i class="bx bx-message"></i> Mensajes
+      </button>
+      <button type="button" class="tab-button" data-tab="reclamos">
+        <i class="bx bx-error-circle"></i> Reclamos
+      </button>
+    </div>
+
+    <div id="tabMensajes" class="tab-content active">
+      <div class="chat-container">
+        <div class="conversaciones-list">
+          <div class="conversaciones-header">
+            <h3><i class="bx bx-message-rounded"></i> Conversaciones</h3>
+            <button type="button" class="btn-nuevo-mensaje" id="btnNuevoMensaje">
+              <i class="bx bx-plus"></i> Nuevo
+            </button>
+          </div>
+          {% if conversaciones_list %}
+          {% for row in conversaciones_list %}
+          <div class="conversacion-item{% if conversacion_id == row.empleado_id %} active{% endif %}"
+               data-conversacion-key="{{ row.empleado_id }}">
+            <div class="conversacion-avatar">{{ row.inicial }}</div>
+            <div class="conversacion-info">
+              <div class="conversacion-nombre">{{ row.nombre }}</div>
+              <div class="conversacion-preview">
+                {% if row.lista.0 %}{{ row.lista.0.asunto|default:"Sin mensajes" }}{% else %}Sin mensajes{% endif %}
+              </div>
+            </div>
+            <div class="conversacion-meta">
+              {% if row.lista.0 %}
+              <div class="conversacion-fecha">{{ row.lista.0.creado_en|date:"d/m H:i" }}</div>
+              {% endif %}
+              {% if row.no_leidos > 0 %}
+              <div class="no-leido-badge">{{ row.no_leidos }}</div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+          {% else %}
+          <div style="padding: 40px 20px; text-align: center; color: #94a3b8;">
+            <i class="bx bx-inbox" style="font-size: 3rem; opacity: 0.5; margin-bottom: 10px; display: block;"></i>
+            <p>No hay conversaciones</p>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="chat-area">
+          {% if conversacion_id %}
+          <div class="chat-header">
+            <div class="chat-header-avatar">
+              {% if empleado_conversacion %}{{ empleado_conversacion.nombres|slice:":1"|upper }}{% else %}E{% endif %}
+            </div>
+            <div class="chat-header-info">
+              <h3>
+                {% if empleado_conversacion %}
+                  {{ empleado_conversacion.nombres }} {{ empleado_conversacion.apellidos }}
+                {% else %}
+                  Empleado #{{ conversacion_id }}
+                {% endif %}
+              </h3>
+            </div>
+          </div>
+          <div class="chat-messages" id="chatMessages">
+            {% for mensaje in mensajes_conversacion %}
+            <div class="message {% if mensaje.tipoRemitente == 'admin' %}sent{% else %}received{% endif %}">
+              <div class="message-bubble">{{ mensaje.mensaje }}</div>
+              <div class="message-time">{{ mensaje.createdAt|date:"d/m/Y H:i" }}</div>
+            </div>
+            {% empty %}
+            {% endfor %}
+          </div>
+          <div class="chat-input-area">
+            <form class="chat-input-form" id="formEnviarMensajeChat">
+              {% csrf_token %}
+              <input type="text" class="chat-input" id="mensajeInput" placeholder="Escribe un mensaje..." required>
+              <button type="submit" class="btn-send"><i class="bx bx-send"></i> Enviar</button>
+            </form>
+          </div>
+          {% else %}
+          <div class="empty-chat">
+            <i class="bx bx-message-rounded-dots"></i>
+            <h3>Selecciona una conversación</h3>
+            <p>Elige una conversación de la lista o crea un nuevo mensaje</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div id="tabReclamos" class="tab-content">
+      <div style="padding: 20px;">
+        <h2 style="margin: 0 0 20px 0; color: #2c3e50; display: flex; align-items: center; gap: 10px;">
+          <i class="bx bx-error-circle"></i> Reclamos enviados por empleados
+        </h2>
+        {% if reclamos_empleados %}
+        <div style="display: grid; gap: 15px;">
+          {% for reclamo in reclamos_empleados %}
+          <div class="reclamo-card"
+               style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer;"
+               data-reclamo-id-value="{{ reclamo.id }}">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+              <div style="flex: 1;">
+                <h3 style="margin: 0 0 8px 0; color: #2c3e50; font-size: 1.1rem;">{{ reclamo.titulo|default:"Sin título" }}</h3>
+                <p style="margin: 0; color: #718096; font-size: 0.9rem;">{{ reclamo.descripcion|default:"" }}</p>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                <span class="reclamo-status">{{ reclamo.estado|default:""|capfirst }}</span>
+                <span class="reclamo-prioridad">{{ reclamo.prioridad|default:""|capfirst }}</span>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 0.85rem;">
+              <span><i class="bx bx-calendar"></i> {{ reclamo.fechaReclamo|date:"d/m/Y H:i" }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="padding: 60px 20px; text-align: center; color: #7f8c8d; background: white; border-radius: 12px;">
+          <i class="bx bx-inbox" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.5; display: block;"></i>
+          <h3>No hay reclamos</h3>
+          <p>No hay reclamos enviados por empleados en este momento.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modalNuevoMensaje" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3><i class="bx bx-message-add"></i> Nuevo mensaje</h3>
+      <button type="button" onclick="cerrarModalNuevoMensaje()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #94a3b8;">
+        <i class="bx bx-x"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form id="formNuevoMensaje" onsubmit="crearNuevoMensaje(event)">
+        {% csrf_token %}
+        <div class="form-group">
+          <label for="empleadoSelect">Empleado</label>
+          <select id="empleadoSelect" required>
+            <option value="">-- Selecciona --</option>
+            {% for e in empleados %}
+            <option value="{{ e.id }}">{{ e.nombres }} {{ e.apellidos }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="asuntoInput">Asunto</label>
+          <input type="text" id="asuntoInput" required placeholder="Asunto del mensaje">
+        </div>
+        <div class="form-group">
+          <label for="mensajeTextarea">Mensaje</label>
+          <textarea id="mensajeTextarea" rows="4" required placeholder="Escribe tu mensaje..."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="prioridadSelect">Prioridad</label>
+          <select id="prioridadSelect" required>
+            <option value="normal">Normal</option>
+            <option value="alta">Alta</option>
+            <option value="urgente">Urgente</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-modal btn-secondary" onclick="cerrarModalNuevoMensaje()">Cancelar</button>
+          <button type="submit" class="btn-modal btn-primary">Enviar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="modalReclamo" class="reclamo-modal">
+  <div class="reclamo-modal-content">
+    <div class="reclamo-modal-header">
+      <h3><i class="bx bx-error-circle"></i> Detalle de reclamo</h3>
+      <button type="button" onclick="cerrarModalReclamo()" style="background: none; border: none; color: white; font-size: 28px; cursor: pointer;">
+        <i class="bx bx-x"></i>
+      </button>
+    </div>
+    <div class="reclamo-modal-body" id="reclamoModalBody"></div>
+  </div>
+</div>
+
+<script>
+  var datosIniciales = {
+    usuarioId: {{ usuario.id }},
+    conversacionId: {% if conversacion_id %}{{ conversacion_id }}{% else %}null{% endif %},
+    csrfToken: "{{ csrf_token }}"
+  };
+  function getCookie(name) {
+    var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? decodeURIComponent(v[2]) : null;
+  }
+  function mostrarTab(tab, el) {
+    document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+    document.querySelectorAll('.tab-button').forEach(function(b) { b.classList.remove('active'); });
+    var map = { mensajes: 'Mensajes', reclamos: 'Reclamos' };
+    var tid = 'tab' + (map[tab] || (tab.charAt(0).toUpperCase() + tab.slice(1)));
+    var te = document.getElementById(tid);
+    if (te) te.classList.add('active');
+    if (el) el.classList.add('active');
+  }
+  function abrirConversacion(id) {
+    window.location.href = '/admin/mensajes?conversacionId=' + id;
+  }
+  function abrirModalNuevoMensaje() {
+    document.getElementById('modalNuevoMensaje').classList.add('active');
+  }
+  function cerrarModalNuevoMensaje() {
+    document.getElementById('modalNuevoMensaje').classList.remove('active');
+    var f = document.getElementById('formNuevoMensaje');
+    if (f) f.reset();
+  }
+  function enviarMensajeApi(body) {
+    var headers = {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': datosIniciales.csrfToken || getCookie('csrftoken'),
+      'X-Requested-With': 'XMLHttpRequest'
+    };
+    return fetch('/api/mensajes-empleado', {
+      method: 'POST',
+      headers: headers,
+      credentials: 'same-origin',
+      body: JSON.stringify(body)
+    });
+  }
+  function crearNuevoMensaje(ev) {
+    ev.preventDefault();
+    var empleadoId = parseInt(document.getElementById('empleadoSelect').value, 10);
+    var asunto = document.getElementById('asuntoInput').value.trim();
+    var mensaje = document.getElementById('mensajeTextarea').value.trim();
+    var prioridad = document.getElementById('prioridadSelect').value;
+    if (!empleadoId || !asunto || !mensaje) {
+      alert('Completa todos los campos');
+      return;
+    }
+    enviarMensajeApi({
+      empleadoId: empleadoId,
+      remitenteId: datosIniciales.usuarioId,
+      tipoRemitente: 'admin',
+      asunto: asunto,
+      mensaje: mensaje,
+      tipo: 'general',
+      prioridad: prioridad
+    }).then(function(r) {
+      if (!r.ok) return r.text().then(function(t) { throw new Error(t); });
+      return r.json();
+    }).then(function() {
+      cerrarModalNuevoMensaje();
+      window.location.href = '/admin/mensajes?conversacionId=' + empleadoId;
+    }).catch(function(e) {
+      console.error(e);
+      alert('Error al enviar: ' + e.message);
+    });
+  }
+  function enviarMensajeChat(ev) {
+    ev.preventDefault();
+    var texto = document.getElementById('mensajeInput');
+    if (!texto || !texto.value.trim()) return;
+    if (!datosIniciales.conversacionId) {
+      alert('Selecciona una conversación');
+      return;
+    }
+    enviarMensajeApi({
+      empleadoId: datosIniciales.conversacionId,
+      remitenteId: datosIniciales.usuarioId,
+      tipoRemitente: 'admin',
+      asunto: 'Mensaje',
+      mensaje: texto.value.trim(),
+      tipo: 'general',
+      prioridad: 'normal'
+    }).then(function(r) {
+      if (!r.ok) return r.text().then(function(t) { throw new Error(t); });
+      return r.json();
+    }).then(function() {
+      texto.value = '';
+      location.reload();
+    }).catch(function(e) {
+      console.error(e);
+      alert('Error al enviar: ' + e.message);
+    });
+  }
+  function cerrarModalReclamo() {
+    document.getElementById('modalReclamo').classList.remove('active');
+  }
+  function mostrarDetalleReclamo(reclamoId) {
+    fetch('/admin/mensajes/reclamo/' + reclamoId + '/json/', {
+      credentials: 'same-origin'
+    }).then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function(reclamo) {
+      var html = '<div class="reclamo-detalle-item"><label>Título</label><div class="value">' + (reclamo.titulo || '') + '</div></div>';
+      html += '<div class="reclamo-detalle-item"><label>Descripción</label><div class="value">' + (reclamo.descripcion || '') + '</div></div>';
+      html += '<div class="reclamo-detalle-item"><label>Estado</label><div class="value">' + (reclamo.estado || '') + '</div></div>';
+      html += '<div class="reclamo-detalle-item"><label>Prioridad</label><div class="value">' + (reclamo.prioridad || '') + '</div></div>';
+      if (reclamo.fechaReclamo) {
+        html += '<div class="reclamo-detalle-item"><label>Fecha</label><div class="value">' + reclamo.fechaReclamo + '</div></div>';
+      }
+      if (reclamo.respuesta) {
+        html += '<div class="reclamo-detalle-item"><label>Respuesta</label><div class="value">' + reclamo.respuesta + '</div></div>';
+      }
+      document.getElementById('reclamoModalBody').innerHTML = html;
+      document.getElementById('modalReclamo').classList.add('active');
+    }).catch(function(e) {
+      alert('Error al cargar reclamo: ' + e.message);
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.conversacion-item[data-conversacion-key]').forEach(function(item) {
+      item.addEventListener('click', function() {
+        var id = this.getAttribute('data-conversacion-key');
+        if (id) abrirConversacion(id);
+      });
+    });
+    document.querySelectorAll('.tab-button[data-tab]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        mostrarTab(this.getAttribute('data-tab'), this);
+      });
+    });
+    var btnN = document.getElementById('btnNuevoMensaje');
+    if (btnN) btnN.addEventListener('click', abrirModalNuevoMensaje);
+    var modalN = document.getElementById('modalNuevoMensaje');
+    if (modalN) modalN.addEventListener('click', function(e) { if (e.target === this) cerrarModalNuevoMensaje(); });
+    var modalR = document.getElementById('modalReclamo');
+    if (modalR) modalR.addEventListener('click', function(e) { if (e.target === this) cerrarModalReclamo(); });
+    document.querySelectorAll('.reclamo-card[data-reclamo-id-value]').forEach(function(card) {
+      card.addEventListener('click', function() {
+        var id = this.getAttribute('data-reclamo-id-value');
+        if (id) mostrarDetalleReclamo(parseInt(id, 10));
+      });
+    });
+    var fchat = document.getElementById('formEnviarMensajeChat');
+    if (fchat) fchat.addEventListener('submit', enviarMensajeChat);
+  });
+</script>
+{% endblock %}

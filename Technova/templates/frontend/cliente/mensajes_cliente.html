@@ -1,0 +1,75 @@
+{% extends "frontend/base_cliente.html" %}
+{% load static %}
+{% block title %}Mensajes directos — Technova{% endblock %}
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'frontend/css/mensajes-spring.css' %}?v=1">
+<style>
+  .cliente-md-layout { display: flex; gap: 16px; flex-wrap: wrap; }
+  .cliente-md-list { flex: 0 0 320px; max-width: 100%; background: #fff; border-radius: 16px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+  .cliente-md-thread { flex: 1; min-width: 280px; background: #fff; border-radius: 16px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+  .md-item { padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 10px; text-decoration: none; color: inherit; display: block; }
+  .md-item:hover { border-color: #667eea; }
+  .md-item.active { border-color: #667eea; background: #f5f7ff; }
+</style>
+{% endblock %}
+{% block cliente_content %}
+<div class="welcome-section" style="margin-bottom: 20px;">
+  <h1><i class="bx bx-envelope"></i> Mensajes directos</h1>
+  <p>Comunícate con soporte (mismo flujo que la pestaña «Mensajes directos» en Atención al cliente).</p>
+</div>
+
+<div class="cliente-md-layout">
+  <div class="cliente-md-list">
+    <h3 style="margin-top:0;">Conversaciones</h3>
+    <p><a href="{% url 'web_cliente_atencion' %}">Ir a Atención al cliente</a> para la vista completa con pestañas.</p>
+    {% for c in md_conversaciones %}
+    <a class="md-item{% if conversation_id == c.conversationId %} active{% endif %}"
+       href="{% url 'web_cliente_mensajes' %}?conversationId={{ c.conversationId|urlencode }}">
+      <strong>{{ c.subject|default:"(sin asunto)" }}</strong>
+      <div style="font-size:0.85rem;color:#64748b;margin-top:6px;">{{ c.message|truncatechars:80 }}</div>
+      <div style="font-size:0.75rem;color:#94a3b8;margin-top:6px;">{{ c.createdAt }}</div>
+    </a>
+    {% empty %}
+    <p style="color:#64748b;">No tienes conversaciones aún.</p>
+    {% endfor %}
+
+    <h4 style="margin-top:20px;">Nueva conversación</h4>
+    <form method="post" action="{% url 'web_cliente_mensajes_nueva' %}">
+      {% csrf_token %}
+      <div class="form-group" style="margin-bottom:10px;">
+        <label>Asunto</label>
+        <input type="text" name="asunto" required placeholder="Asunto" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e2e8f0;">
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label>Mensaje</label>
+        <textarea name="mensaje" required rows="3" placeholder="Tu mensaje..." style="width:100%;padding:8px;border-radius:8px;border:1px solid #e2e8f0;"></textarea>
+      </div>
+      <button type="submit" class="btn-enviar" style="border:none;cursor:pointer;"><i class="bx bx-send"></i> Enviar</button>
+    </form>
+  </div>
+
+  <div class="cliente-md-thread">
+    {% if conversation_id and md_mensajes %}
+    <h3 style="margin-top:0;">Hilo</h3>
+    <div style="max-height:420px;overflow:auto;margin-bottom:16px;">
+      {% for m in md_mensajes %}
+      <div style="margin-bottom:12px;padding:10px;border-radius:12px;{% if m.senderType == 'cliente' %}background:#eef2ff;margin-left:24px;{% else %}background:#f8fafc;margin-right:24px;{% endif %}">
+        <div style="font-size:0.75rem;color:#64748b;">{{ m.senderType }} · {{ m.createdAt }}</div>
+        <div>{{ m.message }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <form method="post" action="{% url 'web_cliente_mensajes_responder' %}">
+      {% csrf_token %}
+      <input type="hidden" name="conversationId" value="{{ conversation_id }}">
+      <input type="hidden" name="mensaje_padre_id" value="{{ md_mensajes|last.id }}">
+      <textarea name="mensaje" required rows="2" placeholder="Responder..." style="width:100%;padding:10px;border-radius:12px;border:1px solid #e2e8f0;"></textarea>
+      <button type="submit" class="btn-enviar" style="margin-top:10px;border:none;cursor:pointer;"><i class="bx bx-reply"></i> Responder</button>
+    </form>
+    {% else %}
+    <p style="color:#64748b;">Selecciona una conversación o crea una nueva.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

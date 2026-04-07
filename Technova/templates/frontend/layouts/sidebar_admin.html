@@ -32,7 +32,10 @@
       <a href="{% url 'correos:panel_correos' %}"> <i class="bx bx-envelope"></i> Correos </a>
     </div>
     <div class="enlace">
-      <a href="#"> <i class="bx bx-message"></i> Mensajes </a>
+      <a href="{% url 'web_admin_mensajes' %}"> <i class="bx bx-message"></i> Mensajes </a>
+    </div>
+    <div class="enlace">
+      <a href="{% url 'web_admin_reclamos' %}"> <i class="bx bx-error-circle"></i> Reclamos </a>
     </div>
     <div class="enlace">
       <a href="{% url 'web_admin_pedidos' %}"> <i class="bx bx-cart"></i> Pedidos </a>

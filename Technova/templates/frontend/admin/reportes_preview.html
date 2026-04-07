@@ -6,105 +6,280 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ titulo }} — Vista previa</title>
   <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
   <style>
-    body { font-family: system-ui, Segoe UI, Arial, sans-serif; margin: 0; color: #0f172a; background: #f8fafc; }
-    .rp-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
-    .rp-header {
-      display: grid;
-      grid-template-columns: 72px 1fr;
-      gap: 16px;
-      align-items: center;
-      background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 18px 20px;
-      margin-bottom: 20px;
+    :root {
+      --rp-bg: #0b1020;
+      --rp-card: rgba(255,255,255,0.06);
+      --rp-border: rgba(148, 163, 184, 0.25);
+      --rp-text: #e2e8f0;
+      --rp-muted: #94a3b8;
+      --rp-accent1: #22d3ee;
+      --rp-accent2: #6366f1;
+      --rp-accent3: #a78bfa;
     }
-    .rp-header img { width: 64px; height: 64px; object-fit: contain; }
-    .rp-brand { font-size: 13px; color: #475569; margin: 0 0 4px; }
-    .rp-title { font-size: 1.35rem; font-weight: 700; color: #312e81; margin: 0 0 6px; }
-    .rp-meta { font-size: 13px; color: #64748b; margin: 0; }
+    body {
+      font-family: system-ui, "Segoe UI", Arial, sans-serif;
+      margin: 0;
+      color: var(--rp-text);
+      background: radial-gradient(1200px 600px at 10% -10%, #312e81 0%, transparent 55%),
+                  radial-gradient(900px 500px at 100% 0%, #1e1b4b 0%, transparent 50%),
+                  var(--rp-bg);
+      min-height: 100vh;
+    }
+    .rp-wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 48px; }
+    .rp-header {
+      text-align: center;
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.2) 0%, rgba(99, 102, 241, 0.35) 45%, rgba(124, 58, 237, 0.35) 100%);
+      border: 1px solid var(--rp-border);
+      border-radius: 18px;
+      padding: 22px 24px 26px;
+      margin-bottom: 22px;
+      backdrop-filter: blur(8px);
+    }
+    .rp-header .logo-wrap { margin-bottom: 10px; }
+    .rp-header img { width: 72px; height: 72px; object-fit: contain; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.35)); }
+    .rp-brand { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #c7d2fe; margin: 0 0 6px; }
+    .rp-title { font-size: 1.45rem; font-weight: 700; color: #fff; margin: 0 0 8px; text-shadow: 0 1px 18px rgba(99, 102, 241, 0.45); }
+    .rp-meta { font-size: 13px; color: var(--rp-muted); margin: 4px 0 0; }
     .rp-filtros {
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 14px 16px;
+      background: var(--rp-card);
+      border: 1px solid var(--rp-border);
+      border-radius: 14px;
+      padding: 14px 18px;
       margin-bottom: 22px;
       font-size: 13px;
-      color: #334155;
+      color: #cbd5e1;
     }
-    .rp-filtros strong { color: #0f172a; }
+    .rp-filtros strong { color: #f8fafc; }
     .rp-filtros div + div { margin-top: 4px; }
     h2.rp-h2 {
       font-size: 1rem;
-      color: #312e81;
-      margin: 0 0 12px;
-      padding-bottom: 6px;
-      border-bottom: 2px solid #c7d2fe;
+      color: #fff;
+      margin: 0 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(99, 102, 241, 0.45);
+      font-weight: 700;
     }
     .rp-kpis {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 14px;
       margin-bottom: 28px;
     }
     .rp-kpi {
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-left: 4px solid #667eea;
-      border-radius: 10px;
-      padding: 12px 14px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      background: var(--rp-card);
+      border: 1px solid var(--rp-border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      border-left: 4px solid var(--rp-accent2);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.25);
     }
-    .rp-kpi:nth-child(4n+2) { border-left-color: #764ba2; }
-    .rp-kpi:nth-child(4n+3) { border-left-color: #14b8a6; }
-    .rp-kpi:nth-child(4n+4) { border-left-color: #f59e0b; }
-    .rp-kpi label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
-    .rp-kpi .val { font-size: 1.15rem; font-weight: 700; color: #0f172a; }
+    .rp-kpi:nth-child(3n+2) { border-left-color: var(--rp-accent3); }
+    .rp-kpi:nth-child(3n+3) { border-left-color: var(--rp-accent1); }
+    .rp-kpi-ic {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: linear-gradient(145deg, #6366f1, #22d3ee);
+      opacity: 0.95;
+      flex-shrink: 0;
+    }
+    .rp-kpi-ic.ic-sku { background: linear-gradient(145deg, #6366f1, #a78bfa); }
+    .rp-kpi-ic.ic-money { background: linear-gradient(145deg, #06b6d4, #4f46e5); }
+    .rp-kpi-ic.ic-ticket { background: linear-gradient(145deg, #8b5cf6, #14b8a6); }
+    .rp-kpi-ic.ic-users { background: linear-gradient(145deg, #22d3ee, #7c3aed); }
+    .rp-kpi-ic.ic-check { background: linear-gradient(145deg, #16a34a, #22c55e); }
+    .rp-kpi-ic.ic-fail { background: linear-gradient(145deg, #dc2626, #f97316); }
+    .rp-kpi-ic.ic-clock { background: linear-gradient(145deg, #f59e0b, #eab308); }
+    .rp-kpi-ic.ic-chart { background: linear-gradient(145deg, #3b82f6, #6366f1); }
+    .rp-kpi-ic.ic-dot { background: linear-gradient(145deg, #64748b, #94a3b8); }
+    .rp-kpi-ic.ic-card { background: linear-gradient(145deg, #0d9488, #6366f1); }
+    .rp-kpi label { display: block; font-size: 12px; color: var(--rp-muted); margin-bottom: 4px; }
+    .rp-kpi .val { font-size: 1.2rem; font-weight: 700; color: #f8fafc; }
+    .rp-charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+      gap: 18px;
+      margin-bottom: 32px;
+    }
+    .rep-chart-card {
+      background: var(--rp-card);
+      border: 1px solid var(--rp-border);
+      border-radius: 16px;
+      padding: 16px 14px 12px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    }
+    .rep-chart-card h4 {
+      margin: 0 0 12px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #e0e7ff;
+    }
+    .rep-chart-card canvas { max-height: 280px; }
+    .rep-radial-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 18px 28px;
+      min-height: 260px;
+    }
+    .rep-radial-svg {
+      width: min(100%, 260px);
+      height: auto;
+      max-height: 280px;
+      overflow: visible;
+    }
+    .rep-radial-svg g.rep-ring {
+      transform-origin: 0px 0px;
+      transition: transform 0.22s ease, filter 0.22s ease;
+    }
+    .rep-radial-svg g.rep-ring:hover,
+    .rep-radial-svg g.rep-ring.rep-ring--hot {
+      transform: scale(1.06);
+      filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.55));
+    }
+    .rep-radial-svg path.rep-ring-stroke {
+      transition: stroke-width 0.18s ease, opacity 0.18s ease;
+    }
+    .rep-radial-svg g.rep-ring:hover path.rep-ring-stroke,
+    .rep-radial-svg g.rep-ring.rep-ring--hot path.rep-ring-stroke {
+      stroke-width: 9.5px;
+      opacity: 1;
+    }
+    .rep-radial-legend {
+      flex: 1;
+      min-width: 200px;
+      font-size: 12px;
+      color: #cbd5e1;
+      line-height: 1.45;
+    }
+    .rep-radial-legrow {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      cursor: default;
+      transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+    }
+    .rep-radial-legrow:hover,
+    .rep-radial-legrow.rep-radial-legrow--hot {
+      background: rgba(99, 102, 241, 0.12);
+      border-color: rgba(99, 102, 241, 0.35);
+      transform: translateX(4px);
+    }
+    .rep-radial-legdot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 3px;
+      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.9);
+    }
+    .rep-radial-tooltip {
+      position: fixed;
+      z-index: 10050;
+      max-width: 280px;
+      padding: 11px 14px;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(99, 102, 241, 0.55);
+      border-radius: 12px;
+      font-size: 12px;
+      color: #e2e8f0;
+      pointer-events: none;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.12s ease, visibility 0.12s;
+    }
+    .rep-radial-tooltip.rep-radial-tooltip--on {
+      opacity: 1;
+      visibility: visible;
+    }
+    .rep-radial-tooltip strong { display: block; color: #fff; margin-bottom: 6px; font-size: 13px; }
+    .rep-radial-tooltip .muted { color: #94a3b8; }
+    .rep-radial-tooltip .price { color: #a5b4fc; font-weight: 600; margin-top: 4px; }
     .rp-section { margin-bottom: 26px; }
     .rp-section h3 {
       font-size: 0.95rem;
-      color: #312e81;
+      color: #c7d2fe;
       margin: 0 0 10px;
+      font-weight: 600;
     }
-    table.rp-table { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #cbd5e1; }
+    table.rp-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 12px;
+      background: rgba(15, 23, 42, 0.55);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--rp-border);
+    }
     table.rp-table thead th {
-      background: #4f46e5;
+      background: linear-gradient(90deg, #4f46e5, #7c3aed);
       color: #fff;
-      padding: 9px 8px;
+      padding: 10px 8px;
       text-align: left;
       font-weight: 600;
     }
-    table.rp-table tbody td { border-top: 1px solid #e2e8f0; padding: 8px; vertical-align: top; }
-    table.rp-table tbody tr:nth-child(even) { background: #eef2ff; }
-    .rp-empty { color: #64748b; font-size: 13px; padding: 8px 0; }
-    .acciones { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; }
+    table.rp-table tbody td { border-top: 1px solid rgba(148, 163, 184, 0.15); padding: 8px; vertical-align: top; color: #e2e8f0; }
+    table.rp-table tbody tr:nth-child(even) { background: rgba(99, 102, 241, 0.08); }
+    .rp-empty { color: var(--rp-muted); font-size: 13px; padding: 8px 0; }
+    .acciones { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 10px; }
     .btn {
       display: inline-block;
-      background: #4f46e5;
+      background: linear-gradient(135deg, #6366f1, #22d3ee);
       color: #fff !important;
       text-decoration: none;
-      padding: 10px 14px;
-      border-radius: 8px;
+      padding: 10px 16px;
+      border-radius: 10px;
       font-size: 13px;
       font-weight: 600;
+      border: none;
+      box-shadow: 0 4px 18px rgba(99, 102, 241, 0.35);
     }
-    .btn.secondary { background: #475569; }
+    .btn.secondary {
+      background: rgba(148, 163, 184, 0.2);
+      color: #e2e8f0 !important;
+      box-shadow: none;
+      border: 1px solid var(--rp-border);
+    }
     .rp-fallback { margin-top: 20px; }
+    .rp-hint { font-size: 12px; color: var(--rp-muted); margin: 0 0 14px; }
+    .rp-impact-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .rp-impact-box {
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+    .rp-impact-box label { display: block; font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+    .rp-impact-box .num { font-size: 1.35rem; font-weight: 700; color: #111827; }
   </style>
 </head>
 <body>
   <div class="rp-wrap">
     <header class="rp-header">
-      <div>
-        <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Technova" width="64" height="64"
+      <div class="logo-wrap">
+        <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Technova" width="72" height="72"
              onerror="this.style.display='none'">
       </div>
-      <div>
         <p class="rp-brand"><strong>TECHNOVA</strong> — {{ pdf_v2.subtitulo|default:"Sistema de Gestión" }}</p>
         <h1 class="rp-title">{{ titulo }}</h1>
         <p class="rp-meta">{{ pdf_v2.rango|default:"" }}</p>
         <p class="rp-meta">Generado: {% now "d/m/Y H:i" %}</p>
-      </div>
     </header>
 
     <div class="rp-filtros">
@@ -116,26 +291,543 @@
       {% endfor %}
     </div>
 
-    {% if pdf_v2.kpis %}
-    <h2 class="rp-h2">Resumen general</h2>
+    {% if kpi_items %}
+    <h2 class="rp-h2">Indicadores clave (KPIs)</h2>
     <div class="rp-kpis">
-      {% for label, valor in pdf_v2.kpis %}
+      {% for label, valor, icon in kpi_items %}
       <div class="rp-kpi">
+        <div class="rp-kpi-ic ic-{{ icon|default:'dot' }}"></div>
+        <div>
         <label>{{ label }}</label>
         <div class="val">{{ valor }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if pdf_v2.cajas_impacto %}
+    <h2 class="rp-h2">Resumen operativo</h2>
+    <div class="rp-impact-grid">
+      {% for lbl, val in pdf_v2.cajas_impacto %}
+      <div class="rp-impact-box">
+        <label>{{ lbl }}</label>
+        <div class="num">{{ val }}</div>
       </div>
       {% endfor %}
     </div>
     {% endif %}
 
     {% if pdf_v2.graficas %}
-    <h2 class="rp-h2">Análisis visual (gráficas)</h2>
-    <p class="rp-meta" style="margin-bottom:10px;">Las gráficas (barras, líneas, pastel) se generan en el PDF descargado. Resumen de lo incluido:</p>
-    <ul style="margin:0 0 20px 18px; font-size:13px; color:#334155;">
-      {% for g in pdf_v2.graficas %}
-      <li style="margin-bottom:6px;"><strong>{{ g.titulo }}</strong> <span style="color:#64748b;">({{ g.tipo|default:"barras" }})</span></li>
-      {% endfor %}
-    </ul>
+    <h2 class="rp-h2">Análisis visual (interactivo)</h2>
+    <p class="rp-hint">En el <strong>Top 5 radial</strong>, pasa el cursor por cada arco o por la leyenda: verás movimiento, resaltado y un tooltip con nombre, unidades y precio. En las demás gráficas, usa el cursor sobre la serie (Chart.js).</p>
+    <div id="rep-charts-root" class="rp-charts-grid" aria-live="polite"></div>
+    <script type="application/json" id="rep-charts-json">{{ charts_json|safe }}</script>
+    <script>
+    (function () {
+      var el = document.getElementById('rep-charts-json');
+      var root = document.getElementById('rep-charts-root');
+      if (!el || !root || typeof Chart === 'undefined') return;
+      var specs = [];
+      try { specs = JSON.parse(el.textContent || '[]'); } catch (e) { return; }
+      var PALETTE = ['#6f42c1', '#007bff', '#e83e8c', '#5a32a3', '#6610f2', '#17a2b8', '#fd7e14', '#20c997'];
+      function colorsFor(n) {
+        var out = [];
+        for (var i = 0; i < n; i++) out.push(PALETTE[i % PALETTE.length]);
+        return out;
+      }
+      function palRgba(hex, a) {
+        var h = (hex || '#6366f1').replace('#', '');
+        if (h.length !== 6) return 'rgba(99,102,241,' + a + ')';
+        var r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+      }
+      /** Degradado vertical área: opacidad máx. arriba (línea) → transparente en la base (mismo criterio que PDF). */
+      function repLineAreaGradient(chart, hex, alphaTop) {
+        var gctx = chart.ctx;
+        var area = chart.chartArea;
+        var h = (hex || '#6f42c1').replace('#', '');
+        if (h.length !== 6) h = '6f42c1';
+        var r = parseInt(h.slice(0, 2), 16), gg = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+        var a0 = typeof alphaTop === 'number' ? alphaTop : 0.4;
+        if (!area) return 'rgba(' + r + ',' + gg + ',' + b + ',0.12)';
+        var g = gctx.createLinearGradient(0, area.top, 0, area.bottom);
+        g.addColorStop(0, 'rgba(' + r + ',' + gg + ',' + b + ',' + a0 + ')');
+        g.addColorStop(1, 'rgba(' + r + ',' + gg + ',' + b + ',0)');
+        return g;
+      }
+      var REP_LINE_PRIMARY = '#6f42c1';
+      var REP_LINE_SECONDARY = '#007bff';
+      var repLineScalesMinimal = {
+        x: {
+          ticks: { color: '#94a3b8' },
+          grid: { display: false, drawBorder: false }
+        },
+        y: {
+          ticks: { color: '#94a3b8' },
+          grid: { display: false, drawBorder: false },
+          border: { display: false },
+          beginAtZero: true
+        }
+      };
+      function repEsc(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/"/g, '&quot;');
+      }
+      function repRadialTooltip() {
+        var t = document.getElementById('rep-radial-tooltip');
+        if (!t) {
+          t = document.createElement('div');
+          t.id = 'rep-radial-tooltip';
+          t.className = 'rep-radial-tooltip';
+          t.setAttribute('role', 'tooltip');
+          document.body.appendChild(t);
+        }
+        return t;
+      }
+      function repArcPath(r, startDeg, extentDeg) {
+        var sr = (startDeg * Math.PI) / 180;
+        var er = ((startDeg + extentDeg) * Math.PI) / 180;
+        var x1 = r * Math.cos(sr);
+        var y1 = r * Math.sin(sr);
+        var x2 = r * Math.cos(er);
+        var y2 = r * Math.sin(er);
+        var large = extentDeg > 180 ? 1 : 0;
+        return (
+          'M ' +
+          x1.toFixed(3) +
+          ',' +
+          y1.toFixed(3) +
+          ' A ' +
+          r +
+          ',' +
+          r +
+          ' 0 ' +
+          large +
+          ' 1 ' +
+          x2.toFixed(3) +
+          ',' +
+          y2.toFixed(3)
+        );
+      }
+      function renderRadialTop5Interactive(card, spec, PALETTE) {
+        var items = spec.items || [];
+        if (!items.length) return false;
+        var tip = repRadialTooltip();
+        var wrap = document.createElement('div');
+        wrap.className = 'rep-radial-wrap';
+        var svgNS = 'http://www.w3.org/2000/svg';
+        var svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('viewBox', '0 0 280 260');
+        svg.setAttribute('class', 'rep-radial-svg');
+        svg.setAttribute('aria-label', 'Top productos — radial');
+        var gRoot = document.createElementNS(svgNS, 'g');
+        gRoot.setAttribute('transform', 'translate(130,130)');
+
+        var maxQ = 0;
+        for (var iq = 0; iq < items.length; iq++) {
+          maxQ = Math.max(maxQ, Number(items[iq].cantidad) || 0);
+        }
+        if (maxQ <= 0) maxQ = 1;
+
+        var sweepMax = 310;
+        var r0 = 92;
+        var dr = 14;
+        var ringGroups = [];
+        var legRows = [];
+        ringGroups.length = items.length;
+
+        for (var i = 0; i < items.length; i++) {
+          (function (idx, it, r, q, extent, col) {
+            var g = document.createElementNS(svgNS, 'g');
+            g.setAttribute('class', 'rep-ring');
+
+            var track = document.createElementNS(svgNS, 'circle');
+            track.setAttribute('cx', '0');
+            track.setAttribute('cy', '0');
+            track.setAttribute('r', String(r));
+            track.setAttribute('fill', 'none');
+            track.setAttribute('stroke', 'rgba(148,163,184,0.2)');
+            track.setAttribute('stroke-width', '7');
+
+            var dArc = repArcPath(r, -90, extent);
+            var valPath = document.createElementNS(svgNS, 'path');
+            valPath.setAttribute('d', dArc);
+            valPath.setAttribute('fill', 'none');
+            valPath.setAttribute('stroke', col);
+            valPath.setAttribute('stroke-width', '8');
+            valPath.setAttribute('stroke-linecap', 'round');
+            valPath.setAttribute('class', 'rep-ring-stroke');
+
+            var hitPath = document.createElementNS(svgNS, 'path');
+            hitPath.setAttribute('d', dArc);
+            hitPath.setAttribute('fill', 'none');
+            hitPath.setAttribute('stroke', 'rgba(255,255,255,0.001)');
+            hitPath.setAttribute('stroke-width', '24');
+            hitPath.setAttribute('stroke-linecap', 'round');
+            hitPath.setAttribute('pointer-events', 'stroke');
+            hitPath.style.cursor = 'pointer';
+
+            var nombre = it.nombre || '—';
+            var precio = it.precio_txt || '';
+
+            function showTip(ev) {
+              tip.innerHTML =
+                '<strong>' +
+                repEsc(nombre) +
+                '</strong><div class="muted">' +
+                repEsc(String(q)) +
+                ' u. vendidas</div><div class="price">' +
+                repEsc(precio) +
+                '</div>';
+              tip.classList.add('rep-radial-tooltip--on');
+              moveTip(ev);
+            }
+            function moveTip(ev) {
+              var pad = 14;
+              var x = ev.clientX + pad;
+              var y = ev.clientY + pad;
+              var tw = tip.offsetWidth || 200;
+              var th = tip.offsetHeight || 80;
+              if (x + tw > window.innerWidth - 8) x = ev.clientX - tw - pad;
+              if (y + th > window.innerHeight - 8) y = ev.clientY - th - pad;
+              tip.style.left = x + 'px';
+              tip.style.top = y + 'px';
+            }
+            function hideTip() {
+              tip.classList.remove('rep-radial-tooltip--on');
+            }
+            function setHot(on) {
+              if (on) {
+                g.classList.add('rep-ring--hot');
+                if (legRows[idx]) legRows[idx].classList.add('rep-radial-legrow--hot');
+              } else {
+                g.classList.remove('rep-ring--hot');
+                if (legRows[idx]) legRows[idx].classList.remove('rep-radial-legrow--hot');
+              }
+            }
+
+            hitPath.addEventListener('mouseenter', function (ev) {
+              showTip(ev);
+              setHot(true);
+            });
+            hitPath.addEventListener('mousemove', moveTip);
+            hitPath.addEventListener('mouseleave', function () {
+              hideTip();
+              setHot(false);
+            });
+
+            g.appendChild(track);
+            g.appendChild(valPath);
+            g.appendChild(hitPath);
+            ringGroups[idx] = g;
+          })(
+            i,
+            items[i],
+            r0 - i * dr,
+            Number(items[i].cantidad) || 0,
+            sweepMax * Math.max(0.08, (Number(items[i].cantidad) || 0) / maxQ),
+            items[i].color_hex || PALETTE[i % PALETTE.length]
+          );
+        }
+        for (var zi = items.length - 1; zi >= 0; zi--) {
+          if (ringGroups[zi]) gRoot.appendChild(ringGroups[zi]);
+        }
+
+        svg.appendChild(gRoot);
+        wrap.appendChild(svg);
+
+        var leg = document.createElement('div');
+        leg.className = 'rep-radial-legend';
+        for (var j = 0; j < items.length; j++) {
+          (function (idx) {
+            var it2 = items[idx];
+            var col2 = it2.color_hex || PALETTE[idx % PALETTE.length];
+            var row = document.createElement('div');
+            row.className = 'rep-radial-legrow';
+            row.setAttribute('data-idx', String(idx));
+            var dot = document.createElement('span');
+            dot.className = 'rep-radial-legdot';
+            dot.style.background = col2;
+            var txt = document.createElement('div');
+            txt.innerHTML =
+              '<div style="font-weight:600;color:#f1f5f9">' +
+              repEsc((it2.nombre || '—').substring(0, 40)) +
+              '</div><div class="muted" style="font-size:11px;margin-top:2px">' +
+              repEsc(String(it2.cantidad || 0)) +
+              ' u. · ' +
+              repEsc(it2.precio_txt || '') +
+              '</div>';
+            row.appendChild(dot);
+            row.appendChild(txt);
+            row.addEventListener('mouseenter', function () {
+              if (ringGroups[idx]) ringGroups[idx].classList.add('rep-ring--hot');
+              row.classList.add('rep-radial-legrow--hot');
+            });
+            row.addEventListener('mouseleave', function () {
+              if (ringGroups[idx]) ringGroups[idx].classList.remove('rep-ring--hot');
+              row.classList.remove('rep-radial-legrow--hot');
+            });
+            leg.appendChild(row);
+            legRows.push(row);
+          })(j);
+        }
+        wrap.appendChild(leg);
+        card.appendChild(wrap);
+        return true;
+      }
+
+      specs.forEach(function (spec, idx) {
+        var titulo = spec.titulo || ('Gráfica ' + (idx + 1));
+        var tipo = (spec.tipo || 'barras').toLowerCase();
+        var labels = spec.labels || [];
+        var valores = spec.valores || [];
+        var card = document.createElement('div');
+        card.className = 'rep-chart-card';
+        var h = document.createElement('h4');
+        h.textContent = titulo;
+        card.appendChild(h);
+        root.appendChild(card);
+
+        if (tipo === 'radial_top5' || tipo === 'top5_radial' || tipo === 'ranking_radial') {
+          if (renderRadialTop5Interactive(card, spec, PALETTE)) {
+            return;
+          }
+        }
+
+        var canvas = document.createElement('canvas');
+        canvas.id = 'rep-chart-' + idx;
+        card.appendChild(canvas);
+        var ctx = canvas.getContext('2d');
+        var common = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 11 } } },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.92)',
+              titleColor: '#f8fafc',
+              bodyColor: '#e2e8f0',
+              borderColor: 'rgba(99, 102, 241, 0.5)',
+              borderWidth: 1
+            }
+          },
+          scales: {}
+        };
+        if (tipo === 'rosca_dominio_marca' || tipo === 'donut_dominio_marca') {
+          var catL = spec.categoria_etiqueta || '';
+          var totC = spec.total_categoria != null ? String(spec.total_categoria) : '';
+          var centerPlugin = {
+            id: 'repCenterDonut',
+            afterDraw: function (chart) {
+              var meta = chart.getDatasetMeta(0);
+              if (!meta || !meta.data || !meta.data[0]) return;
+              var p = meta.data[0];
+              var xc = p.x, yc = p.y;
+              var c2 = chart.ctx;
+              c2.save();
+              c2.textAlign = 'center';
+              c2.fillStyle = '#64748b';
+              c2.font = '600 11px system-ui,sans-serif';
+              c2.fillText('Total ' + (catL || 'categoría'), xc, yc - 10);
+              c2.fillStyle = '#6f42c1';
+              c2.font = '700 18px system-ui,sans-serif';
+              c2.fillText(totC, xc, yc + 8);
+              c2.fillStyle = '#94a3b8';
+              c2.font = '10px system-ui,sans-serif';
+              c2.fillText('SKU', xc, yc + 22);
+              c2.restore();
+            }
+          };
+          new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: labels,
+              datasets: [{
+                data: valores,
+                backgroundColor: colorsFor(valores.length),
+                borderWidth: 2,
+                borderColor: '#ffffff',
+                hoverOffset: 6
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              cutout: '58%',
+              plugins: { legend: common.plugins.legend, tooltip: common.plugins.tooltip }
+            },
+            plugins: [centerPlugin]
+          });
+          return;
+        }
+        if (tipo === 'lineas_area_multiserie' || tipo === 'area_multiserie' || tipo === 'lineas_multiples') {
+          var ser = spec.series || [];
+          var setsM = [];
+          for (var sm = 0; sm < ser.length; sm++) {
+            var colM = sm === 0 ? REP_LINE_PRIMARY : (sm === 1 ? REP_LINE_SECONDARY : PALETTE[sm % PALETTE.length]);
+            setsM.push({
+              label: ser[sm].label || ('Serie ' + (sm + 1)),
+              data: ser[sm].valores || [],
+              borderColor: colM,
+              borderWidth: 2,
+              backgroundColor: function (cctx) {
+                return repLineAreaGradient(cctx.chart, colM, 0.4);
+              },
+              fill: true,
+              tension: 0.45,
+              pointRadius: 4,
+              pointBackgroundColor: colM,
+              pointBorderColor: 'rgba(255,255,255,0.9)',
+              pointBorderWidth: 1,
+              pointHoverRadius: 6
+            });
+          }
+          common.scales = repLineScalesMinimal;
+          new Chart(ctx, {
+            type: 'line',
+            data: { labels: labels, datasets: setsM },
+            options: common
+          });
+          return;
+        }
+        if (tipo === 'pastel' || tipo === 'pie' || tipo === 'piechart') {
+          new Chart(ctx, {
+            type: 'pie',
+            data: {
+              labels: labels,
+              datasets: [{
+                data: valores,
+                backgroundColor: colorsFor(valores.length),
+                borderWidth: 2,
+                borderColor: '#0f172a'
+              }]
+            },
+            options: common
+          });
+          return;
+        }
+        if (tipo === 'rosca' || tipo === 'donut' || tipo === 'doughnut') {
+          new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: labels,
+              datasets: [{
+                data: valores,
+                backgroundColor: colorsFor(valores.length),
+                borderWidth: 2,
+                borderColor: '#0f172a',
+                hoverOffset: 8
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              cutout: '62%',
+              plugins: common.plugins
+            }
+          });
+          return;
+        }
+        if (tipo === 'lineas' || tipo === 'linea' || tipo === 'line') {
+          common.scales = repLineScalesMinimal;
+          new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: titulo,
+                data: valores,
+                borderColor: REP_LINE_PRIMARY,
+                borderWidth: 2,
+                backgroundColor: function (cctx) {
+                  return repLineAreaGradient(cctx.chart, REP_LINE_PRIMARY, 0.4);
+                },
+                fill: true,
+                tension: 0.45,
+                pointRadius: 4,
+                pointBackgroundColor: REP_LINE_PRIMARY,
+                pointBorderColor: 'rgba(255,255,255,0.95)',
+                pointBorderWidth: 1,
+                pointHoverRadius: 6
+              }]
+            },
+            options: common
+          });
+          return;
+        }
+        if (tipo === 'barras_horizontales' || tipo === 'horizontal_bar' || tipo === 'bar_h' || tipo === 'barras_h') {
+          var optH = {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: common.plugins,
+            scales: {
+              x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.12)' }, beginAtZero: true },
+              y: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+            }
+          };
+          new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: titulo,
+                data: valores,
+                backgroundColor: colorsFor(valores.length),
+                borderRadius: 8
+              }]
+            },
+            options: optH
+          });
+          return;
+        }
+        if (tipo === 'barras_agrupadas' || tipo === 'grouped_bar' || tipo === 'barras_grupo') {
+          var series = spec.series || [];
+          var sets = [];
+          for (var s = 0; s < series.length; s++) {
+            sets.push({
+              label: series[s].label || ('Serie ' + (s + 1)),
+              data: series[s].valores || [],
+              backgroundColor: PALETTE[s % PALETTE.length],
+              borderRadius: 6
+            });
+          }
+          common.scales = {
+            x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
+            y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.12)' }, beginAtZero: true }
+          };
+          new Chart(ctx, {
+            type: 'bar',
+            data: { labels: labels, datasets: sets },
+            options: common
+          });
+          return;
+        }
+        /* barras (default) */
+        common.scales = {
+          x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
+          y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.12)' }, beginAtZero: true }
+        };
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: titulo,
+              data: valores,
+              backgroundColor: colorsFor(valores.length),
+              borderRadius: 8,
+              borderSkipped: false
+            }]
+          },
+          options: common
+        });
+      });
+    })();
+    </script>
     {% endif %}
 
     <h2 class="rp-h2">Detalle y tablas</h2>
@@ -166,7 +858,6 @@
       {% endfor %}
     {% else %}
     <div class="rp-fallback">
-      <h2 class="rp-h2">Detalle</h2>
       <table class="rp-table">
         <thead>
           <tr>

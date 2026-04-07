@@ -7,6 +7,7 @@ from usuario.adapters.web.session_views import (
     registro_web,
 )
 from web import views
+from web.adapters.http import mensajes_web_views as mensajes_web
 from web.adapters.http.views_ordenes import (
     admin_ordenes_compra,
     admin_orden_compra_detalle,
@@ -26,6 +27,16 @@ from web.adapters.http.debug_ordenes import debug_ordenes, debug_ordenes_auth
 from web.adapters.http.views_promociones import admin_producto_promocionar, admin_producto_info
 
 urlpatterns = [
+    path(
+        "api/mensajes-empleado",
+        mensajes_web.api_mensajes_empleado_spring,
+        name="api_mensajes_empleado_spring",
+    ),
+    path(
+        "api/mensajes-empleado/",
+        mensajes_web.api_mensajes_empleado_spring,
+        name="api_mensajes_empleado_spring_slash",
+    ),
     path("", views.root_entry, name="root"),
     path("inicio/", views.home, name="inicio_autenticado"),
     path(
@@ -45,12 +56,32 @@ urlpatterns = [
         name="web_empleado_inicio",
     ),
     path("empleado/perfil/editar/", views.empleado_perfil_editar, name="web_empleado_perfil_editar"),
+    path("empleado/mensajes", mensajes_web.empleado_mensajes_page, name="web_empleado_mensajes_noslash"),
+    path("empleado/mensajes/", mensajes_web.empleado_mensajes_page, name="web_empleado_mensajes"),
     path("empleado/<slug:seccion>/", views.empleado_dashboard, name="web_empleado_seccion"),
     path("admin/perfil/editar/", views.admin_perfil_editar, name="web_admin_perfil_editar"),
     path("admin/perfil/", views.perfil_view, name="web_admin_perfil"),
     path("admin/dashboard/", views.dashboard_view, name="web_admin_dashboard"),
     path("admin/notificaciones/poll/", views.admin_notificaciones_poll, name="web_admin_notificaciones_poll"),
     path("admin/notificaciones/", views.admin_notificaciones, name="web_admin_notificaciones"),
+    path("admin/mensajes", mensajes_web.admin_mensajes_page, name="web_admin_mensajes_noslash"),
+    path("admin/mensajes/", mensajes_web.admin_mensajes_page, name="web_admin_mensajes"),
+    path(
+        "admin/mensajes/reclamo/<int:reclamo_id>/json",
+        mensajes_web.admin_mensajes_reclamo_json,
+        name="web_admin_mensajes_reclamo_json_noslash",
+    ),
+    path(
+        "admin/mensajes/reclamo/<int:reclamo_id>/json/",
+        mensajes_web.admin_mensajes_reclamo_json,
+        name="web_admin_mensajes_reclamo_json",
+    ),
+    path("admin/reclamos/", mensajes_web.admin_reclamos_gestion, name="web_admin_reclamos"),
+    path(
+        "admin/reclamos/<int:reclamo_id>/asignar/",
+        mensajes_web.admin_reclamos_asignar_sesion,
+        name="web_admin_reclamo_asignar",
+    ),
     path("admin/usuarios/crear/", views.admin_usuario_crear, name="web_admin_usuario_crear"),
     path(
         "admin/usuarios/<int:usuario_id>/estado/",
@@ -196,6 +227,18 @@ urlpatterns = [
         name="web_cliente_factura_compra",
     ),
     path("cliente/atencion-cliente/", views.atencion_cliente, name="web_cliente_atencion"),
+    path("cliente/mensajes", mensajes_web.cliente_mensajes_page, name="web_cliente_mensajes_noslash"),
+    path("cliente/mensajes/", mensajes_web.cliente_mensajes_page, name="web_cliente_mensajes"),
+    path(
+        "cliente/mensajes/nueva/",
+        mensajes_web.cliente_mensajes_nueva_conversacion,
+        name="web_cliente_mensajes_nueva",
+    ),
+    path(
+        "cliente/mensajes/responder/",
+        mensajes_web.cliente_mensajes_responder,
+        name="web_cliente_mensajes_responder",
+    ),
     path("cliente/reclamos/", views.cliente_reclamos, name="web_cliente_reclamos"),
     path("producto/<int:producto_id>/", views.producto_detalle, name="web_producto_detalle"),
 ]

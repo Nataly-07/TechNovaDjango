@@ -30,6 +30,13 @@ class MensajeEmpleado(models.Model):
     leido = models.BooleanField(default=False)
     fecha_leido = models.DateTimeField(null=True, blank=True)
     data_adicional = models.JSONField(default=dict, blank=True)
+    reclamo = models.ForeignKey(
+        "atencion_cliente.Reclamo",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="mensajes_staff_chat",
+    )
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 

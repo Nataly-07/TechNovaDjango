@@ -23,6 +23,14 @@ class Reclamo(models.Model):
         on_delete=models.PROTECT,
         related_name="reclamos",
     )
+    empleado_asignado = models.ForeignKey(
+        "usuario.Usuario",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reclamos_asignados",
+        limit_choices_to={"rol": "empleado"},
+    )
     fecha_reclamo = models.DateTimeField()
     titulo = models.CharField(max_length=200)
     descripcion = models.TextField()

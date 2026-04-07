@@ -24,6 +24,14 @@ class MensajeriaQueryPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def marcar_notificacion_leida(self, usuario_id: int, notificacion_id: int) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def marcar_todas_notificaciones_leidas(self, usuario_id: int) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
     def listar_mensajes_directos(self, usuario_id: int | None) -> list[dict]:
         raise NotImplementedError
 

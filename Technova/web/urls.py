@@ -58,6 +58,16 @@ urlpatterns = [
     path("empleado/perfil/editar/", views.empleado_perfil_editar, name="web_empleado_perfil_editar"),
     path("empleado/mensajes", mensajes_web.empleado_mensajes_page, name="web_empleado_mensajes_noslash"),
     path("empleado/mensajes/", mensajes_web.empleado_mensajes_page, name="web_empleado_mensajes"),
+    path(
+        "empleado/notificaciones/poll/",
+        views.empleado_notificaciones_poll,
+        name="web_empleado_notificaciones_poll",
+    ),
+    path(
+        "empleado/notificaciones/",
+        views.empleado_notificaciones,
+        name="web_empleado_notificaciones",
+    ),
     path("empleado/<slug:seccion>/", views.empleado_dashboard, name="web_empleado_seccion"),
     path("admin/perfil/editar/", views.admin_perfil_editar, name="web_admin_perfil_editar"),
     path("admin/perfil/", views.perfil_view, name="web_admin_perfil"),

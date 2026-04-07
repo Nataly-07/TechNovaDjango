@@ -617,6 +617,8 @@ def empleado_dashboard(request, seccion: str = "inicio"):
     """Shell del panel empleado (misma base visual que admin); módulos sin implementar."""
     if seccion == "mensajes":
         return redirect("web_empleado_mensajes")
+    if seccion == "notificaciones":
+        return redirect("web_empleado_notificaciones")
     if seccion not in EMPLEADO_SECCIONES:
         return redirect("web_empleado_inicio")
     uid = request.session.get(SESSION_USUARIO_ID)
@@ -908,6 +910,120 @@ def empleado_dashboard(request, seccion: str = "inicio"):
         )
 
     return render(request, "frontend/empleado/dashboard.html", ctx)
+
+
+@_empleado_login_required
+@require_http_methods(["GET", "POST"])
+def empleado_notificaciones(request):
+    """Notificaciones del sistema para el empleado en sesión (lectura + marcar leídas)."""
+    uid = request.session.get(SESSION_USUARIO_ID)
+    usuario = Usuario.objects.get(pk=uid)
+
+    if request.method == "POST":
+        accion = (request.POST.get("accion") or "").strip()
+        svc = get_mensajeria_query_service()
+        if accion == "marcar_leida":
+            raw_id = request.POST.get("notificacion_id")
+            try:
+                nid = int(raw_id)
+            except (TypeError, ValueError):
+                messages.error(request, "Identificador de notificación no válido.")
+                return redirect("web_empleado_notificaciones")
+            if svc.marcar_notificacion_leida(usuario.id, nid):
+                messages.success(request, "Notificación marcada como leída.")
+            else:
+                messages.error(request, "No se encontró la notificación o no te pertenece.")
+            return redirect("web_empleado_notificaciones")
+        if accion == "marcar_todas_leidas":
+            n = svc.marcar_todas_notificaciones_leidas(usuario.id)
+            messages.success(request, f"Se marcaron {n} notificación(es) como leídas.")
+            return redirect("web_empleado_notificaciones")
+        messages.error(request, "Acción no reconocida.")
+        return redirect("web_empleado_notificaciones")
+
+    leida_filtro = (request.GET.get("leida") or "").strip().lower()
+    q = (request.GET.get("q") or "").strip()
+
+    svc = get_mensajeria_query_service()
+    if leida_filtro == "si":
+        items = svc.listar_notificaciones_filtradas(usuario.id, leida=True)
+    elif leida_filtro == "no":
+        items = svc.listar_notificaciones_filtradas(usuario.id, leida=False)
+    else:
+        items = svc.listar_notificaciones_filtradas(usuario.id)
+    if q:
+        ql = q.lower()
+        items = [
+            it
+            for it in items
+            if ql in (it.get("titulo") or "").lower() or ql in (it.get("mensaje") or "").lower()
+        ]
+
+    total_recibidas = len(svc.listar_notificaciones_filtradas(usuario.id))
+    total_no_leidas = len(svc.listar_notificaciones_filtradas(usuario.id, leida=False))
+
+    return render(
+        request,
+        "frontend/empleado/notificaciones.html",
+        {
+            "usuario": usuario,
+            "seccion": "notificaciones",
+            "notificaciones": items[:500],
+            "total_recibidas": total_recibidas,
+            "total_no_leidas": total_no_leidas,
+            "filtro_leida": leida_filtro,
+            "filtro_q": q,
+        },
+    )
+
+
+@_empleado_login_required
+@require_http_methods(["GET"])
+def empleado_notificaciones_poll(request):
+    """JSON para actualizar el listado sin recargar (polling)."""
+    uid = request.session.get(SESSION_USUARIO_ID)
+    usuario = Usuario.objects.get(pk=uid)
+    leida_filtro = (request.GET.get("leida") or "").strip().lower()
+    q = (request.GET.get("q") or "").strip()
+
+    svc = get_mensajeria_query_service()
+    if leida_filtro == "si":
+        items = svc.listar_notificaciones_filtradas(usuario.id, leida=True)
+    elif leida_filtro == "no":
+        items = svc.listar_notificaciones_filtradas(usuario.id, leida=False)
+    else:
+        items = svc.listar_notificaciones_filtradas(usuario.id)
+    if q:
+        ql = q.lower()
+        items = [
+            it
+            for it in items
+            if ql in (it.get("titulo") or "").lower() or ql in (it.get("mensaje") or "").lower()
+        ]
+
+    total_recibidas = len(svc.listar_notificaciones_filtradas(usuario.id))
+    total_no_leidas = len(svc.listar_notificaciones_filtradas(usuario.id, leida=False))
+
+    # normalizar forma compatible con admin_poll
+    out = [
+        {
+            "id": n.get("id"),
+            "titulo": n.get("titulo"),
+            "mensaje": n.get("mensaje"),
+            "tipo": n.get("tipo"),
+            "icono": n.get("icono") or "bell",
+            "leida": bool(n.get("leida")),
+            "fecha_creacion": n.get("fechaCreacion") or n.get("fecha_creacion"),
+        }
+        for n in items[:500]
+    ]
+    return JsonResponse(
+        {
+            "total_recibidas": total_recibidas,
+            "total_no_leidas": total_no_leidas,
+            "notificaciones": out,
+        }
+    )
 
 
 @_empleado_login_required

@@ -55,6 +55,15 @@ class MensajeriaQueryRepository(MensajeriaQueryPort):
             queryset = queryset.filter(fecha_creacion__lte=hasta)
         return [self._notif_dict(n) for n in queryset]
 
+    def marcar_notificacion_leida(self, usuario_id: int, notificacion_id: int) -> bool:
+        updated = Notificacion.objects.filter(pk=notificacion_id, usuario_id=usuario_id).update(
+            leida=True
+        )
+        return updated > 0
+
+    def marcar_todas_notificaciones_leidas(self, usuario_id: int) -> int:
+        return Notificacion.objects.filter(usuario_id=usuario_id, leida=False).update(leida=True)
+
     def _md_dict(self, m: MensajeDirecto) -> dict:
         return {
             "id": m.id,

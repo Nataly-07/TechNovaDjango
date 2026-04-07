@@ -41,6 +41,12 @@ class MensajeriaQueryService:
             hasta=hasta,
         )
 
+    def marcar_notificacion_leida(self, usuario_id: int, notificacion_id: int) -> bool:
+        return self.repository.marcar_notificacion_leida(usuario_id, notificacion_id)
+
+    def marcar_todas_notificaciones_leidas(self, usuario_id: int) -> int:
+        return self.repository.marcar_todas_notificaciones_leidas(usuario_id)
+
     def listar_mensajes_directos(self, usuario_id: int | None) -> list[dict]:
         return self.repository.listar_mensajes_directos(usuario_id)
 

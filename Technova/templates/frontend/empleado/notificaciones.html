@@ -1,0 +1,256 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Notificaciones — Technova Empleado</title>
+  <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/color-palette.css' %}">
+  <link rel="stylesheet" href="{% static 'frontend/css/admin-panel.css' %}?v=2">
+</head>
+<body class="empleado-page admin-page-notificaciones">
+  {# Reutilizamos el header compacto existente (logout + marca) #}
+  {% include "frontend/includes/admin_header_compact.html" %}
+  <div class="dashboard-wrapper">
+    {% include "frontend/layouts/sidebar_empleado.html" with seccion="notificaciones" %}
+    <main class="main-content">
+      <div class="wrap">
+        <form id="csrf-store" style="display:none" aria-hidden="true">{% csrf_token %}</form>
+
+        <div class="hdr hdr--split">
+          <div>
+            <h2><i class="bx bx-bell"></i> Notificaciones</h2>
+            <p class="notif-subtitle">Vista en tiempo real de eventos del sistema para el empleado.</p>
+          </div>
+          <div id="hdr-marcar-todas-wrap"></div>
+        </div>
+
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+          <i class="bx {% if message.tags == 'error' %}bx-error-circle{% else %}bx-check-circle{% endif %}"></i>
+          <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+
+        <div class="stats-bar">
+          <div class="stat-card total">
+            <h4>Total recibidas</h4>
+            <p class="number" id="stat-total-recibidas">{{ total_recibidas }}</p>
+          </div>
+          <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+            <h4>No leídas</h4>
+            <p class="number" id="stat-total-no-leidas">{{ total_no_leidas }}</p>
+          </div>
+        </div>
+
+        <div class="notif-module-bar" role="tablist" aria-label="Filtros por módulo">
+          <button type="button" class="notif-module-btn is-active" data-modulo="todos">Todos</button>
+          <button type="button" class="notif-module-btn" data-modulo="usuarios">Usuarios</button>
+          <button type="button" class="notif-module-btn" data-modulo="articulos">Artículos</button>
+          <button type="button" class="notif-module-btn" data-modulo="pedidos">Pedidos</button>
+          <button type="button" class="notif-module-btn" data-modulo="pagos">Pagos</button>
+          <button type="button" class="notif-module-btn" data-modulo="otros">Otros</button>
+        </div>
+
+        <div id="notif-cards-grid" class="notif-cards-grid"></div>
+        <p class="empty-msg notif-empty" id="notif-empty" style="display:none;">
+          <i class="bx bx-info-circle"></i> No hay notificaciones para este módulo.
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+  (function () {
+    var pollUrl = "{% url 'web_empleado_notificaciones_poll' %}";
+    var listUrl = "{% url 'web_empleado_notificaciones' %}";
+    var csrfInput = document.querySelector("#csrf-store input[name=csrfmiddlewaretoken]");
+    var csrf = csrfInput ? csrfInput.value : "";
+
+    var grid = document.getElementById("notif-cards-grid");
+    var emptyEl = document.getElementById("notif-empty");
+    var hdrWrap = document.getElementById("hdr-marcar-todas-wrap");
+
+    var activeModulo = "todos";
+
+    function esc(s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;");
+    }
+
+    function normalizeMsg(s) {
+      s = String(s || "");
+      return s.replace(/\\s+/g, " ").trim();
+    }
+
+    function truncateMsg(s, max) {
+      s = String(s || "");
+      if (s.length <= max) return s;
+      return s.slice(0, max - 1) + "…";
+    }
+
+    function fmtFecha(iso) {
+      try {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return iso;
+        return d.toLocaleString("es-ES", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+      } catch (e) {
+        return iso;
+      }
+    }
+
+    function moduloKeyFromTipo(tipo) {
+      var t = String(tipo || "").toLowerCase();
+      if (t.startsWith("usuario.")) return "usuarios";
+      if (t.startsWith("inventario.")) return "articulos";
+      if (t.startsWith("venta.")) return "pedidos";
+      if (t.startsWith("envio.")) return "pedidos";
+      if (t.startsWith("pago.")) return "pagos";
+      return "otros";
+    }
+
+    function moduloLabelFromKey(key) {
+      var map = {
+        "todos": "Todos",
+        "usuarios": "Usuarios",
+        "articulos": "Artículos",
+        "pedidos": "Pedidos",
+        "pagos": "Pagos",
+        "otros": "Otros"
+      };
+      return map[key] || "Otros";
+    }
+
+    function nivelFromTipo(tipo) {
+      var t = String(tipo || "").toLowerCase();
+      if (t.includes("agotado") || t.includes("rechazado") || t.includes("pago.fallido")) return { key: "danger", label: "Crítico" };
+      if (t.includes("stock_bajo") || t.includes("anulada") || t.includes("stock_disminuido")) return { key: "warning", label: "Atención" };
+      if (t.includes("producto_nuevo") || t.includes("producto_actualizado") || t.includes("venta.pedido") || t.includes("envio.estado") || t.includes("pago.registrado")) return { key: "success", label: "OK" };
+      if (t.includes("usuario.nuevo") || t.includes("usuario.actualizado")) return { key: "info", label: "Info" };
+      return { key: "info", label: "Info" };
+    }
+
+    function applyModuloFilter(items) {
+      if (activeModulo === "todos") return items;
+      return items.filter(function (n) {
+        return moduloKeyFromTipo(n.tipo) === activeModulo;
+      });
+    }
+
+    function renderMarcarTodas(noLeidas) {
+      if (!hdrWrap) return;
+      if (noLeidas < 1) {
+        hdrWrap.innerHTML = "";
+        return;
+      }
+      hdrWrap.innerHTML =
+        '<form method="post" action="' + esc(listUrl) + '" class="form-inline-post">' +
+        '<input type="hidden" name="csrfmiddlewaretoken" value="' + esc(csrf) + '">' +
+        '<input type="hidden" name="accion" value="marcar_todas_leidas">' +
+        '<button type="submit" class="btn-buscar">' +
+        '<i class="bx bx-check-double"></i> Marcar todas como leídas (<span id="hdr-no-leidas-count">' +
+        noLeidas + "</span>)</button></form>";
+    }
+
+    function renderCards(items) {
+      var filtered = applyModuloFilter(items);
+      if (!grid) return;
+      grid.innerHTML = "";
+
+      if (!filtered.length) {
+        if (emptyEl) emptyEl.style.display = "";
+        return;
+      }
+      if (emptyEl) emptyEl.style.display = "none";
+
+      for (var i = 0; i < filtered.length; i++) {
+        var n = filtered[i];
+        var moduleKey = moduloKeyFromTipo(n.tipo);
+        var moduleLabel = moduloLabelFromKey(moduleKey);
+        var nivel = nivelFromTipo(n.tipo);
+
+        var unreadClass = n.leida ? "" : " notif-card--unread";
+        var cardClass = "notif-card notif-card--" + nivel.key + unreadClass;
+
+        var icon = n.icono ? ("bx bx-" + String(n.icono)) : "bx bx-bell";
+        var snippet = truncateMsg(normalizeMsg(n.mensaje), 190);
+
+        var accion = n.leida
+          ? '<span class="muted">—</span>'
+          : '<form method="post" action="' + esc(listUrl) + '" style="display:inline;">' +
+            '<input type="hidden" name="csrfmiddlewaretoken" value="' + esc(csrf) + '">' +
+            '<input type="hidden" name="accion" value="marcar_leida">' +
+            '<input type="hidden" name="notificacion_id" value="' + n.id + '">' +
+            '<button type="submit" class="btn-ver" title="Marcar como leída"><i class="bx bx-check"></i></button></form>';
+
+        var cardHtml =
+          '<div class="' + cardClass + '" data-notif-id="' + n.id + '">' +
+            '<div class="notif-card__top">' +
+              '<div class="notif-card__titleRow">' +
+                '<div class="notif-card__icon notif-card__icon--' + nivel.key + '"><i class="' + icon + '"></i></div>' +
+                '<div>' +
+                  '<div class="notif-card__title">' + esc(n.titulo) + '</div>' +
+                  '<div class="notif-card__meta">' +
+                    '<span class="notif-module-tag">' + esc(moduleLabel) + '</span>' +
+                    '<span class="notif-level-tag notif-level-tag--' + nivel.key + '">' + esc(nivel.label) + '</span>' +
+                    (n.leida ? '<span class="notif-read-tag notif-read-tag--ok">Leída</span>' : '<span class="notif-read-tag notif-read-tag--no">No leída</span>') +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="notif-card__desc" title="' + esc(normalizeMsg(n.mensaje)) + '">' + esc(snippet) + '</div>' +
+            '<div class="notif-card__bottom">' +
+              '<div class="notif-card__date">' + esc(fmtFecha(n.fecha_creacion)) + '</div>' +
+              '<div class="notif-card__action">' + accion + '</div>' +
+            '</div>' +
+          '</div>';
+
+        grid.insertAdjacentHTML("beforeend", cardHtml);
+      }
+    }
+
+    function poll() {
+      if (document.visibilityState === "hidden") return;
+      fetch(pollUrl, { credentials: "same-origin", headers: { "Accept": "application/json" } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var elR = document.getElementById("stat-total-recibidas");
+          var elN = document.getElementById("stat-total-no-leidas");
+          if (elR) elR.textContent = String(data.total_recibidas || 0);
+          if (elN) elN.textContent = String(data.total_no_leidas || 0);
+          renderMarcarTodas(Number(data.total_no_leidas || 0));
+          renderCards(data.notificaciones || []);
+        })
+        .catch(function () {});
+    }
+
+    document.querySelectorAll(".notif-module-btn[data-modulo]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        document.querySelectorAll(".notif-module-btn").forEach(function (b) { b.classList.remove("is-active"); });
+        btn.classList.add("is-active");
+        activeModulo = btn.getAttribute("data-modulo") || "todos";
+        poll();
+      });
+    });
+
+    renderMarcarTodas(Number({{ total_no_leidas|default:0 }}));
+    // Cargar primera vez desde HTML (server render) vía poll para normalizar
+    poll();
+    setInterval(poll, 12000);
+  })();
+  </script>
+</body>
+</html>
+

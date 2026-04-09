@@ -373,7 +373,6 @@
     <table class="table-ordenes" {% if ordenes %}{% else %}style="display: none;"{% endif %}>
       <thead>
         <tr>
-          <th>ID</th>
           <th>Proveedor</th>
           <th>Fecha</th>
           <th>Total</th>
@@ -384,7 +383,6 @@
       <tbody>
         {% for orden in ordenes %}
         <tr onclick="verDetalleOrden({{ orden.id }})" style="cursor: pointer; transition: background-color 0.2s;">
-          <td>{{ orden.id }}</td>
           <td>{{ orden.proveedor_nombre }}</td>
           <td>{{ orden.fecha|date:"d/m/Y" }}</td>
           <td>${{ orden.total|floatformat:2 }}</td>
@@ -426,7 +424,7 @@
 <div id="modalDetalle" class="modal-detalle-orden">
   <div class="modal-detalle-content">
     <div class="modal-detalle-header">
-      <h3><i class='bx bx-file'></i> Detalle de Orden #<span id="modalId"></span></h3>
+      <h3><i class='bx bx-file'></i> Detalle de orden</h3>
       <button class="modal-close-btn" onclick="cerrarModal()">&times;</button>
     </div>
     <div class="modal-detalle-body">
@@ -518,7 +516,6 @@
         Swal.close();
 
         // Llenar datos
-        document.getElementById('modalId').textContent = orden.id;
         document.getElementById('modalProveedor').textContent = orden.proveedor_nombre;
         const fecha = new Date(orden.fecha);
         document.getElementById('modalFecha').textContent = fecha.toLocaleDateString('es-CO');

@@ -634,7 +634,6 @@
             <table class="table-inventario">
               <thead>
                 <tr>
-                  <th>ID</th>
                   <th>Código</th>
                   <th>Nombre</th>
                   <th>Precio venta</th>
@@ -648,7 +647,6 @@
               <tbody id="tbodyProductos">
                 {% for p in page_obj %}
                 <tr data-producto-id="{{ p.id }}">
-                  <td class="inv-cell-id"><span class="inv-cell-id__badge">#{{ p.id }}</span></td>
                   <td><code class="inv-code">{{ p.codigo }}</code></td>
                   <td class="inv-cell-name">{{ p.nombre }}</td>
                   <td>
@@ -732,11 +730,10 @@
               {% if compras_recientes %}
               <div class="table-container" style="border:none;">
                 <table class="table-inventario" style="min-width:0;">
-                  <thead><tr><th>ID</th><th>Fecha</th><th>Total</th><th>Ítems</th></tr></thead>
+                  <thead><tr><th>Fecha</th><th>Total</th><th>Ítems</th></tr></thead>
                   <tbody>
                     {% for c in compras_recientes %}
                     <tr>
-                      <td>{{ c.compra_id }}</td>
                       <td>{{ c.fecha_compra }}</td>
                       <td>{{ c.total }}</td>
                       <td>{{ c.items }}</td>
@@ -754,11 +751,10 @@
               {% if ventas_recientes %}
               <div class="table-container" style="border:none;">
                 <table class="table-inventario" style="min-width:0;">
-                  <thead><tr><th>ID</th><th>Fecha</th><th>Cliente (correo)</th></tr></thead>
+                  <thead><tr><th>Fecha</th><th>Cliente (correo)</th></tr></thead>
                   <tbody>
                     {% for v in ventas_recientes %}
                     <tr>
-                      <td>{{ v.venta_id }}</td>
                       <td>{{ v.fecha_venta }}</td>
                       <td>{{ v.usuario }}</td>
                     </tr>
@@ -1770,9 +1766,6 @@
         '</div>' +
         '<div class="inv-ficha__hero-col inv-ficha__hero-col--meta">' +
         '<div class="inv-ficha__hero-meta">' +
-        '<span class="inv-ficha__id">#' +
-        escapeHtml(String(p.id)) +
-        '</span>' +
         '<h4 class="inv-ficha__nombre">' +
         escapeHtml(p.nombre || '—') +
         '</h4>' +
@@ -1857,7 +1850,7 @@
       var tituloSpan = document.getElementById('modalProductoTituloTexto');
       if (tituloSpan) {
         tituloSpan.textContent =
-          'Detalle del Producto: ' + (p.nombre || '—') + ' | ID: #' + String(p.id);
+          'Detalle del Producto: ' + (p.nombre || '—');
       }
       var gh = document.getElementById('inv-ficha-gallery-host');
       function mountInvGallery() {

@@ -3,7 +3,7 @@
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;">
   <h1 style="display:flex;align-items:center;gap:10px;"><i class="bx bx-error-circle"></i> Gestión de reclamos</h1>
-  <p style="color:#64748b;">Asigna cada caso a un empleado: se abre automáticamente el hilo <strong>RECLAMO #ID</strong> en <a href="{% url 'web_admin_mensajes' %}">Mensajes</a>.</p>
+  <p style="color:#64748b;">Asigna cada caso a un empleado: se abre automáticamente el hilo de reclamo en <a href="{% url 'web_admin_mensajes' %}">Mensajes</a>.</p>
 
   {% if reclamos %}
   <div style="display:grid;gap:12px;">
@@ -11,7 +11,7 @@
     <article style="background:#fff;border-radius:12px;padding:16px;border-left:4px solid #6b46c1;box-shadow:0 2px 8px rgba(0,0,0,.06);">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:flex-start;">
         <div>
-          <strong>#{{ r.id }}</strong> — {{ r.titulo|default:"Sin título" }}
+          <strong>{{ r.titulo|default:"Sin título" }}</strong>
           <div style="color:#64748b;font-size:0.9rem;margin-top:6px;">{{ r.descripcion|truncatewords:40 }}</div>
           <div style="margin-top:8px;font-size:0.85rem;">
             <span style="background:#ede9fe;color:#553c9a;padding:2px 8px;border-radius:999px;">{{ r.estado }}</span>

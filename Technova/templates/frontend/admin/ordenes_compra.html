@@ -332,7 +332,6 @@
     <table>
         <thead>
             <tr>
-                <th>ID</th>
                 <th>Proveedor</th>
                 <th>Fecha</th>
                 <th>Total</th>
@@ -344,7 +343,6 @@
         <tbody>
             {% for orden in ordenes %}
             <tr>
-                <td><strong>#{{ orden.id }}</strong></td>
                 <td>{{ orden.proveedor.nombre }}</td>
                 <td>{{ orden.fecha|date:"d/m/Y" }}</td>
                 <td>${{ orden.total|floatformat:2 }}</td>

@@ -48,7 +48,6 @@
     <h1>¡Compra realizada exitosamente!</h1>
     <p class="lead">Tu pedido ha sido registrado. Puedes seguir el estado en «Mis pedidos».</p>
     <div class="detail">
-      <div class="row"><span style="color:#059669;font-weight:600;"><i class="bx bx-receipt"></i> Número de pedido</span><strong>#{{ venta_id }}</strong></div>
       <div class="row"><span style="color:#059669;font-weight:600;"><i class="bx bx-money"></i> Total</span><strong style="color:#059669;">${{ total|floatformat:0 }}</strong></div>
       {% if idempotente %}<p style="margin:12px 0 0;font-size:0.85rem;color:#64748b;">Este pedido ya estaba registrado anteriormente.</p>{% endif %}
     </div>

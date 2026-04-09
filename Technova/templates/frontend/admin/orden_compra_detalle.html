@@ -1,7 +1,7 @@
 {% extends "frontend/base_admin.html" %}
 {% load static %}
 
-{% block title %}Orden #{{ orden.id }} — Technova{% endblock %}
+{% block title %}Detalle de orden de compra — Technova{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -276,7 +276,7 @@
     <div>
         <h1 class="orden-title">
             <i class="bx bx-cart-alt"></i>
-            Orden #{{ orden.id }}
+            Orden de compra
         </h1>
         <p style="color: #64748b; margin-top: 0.5rem;">
             Creada el {{ orden.creado_en|date:"d/m/Y H:i" }}
@@ -338,10 +338,6 @@
         <div class="info-item">
             <span class="info-label">Cantidad de Productos</span>
             <span class="info-value">{{ detalles.count }}</span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">ID de Orden</span>
-            <span class="info-value">#{{ orden.id }}</span>
         </div>
     </div>
 </div>
@@ -436,7 +432,7 @@
             <button class="modal-close" onclick="cerrarModalEstado()">&times;</button>
         </div>
         <div class="modal-body">
-            <p>¿Está seguro de cambiar el estado de la orden <strong>#{{ orden.id }}</strong>?</p>
+            <p>¿Está seguro de cambiar el estado de esta orden?</p>
             <p>Estado actual: <span class="estado-badge estado-badge--{{ orden.estado }}">{{ orden.get_estado_display }}</span></p>
             <p>Nuevo estado: <span id="nuevoEstadoBadge" class="estado-badge"></span></p>
             <p style="margin-top: 1rem; color: #ef4444; font-size: 0.875rem;">

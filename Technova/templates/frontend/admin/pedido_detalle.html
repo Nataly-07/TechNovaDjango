@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Pedido #{{ venta.id }} — Technova</title>
+  <title>Detalle de pedido — Technova</title>
   <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
@@ -19,7 +19,7 @@
       <div class="page pedido-detalle">
         <div class="hero">
           <div>
-            <h1><i class="bx bx-package"></i> Pedido #{{ venta.id }}</h1>
+            <h1><i class="bx bx-package"></i> Detalle del pedido</h1>
             <div class="hero-meta">
               <span class="badge-estado">{{ venta.get_estado_display }}</span>
               <span><i class="bx bx-calendar"></i> {{ venta.fecha_venta|date:"d/m/Y" }}</span>
@@ -33,7 +33,6 @@
             <h2 class="panel-hd" id="hd-resumen"><i class="bx bx-receipt"></i> Resumen del pedido</h2>
             <div class="panel-bd">
               <dl style="margin:0;">
-                <div class="info-row"><dt>ID venta</dt><dd>#{{ venta.id }}</dd></div>
                 <div class="info-row"><dt>Estado</dt><dd>{{ venta.get_estado_display }}</dd></div>
                 <div class="info-row"><dt>Fecha</dt><dd>{{ venta.fecha_venta|date:"d/m/Y" }}</dd></div>
                 <div class="info-row"><dt>Total</dt><dd class="money sub-num">${{ venta.total|floatformat:0 }}</dd></div>

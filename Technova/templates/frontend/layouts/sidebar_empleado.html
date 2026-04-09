@@ -25,6 +25,11 @@
         <i class="bx bx-shopping-bag"></i> Visualización Artículos
       </a>
     </div>
+    <div class="enlace{% if seccion == 'punto-venta' %} enlace--activo{% endif %}">
+      <a href="{% url 'web_empleado_seccion' seccion='punto-venta' %}">
+        <i class="bx bx-store"></i> Punto de Venta
+      </a>
+    </div>
     <div class="enlace{% if seccion == 'pedidos' %} enlace--activo{% endif %}">
       <a href="{% url 'web_empleado_seccion' seccion='pedidos' %}">
         <i class="bx bx-cart"></i> Pedidos

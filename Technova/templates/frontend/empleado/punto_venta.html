@@ -1,0 +1,178 @@
+{% load static %}
+{% load l10n %}
+<section class="pos">
+  <header class="pos-hero" aria-labelledby="pos-hero-title">
+    <div class="pos-hero__accent" aria-hidden="true"></div>
+    <div class="pos-hero__icon" aria-hidden="true"><i class="bx bx-store-alt"></i></div>
+    <div class="pos-hero__body">
+      <p class="pos-hero__eyebrow">Caja — venta presencial</p>
+      <h2 class="pos-hero__title" id="pos-hero-title">Punto de venta (físico)</h2>
+      <p class="pos-hero__text">Registra cobros en <strong>efectivo</strong> o <strong>PayPal</strong>. La venta queda como <strong>física</strong> y ligada a ti. Elige un <strong>cliente registrado</strong> o datos de <strong>mostrador</strong> solo para facturar (sin crear cuentas nuevas por comprador).</p>
+    </div>
+  </header>
+
+  <form method="post" action="{% url 'web_empleado_seccion' seccion='punto-venta' %}" id="posForm" class="pos-form-venta">
+    {% csrf_token %}
+    <input type="hidden" name="items_json" id="posItemsJson" value="[]">
+
+    <div class="pos-card">
+      <div class="pos-card__head">
+        <span class="pos-card__step" aria-hidden="true">1</span>
+        <div>
+          <h3 class="pos-card__title">Comprador</h3>
+          <p class="pos-card__subtitle">¿Quién lleva la factura?</p>
+        </div>
+      </div>
+      <div class="pos-tiles" role="radiogroup" aria-label="Tipo de comprador">
+        <label class="pos-tile" for="ct_reg">
+          <input type="radio" name="cliente_tipo" id="ct_reg" value="registrado" checked>
+          <span class="pos-tile__body">
+            <span class="pos-tile__icon"><i class="bx bx-user-check"></i></span>
+            <span class="pos-tile__title">Cliente registrado</span>
+            <span class="pos-tile__desc">Selecciona de la lista; la factura va a su cuenta.</span>
+          </span>
+        </label>
+        <label class="pos-tile" for="ct_mos">
+          <input type="radio" name="cliente_tipo" id="ct_mos" value="mostrador">
+          <span class="pos-tile__body">
+            <span class="pos-tile__icon"><i class="bx bx-receipt"></i></span>
+            <span class="pos-tile__title">Mostrador (sin cuenta)</span>
+            <span class="pos-tile__desc">Solo datos para factura; no se crea usuario por cada venta.</span>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <div class="pos-card pos-card--soft pos-bloque-reg">
+      <div class="pos-card__head pos-card__head--compact">
+        <span class="pos-card__mini-icon" aria-hidden="true"><i class="bx bx-list-ul"></i></span>
+        <h3 class="pos-card__title pos-card__title--inline">Cliente en el sistema</h3>
+      </div>
+      <div class="pos-field">
+        <label for="cliente_id">Seleccionar cliente</label>
+        <select name="cliente_id" id="cliente_id" class="pos-input">
+          <option value="">Elige un cliente…</option>
+          {% for c in clientes %}
+            <option value="{{ c.id }}">{{ c.nombres }} {{ c.apellidos }} — {{ c.correo_electronico }}</option>
+          {% endfor %}
+        </select>
+        <p class="pos-hint">La factura quedará a nombre del cliente elegido.</p>
+      </div>
+    </div>
+
+    <div class="pos-card pos-card--soft pos-bloque-mos" style="display:none;">
+      <div class="pos-card__head pos-card__head--compact">
+        <span class="pos-card__mini-icon" aria-hidden="true"><i class="bx bx-edit"></i></span>
+        <h3 class="pos-card__title pos-card__title--inline">Datos para factura</h3>
+      </div>
+      <p class="pos-lead">Completa los datos del comprador. Si el documento ya existe como cliente, se usará esa cuenta.</p>
+      <div class="pos-field-grid">
+        <div class="pos-field">
+          <label for="pv_nombres">Nombres *</label>
+          <input type="text" name="pv_nombres" id="pv_nombres" class="pos-input" maxlength="120" autocomplete="given-name" placeholder="Ej. María">
+        </div>
+        <div class="pos-field">
+          <label for="pv_apellidos">Apellidos *</label>
+          <input type="text" name="pv_apellidos" id="pv_apellidos" class="pos-input" maxlength="120" autocomplete="family-name" placeholder="Ej. Gómez">
+        </div>
+        <div class="pos-field">
+          <label for="pv_tipo_documento">Tipo documento *</label>
+          <select name="pv_tipo_documento" id="pv_tipo_documento" class="pos-input">
+            <option value="">Seleccionar…</option>
+            <option value="CC">CC</option>
+            <option value="CE">CE</option>
+            <option value="TI">TI</option>
+            <option value="PAS">PAS</option>
+          </select>
+        </div>
+        <div class="pos-field">
+          <label for="pv_numero_documento">N.º documento *</label>
+          <input type="text" name="pv_numero_documento" id="pv_numero_documento" class="pos-input" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="Solo números">
+        </div>
+        <div class="pos-field">
+          <label for="pv_telefono">Teléfono *</label>
+          <input type="text" name="pv_telefono" id="pv_telefono" class="pos-input" maxlength="20" autocomplete="tel" placeholder="Contacto">
+        </div>
+        <div class="pos-field">
+          <label for="pv_email">Correo <span class="pos-label-muted">(opcional)</span></label>
+          <input type="email" name="pv_email" id="pv_email" class="pos-input" maxlength="120" autocomplete="email" placeholder="PayPal y envío de factura si aplica">
+        </div>
+      </div>
+      <div class="pos-field pos-field--full">
+        <label for="pv_direccion">Dirección <span class="pos-label-muted">(opcional)</span></label>
+        <input type="text" name="pv_direccion" id="pv_direccion" class="pos-input" maxlength="2000" placeholder="Para datos en factura">
+      </div>
+    </div>
+
+    <div class="pos-card pos-card--products">
+      <div class="pos-card__head">
+        <span class="pos-card__step" aria-hidden="true">2</span>
+        <div>
+          <h3 class="pos-card__title">Productos</h3>
+          <p class="pos-card__subtitle">Agrega ítems al carrito de esta venta</p>
+        </div>
+      </div>
+      <div class="pos-product-row">
+        <div class="pos-field pos-field--grow">
+          <label for="producto_id">Producto</label>
+          <select id="producto_id" class="pos-input">
+            <option value="">Selecciona un producto…</option>
+            {% for p in productos %}
+              <option
+                value="{{ p.id }}"
+                data-nombre="{{ p.nombre|escape }}"
+                data-precio="{% localize off %}{{ p.precio_publico }}{% endlocalize %}"
+                data-stock="{{ p.stock }}"
+              >
+                {{ p.nombre }} (Stock: {{ p.stock }}) — ${{ p.precio_publico|floatformat:0 }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="pos-field pos-field--qty">
+          <label for="cantidad">Cantidad</label>
+          <input type="number" id="cantidad" class="pos-input pos-input--qty" min="1" value="1">
+        </div>
+        <button type="button" class="pos-btn pos-btn--add" id="btnAgregarItem">
+          <i class="bx bx-plus-circle"></i> Agregar
+        </button>
+      </div>
+    </div>
+
+    <div class="pos-table-wrap">
+      <table class="pos-table" id="posTabla">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th class="pos-table__num">Cant.</th>
+            <th class="pos-table__num">Precio</th>
+            <th class="pos-table__num">Subtotal</th>
+            <th class="pos-table__act"></th>
+          </tr>
+        </thead>
+        <tbody id="posTbody">
+          <tr class="pos-table__empty"><td colspan="5">Aún no hay productos en esta venta.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pos-total-strip">
+      <span class="pos-total-strip__label">Total a cobrar</span>
+      <span class="pos-total-strip__value" id="posTotal">$0</span>
+    </div>
+
+    <div class="pos-acciones">
+      <button type="submit" name="accion" value="efectivo" class="pos-btn pos-btn--cash" id="btnEfectivo">
+        <i class="bx bx-money"></i> Efectivo
+      </button>
+      <button type="submit" name="accion" value="paypal" class="pos-btn pos-btn--paypal" id="btnPaypal">
+        <i class="bx bxl-paypal"></i> PayPal
+      </button>
+      <a href="{% url 'web_empleado_inicio' %}" class="pos-btn pos-btn--ghost">
+        <i class="bx bx-arrow-back"></i> Volver
+      </a>
+    </div>
+  </form>
+</section>
+
+<script src="{% static 'frontend/js/pos_empleado.js' %}?v=5"></script>

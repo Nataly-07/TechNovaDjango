@@ -352,6 +352,7 @@ def checkout_paypal_retorno(request):
         return redirect("web_cliente_checkout_revision")
     ok, status = paypal_capture_order(order_id)
     if not ok:
+        # 422 suele ocurrir si el usuario recarga el retorno; el helper intenta tratar COMPLETED como ok.
         messages.error(request, f"No se pudo capturar el pago en PayPal ({status}).")
         return redirect("web_cliente_checkout_revision")
     uid = request.session.get(SESSION_USUARIO_ID)

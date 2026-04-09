@@ -694,6 +694,14 @@ def admin_pagos(request):
             p = r["pago"]
             if p.numero_factura and q_lower in p.numero_factura.lower():
                 return True
+            v = r["venta"]
+            dm = getattr(v, "datos_facturacion_mostrador", None) if v else None
+            if dm:
+                nombre = f"{dm.get('nombres', '')} {dm.get('apellidos', '')}".strip().lower()
+                if q_lower in nombre or q_lower in (dm.get("correo_electronico") or "").lower():
+                    return True
+                if q_lower in (dm.get("numero_documento") or "").lower():
+                    return True
             c = r["cliente"]
             if c:
                 nombre = f"{c.nombres} {c.apellidos}".strip().lower()
@@ -733,7 +741,11 @@ def admin_pago_detalle(request, pago_id: int):
         Pago.objects.prefetch_related(
             Prefetch(
                 "medios_pago",
-                queryset=MedioPago.objects.select_related("detalle_venta__venta__usuario"),
+                queryset=MedioPago.objects.select_related(
+                    "detalle_venta__venta__usuario",
+                    "detalle_venta__venta__empleado",
+                    "detalle_venta__venta__administrador",
+                ),
             )
         ),
         pk=pago_id,
@@ -753,6 +765,17 @@ def admin_pago_detalle(request, pago_id: int):
     ]
     badge = badge_clase_estado_pago(pago.estado_pago)
     medios_pago_labels = lista_metodos_pago_display(pago)
+    if venta.empleado_id:
+        venta_origen_label = f"Empleado: {venta.empleado.nombres} {venta.empleado.apellidos}".strip()
+    elif venta.administrador_id:
+        venta_origen_label = (
+            f"Administrador: {venta.administrador.nombres} {venta.administrador.apellidos}".strip()
+        )
+    elif getattr(venta, "tipo_venta", None) == "fisica":
+        venta_origen_label = "Punto de venta"
+    else:
+        venta_origen_label = "Cliente (compra en tienda online)"
+
     return render(
         request,
         "frontend/admin/pago_detalle.html",
@@ -766,6 +789,8 @@ def admin_pago_detalle(request, pago_id: int):
             "medios_pago_labels": medios_pago_labels,
             "fecha_pago_es": fecha_larga_es(pago.fecha_pago),
             "fecha_factura_es": fecha_larga_es(pago.fecha_factura),
+            "tipo_venta_display": venta.get_tipo_venta_display(),
+            "venta_origen_label": venta_origen_label,
         },
     )
 
@@ -817,7 +842,10 @@ def admin_pedidos(request):
     fecha_desde = (request.GET.get("fechaDesde") or "").strip()
     fecha_hasta = (request.GET.get("fechaHasta") or "").strip()
     producto = (request.GET.get("producto") or "").strip()
-    qs = Venta.objects.select_related("usuario").order_by("-fecha_venta", "-id")
+    qs = (
+        Venta.objects.select_related("usuario", "empleado", "administrador")
+        .order_by("-fecha_venta", "-id")
+    )
     if usuario_id.isdigit():
         qs = qs.filter(usuario_id=int(usuario_id))
     if fecha_desde:
@@ -880,7 +908,10 @@ def admin_pedidos(request):
 @admin_login_required
 def admin_pedido_detalle(request, venta_id: int):
     usuario = admin_usuario_sesion(request)
-    venta = get_object_or_404(Venta.objects.select_related("usuario"), pk=venta_id)
+    venta = get_object_or_404(
+        Venta.objects.select_related("usuario", "empleado", "administrador"),
+        pk=venta_id,
+    )
     detalles = venta.detalles.select_related("producto").all()
     lineas = [
         {

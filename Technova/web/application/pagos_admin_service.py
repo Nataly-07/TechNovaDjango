@@ -39,7 +39,11 @@ def venta_cliente_desde_pago(pago: Pago) -> tuple[Venta | None, Usuario | None]:
         return venta, venta.usuario
     vid = extraer_venta_id_factura(pago.numero_factura)
     if vid:
-        venta = Venta.objects.select_related("usuario").filter(pk=vid).first()
+        venta = (
+            Venta.objects.select_related("usuario", "empleado", "administrador")
+            .filter(pk=vid)
+            .first()
+        )
         if venta:
             return venta, venta.usuario
     return None, None

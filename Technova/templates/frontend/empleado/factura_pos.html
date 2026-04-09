@@ -1,0 +1,218 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Factura #{{ pago.numero_factura }} — Punto de venta — Technova</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    @media print { body { margin: 0; } .acciones, .empleado-banner { display: none; } }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #eef2f7;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: #0f172a;
+    }
+    .empleado-banner {
+      max-width: 760px;
+      margin: 0 auto 12px;
+      padding: 10px 14px;
+      background: #e0f2fe;
+      border: 1px solid #7dd3fc;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      color: #0c4a6e;
+    }
+    .factura {
+      max-width: 760px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+    }
+    .factura-top {
+      background: linear-gradient(135deg, #06b6d4, #6366f1);
+      color: #fff;
+      padding: 18px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand img { width: 36px; height: 36px; object-fit: contain; background: rgba(255, 255, 255, 0.9); border-radius: 8px; padding: 2px; }
+    .brand h1 { margin: 0; font-size: 1.12rem; letter-spacing: .04em; }
+    .factura-top small { opacity: .95; font-size: .84rem; display: block; }
+    .factura-main { padding: 18px 20px 22px; }
+    .bloques {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .bloque {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      background: #fafcff;
+    }
+    .bloque h3 { margin: 0 0 8px; font-size: .95rem; color: #334155; }
+    .linea { font-size: .9rem; margin: 4px 0; color: #334155; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: .9rem; }
+    thead th { background: #f1f5f9; color: #334155; text-align: left; font-weight: 700; }
+    td.right, th.right { text-align: right; }
+    .total {
+      margin-top: 12px;
+      display: flex;
+      justify-content: flex-end;
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .total strong { color: #16a34a; margin-left: 8px; }
+    .foot {
+      margin-top: 16px;
+      font-size: .82rem;
+      color: #64748b;
+      text-align: center;
+      border-top: 1px dashed #cbd5e1;
+      padding-top: 12px;
+    }
+    .acciones {
+      max-width: 760px;
+      margin: 16px auto 0;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-pdf { background: linear-gradient(135deg, #22c55e, #16a34a); }
+    .btn-print { background: linear-gradient(135deg, #6366f1, #7c3aed); }
+    .btn-back { background: #475569; }
+    .btn-home { background: #0ea5e9; }
+  </style>
+  <script>
+    function descargarPDF() {
+      var root = document.getElementById("facturaRoot");
+      var acciones = document.querySelector(".acciones");
+      var banner = document.querySelector(".empleado-banner");
+      var prevA = acciones ? acciones.style.display : "";
+      var prevB = banner ? banner.style.display : "";
+      if (acciones) acciones.style.display = "none";
+      if (banner) banner.style.display = "none";
+      var file = "factura-" + "{{ pago.numero_factura|default:'technova' }}".replace(/[^a-zA-Z0-9-_]/g, "_") + ".pdf";
+      html2pdf().set({
+        margin: [0.35, 0.35, 0.35, 0.35],
+        filename: file,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+        jsPDF: { unit: "in", format: "a4", orientation: "portrait" }
+      }).from(root).save().finally(function () {
+        if (acciones) acciones.style.display = prevA || "flex";
+        if (banner) banner.style.display = prevB || "block";
+      });
+    }
+  </script>
+</head>
+<body>
+  <div class="empleado-banner">
+    Estás en el <strong>panel de empleado</strong>. Esta factura es para el comprador; al terminar vuelve al punto de venta para seguir cobrando.
+  </div>
+
+  <article class="factura" id="facturaRoot">
+    <header class="factura-top">
+      <div class="brand">
+        <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Technova">
+        <div>
+          <h1>TECHNOVA</h1>
+          <small>Factura — venta física (punto de venta)</small>
+        </div>
+      </div>
+      <div>
+        <small>Número: {{ pago.numero_factura }}</small>
+        <small>Fecha: {{ pago.fecha_factura|date:"d/m/Y" }}</small>
+        <small>Estado pago: {{ pago.estado_pago|title }}</small>
+        {% if empleado %}
+        <small>Atendido por: {{ empleado.nombres }} {{ empleado.apellidos }}</small>
+        {% endif %}
+      </div>
+    </header>
+    <section class="factura-main">
+      <div class="bloques">
+        <div class="bloque">
+          {% if venta.datos_facturacion_mostrador %}
+          <h3>Comprador (mostrador, sin cuenta)</h3>
+          {% with d=venta.datos_facturacion_mostrador %}
+          <div class="linea"><strong>{{ d.nombres }} {{ d.apellidos }}</strong></div>
+          <div class="linea">{{ d.tipo_documento }} {{ d.numero_documento }}</div>
+          <div class="linea">{% if d.correo_electronico %}{{ d.correo_electronico }}{% else %}<span style="color:#64748b;">Sin correo</span>{% endif %}</div>
+          <div class="linea">{{ d.telefono|default:"Sin teléfono" }}</div>
+          <div class="linea" style="font-size:.85rem;color:#64748b;">{{ d.direccion }}</div>
+          {% endwith %}
+          {% else %}
+          <h3>Comprador (cliente registrado)</h3>
+          <div class="linea">{{ cliente.nombres }} {{ cliente.apellidos }}</div>
+          <div class="linea">{{ cliente.correo_electronico }}</div>
+          <div class="linea">{{ cliente.telefono|default:"Sin teléfono" }}</div>
+          {% endif %}
+        </div>
+        <div class="bloque">
+          <h3>Venta</h3>
+          <div class="linea">Venta #{{ venta.id }}</div>
+          <div class="linea">Estado: {{ venta.estado|title }}</div>
+          <div class="linea">Fecha: {{ venta.fecha_venta|date:"d/m/Y" }}</div>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th class="right">Cantidad</th>
+            <th class="right">Valor unitario</th>
+            <th class="right">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for linea in lineas %}
+          <tr>
+            <td>{{ linea.nombre }}</td>
+            <td class="right">{{ linea.cantidad }}</td>
+            <td class="right">${{ linea.precio_unitario|floatformat:0 }}</td>
+            <td class="right">${{ linea.subtotal|floatformat:0 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="total">Total:<strong>${{ pago.monto|floatformat:0 }}</strong></div>
+      <div class="foot">Gracias por comprar en TECHNOVA.</div>
+    </section>
+  </article>
+
+  <div class="acciones">
+    <button type="button" class="btn btn-pdf" onclick="descargarPDF()">Descargar PDF</button>
+    <button type="button" class="btn btn-print" onclick="window.print()">Imprimir</button>
+    <a href="{% url 'web_empleado_punto_venta' %}" class="btn btn-back">Volver al punto de venta</a>
+    <a href="{% url 'web_empleado_inicio' %}" class="btn btn-home">Inicio empleado</a>
+  </div>
+</body>
+</html>

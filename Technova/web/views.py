@@ -60,11 +60,17 @@ from usuario.infrastructure.models.usuario_model import Usuario
 from venta.models import Venta
 from venta.models import DetalleVenta
 from web.application.admin_web_service import producto_modal_dict  # ✅ AGREGAR IMPORTACIÓN FALTANTE
+from web.application.checkout_web_service import (
+    paypal_create_order,
+    paypal_is_configured,
+)
+from web.application.pos_cliente_service import resolver_cliente_para_pos
 from web.application.producto_excel_import import (
     ErrorImportacionExcel,
     importar_productos_desde_bytes,
     respuesta_plantilla_excel,
 )
+from web.adapters.http import views_empleado as _empleado_pos_views
 
 logger = logging.getLogger(__name__)
 
@@ -314,6 +320,25 @@ def _paypal_capture_order(order_id: str) -> tuple[bool, str]:
             status = (body.get("status") or "").strip().upper()
             return status == "COMPLETED", (status or "UNKNOWN")
     except urllib_error.HTTPError as exc:
+        # PayPal puede responder 422 si el order ya fue capturado (recarga / doble submit).
+        if getattr(exc, "code", None) == 422:
+            try:
+                req_status = urllib_request.Request(
+                    f"{_paypal_base_url()}/v2/checkout/orders/{encoded_order_id}",
+                    method="GET",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json",
+                    },
+                )
+                with urllib_request.urlopen(req_status, timeout=20) as resp2:
+                    body2 = json.loads(resp2.read().decode("utf-8"))
+                    status2 = (body2.get("status") or "").strip().upper()
+                    if status2 == "COMPLETED":
+                        return True, "COMPLETED"
+                    return False, f"HTTP_422_{status2 or 'UNKNOWN'}"
+            except Exception:  # noqa: BLE001
+                return False, "HTTP_422"
         return False, f"HTTP_{exc.code}"
     except urllib_error.URLError:
         return False, "NETWORK_ERROR"
@@ -464,7 +489,11 @@ def _venta_cliente_desde_pago(pago: Pago) -> tuple[Venta | None, Usuario | None]
         return venta, venta.usuario
     vid = _extraer_venta_id_factura(pago.numero_factura)
     if vid:
-        venta = Venta.objects.select_related("usuario").filter(pk=vid).first()
+        venta = (
+            Venta.objects.select_related("usuario", "empleado", "administrador")
+            .filter(pk=vid)
+            .first()
+        )
         if venta:
             return venta, venta.usuario
     return None, None
@@ -605,6 +634,7 @@ EMPLEADO_SECCIONES: dict[str, str] = {
     "perfil": "Mi perfil",
     "usuarios": "Usuarios",
     "productos": "Visualización de artículos",
+    "punto-venta": "Punto de venta",
     "pedidos": "Pedidos",
     "atencion-cliente": "Atención al cliente",
     "reclamos": "Reclamos",
@@ -908,8 +938,104 @@ def empleado_dashboard(request, seccion: str = "inicio"):
                 ).count(),
             }
         )
+    elif seccion == "punto-venta":
+        ctx["productos"] = list(
+            Producto.objects.filter(activo=True, stock__gt=0).order_by("nombre", "id")[:500]
+        )
+        ctx["clientes"] = list(
+            Usuario.objects.filter(rol=Usuario.Rol.CLIENTE, activo=True)
+            .order_by("nombres", "apellidos", "id")[:500]
+        )
+
+        if request.method == "POST":
+            accion = (request.POST.get("accion") or "").strip().lower()
+            try:
+                items = _empleado_pos_views._pos_parse_items(request.POST.get("items_json") or "[]")
+            except (ValueError, json.JSONDecodeError) as exc:
+                messages.error(request, str(exc))
+                return redirect("web_empleado_seccion", seccion="punto-venta")
+
+            cliente_id, datos_mostrador, err_cliente = resolver_cliente_para_pos(request)
+            if err_cliente:
+                messages.error(request, err_cliente)
+                return redirect("web_empleado_seccion", seccion="punto-venta")
+
+            if accion not in ("efectivo", "paypal"):
+                messages.error(request, "Selecciona un método de pago.")
+                return redirect("web_empleado_seccion", seccion="punto-venta")
+
+            if accion == "paypal" and datos_mostrador is not None:
+                em = (datos_mostrador.get("correo_electronico") or "").strip()
+                if not em or "@" not in em:
+                    messages.error(
+                        request,
+                        "Para cobrar con PayPal ingresa el correo electrónico del comprador.",
+                    )
+                    return redirect("web_empleado_seccion", seccion="punto-venta")
+
+            numero_factura = _empleado_pos_views._pos_numero_factura(cliente_id)
+            cliente_obj = Usuario.objects.filter(pk=cliente_id).first()
+            if datos_mostrador is not None:
+                email_paypal = (datos_mostrador.get("correo_electronico") or "").strip()
+            else:
+                email_paypal = (cliente_obj.correo_electronico or "").strip() if cliente_obj else ""
+
+            if accion == "paypal":
+                if not paypal_is_configured():
+                    messages.error(request, "PayPal no está configurado.")
+                    return redirect("web_empleado_seccion", seccion="punto-venta")
+
+                total = Decimal("0")
+                for it in items:
+                    p = Producto.objects.filter(pk=it["producto_id"], activo=True).first()
+                    if not p or p.stock < it["cantidad"]:
+                        messages.error(request, "Stock insuficiente o producto no disponible.")
+                        return redirect("web_empleado_seccion", seccion="punto-venta")
+                    total += (p.precio_publico or Decimal("0")) * int(it["cantidad"])
+
+                try:
+                    order_id, approval_url = paypal_create_order(
+                        amount=total,
+                        reference_code=numero_factura,
+                        customer_email=email_paypal,
+                        return_url=request.build_absolute_uri(reverse("web_empleado_pos_paypal_retorno")),
+                        cancel_url=request.build_absolute_uri(reverse("web_empleado_punto_venta")),
+                    )
+                except ValueError as exc:
+                    messages.error(request, str(exc))
+                    return redirect("web_empleado_seccion", seccion="punto-venta")
+
+                request.session["pos_paypal"] = {
+                    "cliente_id": cliente_id,
+                    "items": items,
+                    "numero_factura": numero_factura,
+                    "order_id": order_id,
+                    "datos_facturacion_mostrador": datos_mostrador,
+                }
+                request.session.modified = True
+                return redirect(approval_url)
+
+            try:
+                venta_id, _pago_id = _empleado_pos_views._pos_registrar_venta(
+                    cliente_id=cliente_id,
+                    items=items,
+                    empleado_id=usuario.id,
+                    metodo_pago=MedioPago.Metodo.EFECTIVO.value,
+                    numero_factura=numero_factura,
+                    datos_facturacion_mostrador=datos_mostrador,
+                )
+            except ValueError as exc:
+                messages.error(request, str(exc))
+                return redirect("web_empleado_seccion", seccion="punto-venta")
+
+            messages.success(request, f"Venta registrada. Factura: {numero_factura}")
+            return redirect("web_empleado_pos_factura", venta_id=venta_id)
 
     return render(request, "frontend/empleado/dashboard.html", ctx)
+
+
+empleado_pos_paypal_retorno = _empleado_pos_views.empleado_pos_paypal_retorno
+empleado_pos_factura = _empleado_pos_views.empleado_pos_factura
 
 
 @_empleado_login_required
@@ -2747,7 +2873,11 @@ def admin_pago_detalle(request, pago_id: int):
         Pago.objects.prefetch_related(
             Prefetch(
                 "medios_pago",
-                queryset=MedioPago.objects.select_related("detalle_venta__venta__usuario"),
+                queryset=MedioPago.objects.select_related(
+                    "detalle_venta__venta__usuario",
+                    "detalle_venta__venta__empleado",
+                    "detalle_venta__venta__administrador",
+                ),
             )
         ),
         pk=pago_id,
@@ -2767,6 +2897,17 @@ def admin_pago_detalle(request, pago_id: int):
     ]
     badge = _badge_clase_estado_pago(pago.estado_pago)
     medios_pago_labels = _lista_metodos_pago_display(pago)
+    if venta.empleado_id:
+        venta_origen_label = f"Empleado: {venta.empleado.nombres} {venta.empleado.apellidos}".strip()
+    elif venta.administrador_id:
+        venta_origen_label = (
+            f"Administrador: {venta.administrador.nombres} {venta.administrador.apellidos}".strip()
+        )
+    elif getattr(venta, "tipo_venta", None) == "fisica":
+        venta_origen_label = "Punto de venta"
+    else:
+        venta_origen_label = "Cliente (compra en tienda online)"
+
     return render(
         request,
         "frontend/admin/pago_detalle.html",
@@ -2780,6 +2921,8 @@ def admin_pago_detalle(request, pago_id: int):
             "medios_pago_labels": medios_pago_labels,
             "fecha_pago_es": _fecha_larga_es(pago.fecha_pago),
             "fecha_factura_es": _fecha_larga_es(pago.fecha_factura),
+            "tipo_venta_display": venta.get_tipo_venta_display(),
+            "venta_origen_label": venta_origen_label,
         },
     )
 

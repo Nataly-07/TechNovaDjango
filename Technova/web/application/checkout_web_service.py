@@ -244,6 +244,26 @@ def paypal_capture_order(order_id: str) -> tuple[bool, str]:
             status = (body.get("status") or "").strip().upper()
             return status == "COMPLETED", (status or "UNKNOWN")
     except urllib_error.HTTPError as exc:
+        # PayPal puede responder 422 cuando el order ya fue capturado previamente
+        # (p. ej. usuario recarga la URL de retorno). En ese caso, consultamos el estado.
+        if getattr(exc, "code", None) == 422:
+            try:
+                req_status = urllib_request.Request(
+                    f"{paypal_base_url()}/v2/checkout/orders/{encoded_order_id}",
+                    method="GET",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json",
+                    },
+                )
+                with urllib_request.urlopen(req_status, timeout=20) as resp2:
+                    body2 = json.loads(resp2.read().decode("utf-8"))
+                    status2 = (body2.get("status") or "").strip().upper()
+                    if status2 == "COMPLETED":
+                        return True, "COMPLETED"
+                    return False, f"HTTP_422_{status2 or 'UNKNOWN'}"
+            except Exception:  # noqa: BLE001
+                return False, "HTTP_422"
         return False, f"HTTP_{exc.code}"
     except urllib_error.URLError:
         return False, "NETWORK_ERROR"

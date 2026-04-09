@@ -102,9 +102,12 @@
               <tr>
                 <td>{{ pago.numero_factura|default:"N/A" }}</td>
                 <td>
-                  {% if cliente %}<span style="font-weight:600;color:#2c3e50;">{{ cliente.nombres }} {{ cliente.apellidos }}</span>{% else %}N/A{% endif %}
+                  {% if venta.datos_facturacion_mostrador %}
+                  <span style="font-weight:600;color:#2c3e50;">{{ venta.datos_facturacion_mostrador.nombres }} {{ venta.datos_facturacion_mostrador.apellidos }}</span>
+                  <span style="display:block;font-size:0.82em;color:#64748b;">Mostrador</span>
+                  {% elif cliente %}<span style="font-weight:600;color:#2c3e50;">{{ cliente.nombres }} {{ cliente.apellidos }}</span>{% else %}N/A{% endif %}
                 </td>
-                <td style="color:#667eea;font-size:0.9em;">{% if cliente %}{{ cliente.correo_electronico }}{% else %}N/A{% endif %}</td>
+                <td style="color:#667eea;font-size:0.9em;">{% if venta.datos_facturacion_mostrador %}{% if venta.datos_facturacion_mostrador.correo_electronico %}{{ venta.datos_facturacion_mostrador.correo_electronico }}{% else %}—{% endif %}{% elif cliente %}{{ cliente.correo_electronico }}{% else %}N/A{% endif %}</td>
                 <td>{{ pago.fecha_pago|default:"N/A" }}</td>
                 <td style="color:#00cc44;font-weight:600;">${{ pago.monto|floatformat:0 }}</td>
                 <td>

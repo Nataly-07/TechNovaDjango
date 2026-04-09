@@ -16,6 +16,7 @@ EMPLEADO_SECCIONES: dict[str, str] = {
     "usuarios": "Usuarios",
     "mensajes": "Mensajes",
     "productos": "Visualización de artículos",
+    "punto-venta": "Punto de venta",
     "pedidos": "Pedidos",
     "atencion-cliente": "Atención al cliente",
     "notificaciones": "Notificaciones",

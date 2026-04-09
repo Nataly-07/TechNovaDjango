@@ -35,19 +35,44 @@
               <dl style="margin:0;">
                 <div class="info-row"><dt>Estado</dt><dd>{{ venta.get_estado_display }}</dd></div>
                 <div class="info-row"><dt>Fecha</dt><dd>{{ venta.fecha_venta|date:"d/m/Y" }}</dd></div>
+                <div class="info-row">
+                  <dt>Tipo</dt>
+                  <dd>{% if venta.tipo_venta == 'fisica' %}Física{% else %}Online{% endif %}</dd>
+                </div>
+                <div class="info-row">
+                  <dt>Realizada por</dt>
+                  <dd>
+                    {% if venta.empleado %}
+                      Empleado: {{ venta.empleado.nombres }} {{ venta.empleado.apellidos }}
+                    {% elif venta.administrador %}
+                      Admin: {{ venta.administrador.nombres }} {{ venta.administrador.apellidos }}
+                    {% else %}
+                      Cliente
+                    {% endif %}
+                  </dd>
+                </div>
                 <div class="info-row"><dt>Total</dt><dd class="money sub-num">${{ venta.total|floatformat:0 }}</dd></div>
               </dl>
             </div>
           </section>
 
           <section class="panel" aria-labelledby="hd-cliente">
-            <h2 class="panel-hd" id="hd-cliente"><i class="bx bx-user"></i> Cliente</h2>
+            <h2 class="panel-hd" id="hd-cliente"><i class="bx bx-user"></i> {% if venta.datos_facturacion_mostrador %}Datos de facturación (mostrador){% else %}Cliente{% endif %}</h2>
             <div class="panel-bd">
               <dl style="margin:0;">
+                {% if venta.datos_facturacion_mostrador %}
+                {% with d=venta.datos_facturacion_mostrador %}
+                <div class="info-row"><dt>Nombre</dt><dd>{{ d.nombres }} {{ d.apellidos }}</dd></div>
+                <div class="info-row"><dt>CC / Documento</dt><dd>{% if d.tipo_documento or d.numero_documento %}{{ d.tipo_documento }} {{ d.numero_documento }}{% else %}<span class="muted">—</span>{% endif %}</dd></div>
+                <div class="info-row"><dt>Correo</dt><dd style="word-break:break-all;">{% if d.correo_electronico %}{{ d.correo_electronico }}{% else %}<span class="muted">—</span>{% endif %}</dd></div>
+                <div class="info-row"><dt>Teléfono</dt><dd>{% if d.telefono %}{{ d.telefono }}{% else %}<span class="muted">—</span>{% endif %}</dd></div>
+                {% endwith %}
+                {% else %}
                 <div class="info-row"><dt>Nombre</dt><dd>{{ cliente.nombres }} {{ cliente.apellidos }}</dd></div>
                 <div class="info-row"><dt>CC / Documento</dt><dd>{% if cliente.tipo_documento or cliente.numero_documento %}{{ cliente.tipo_documento }} {{ cliente.numero_documento }}{% else %}<span class="muted">—</span>{% endif %}</dd></div>
                 <div class="info-row"><dt>Correo</dt><dd style="word-break:break-all;">{{ cliente.correo_electronico }}</dd></div>
                 <div class="info-row"><dt>Teléfono</dt><dd>{% if cliente.telefono %}{{ cliente.telefono }}{% else %}<span class="muted">—</span>{% endif %}</dd></div>
+                {% endif %}
               </dl>
             </div>
           </section>

@@ -56,6 +56,16 @@ urlpatterns = [
         name="web_empleado_inicio",
     ),
     path("empleado/perfil/editar/", views.empleado_perfil_editar, name="web_empleado_perfil_editar"),
+    path(
+        "empleado/pos/paypal/retorno/",
+        views.empleado_pos_paypal_retorno,
+        name="web_empleado_pos_paypal_retorno",
+    ),
+    path(
+        "empleado/pos/<int:venta_id>/factura/",
+        views.empleado_pos_factura,
+        name="web_empleado_pos_factura",
+    ),
     path("empleado/mensajes", mensajes_web.empleado_mensajes_page, name="web_empleado_mensajes_noslash"),
     path("empleado/mensajes/", mensajes_web.empleado_mensajes_page, name="web_empleado_mensajes"),
     path(
@@ -67,6 +77,12 @@ urlpatterns = [
         "empleado/notificaciones/",
         views.empleado_notificaciones,
         name="web_empleado_notificaciones",
+    ),
+    path(
+        "empleado/punto-venta/",
+        views.empleado_dashboard,
+        kwargs={"seccion": "punto-venta"},
+        name="web_empleado_punto_venta",
     ),
     path("empleado/<slug:seccion>/", views.empleado_dashboard, name="web_empleado_seccion"),
     path("admin/perfil/editar/", views.admin_perfil_editar, name="web_admin_perfil_editar"),

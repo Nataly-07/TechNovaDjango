@@ -14,6 +14,9 @@ class DetalleVentaEntidad:
 class VentaEntidad:
     id: int | None
     usuario_id: int
+    tipo_venta: str
+    empleado_id: int | None
+    administrador_id: int | None
     fecha_venta: date
     estado: str
     total: Decimal

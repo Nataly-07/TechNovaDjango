@@ -3,50 +3,62 @@
 {% block head_title %}{{ titulo_seccion }} — Empleado Technova{% endblock %}
 {% block empleado_content %}
 {% if seccion == 'inicio' %}
-<div class="profile-card empleado-resumen-card">
-  <img src="{% static 'frontend/imagenes/placeholder.svg' %}" alt="Foto de perfil" width="64" height="64">
-  <div class="profile-details">
-    <h2>{{ usuario.nombres }} {{ usuario.apellidos }}</h2>
-    <p><i class="bx bx-envelope"></i> <span>{{ usuario.correo_electronico }}</span></p>
-    <p><i class="bx bx-shield"></i> <span>{{ usuario.get_rol_display }}</span></p>
+<section class="empleado-inicio" aria-labelledby="empleado-inicio-intro-title">
+  <div class="empleado-profile-card profile-card empleado-resumen-card">
+    <div class="empleado-profile-card__avatar-wrap">
+      <img src="{% static 'frontend/imagenes/placeholder.svg' %}" alt="" width="72" height="72" class="empleado-profile-card__avatar">
+    </div>
+    <div class="profile-details empleado-profile-card__details">
+      <h2>{{ usuario.nombres }} {{ usuario.apellidos }}</h2>
+      <p class="empleado-profile-card__line"><i class="bx bx-envelope"></i> <span>{{ usuario.correo_electronico }}</span></p>
+      <p class="empleado-profile-card__line"><i class="bx bx-shield"></i> <span class="empleado-profile-card__rol">{{ usuario.get_rol_display }}</span></p>
+    </div>
   </div>
-</div>
 
-<div class="empleado-placeholder empleado-placeholder--home">
-  <p class="empleado-placeholder__title">Área de empleado</p>
-  <p class="empleado-placeholder__text">Usa el menú lateral para acceder a cada módulo. La lógica de negocio se integrará próximamente.</p>
-</div>
+  <header class="empleado-inicio-intro">
+    <p class="empleado-inicio-intro__eyebrow">Panel</p>
+    <h2 class="empleado-inicio-intro__title" id="empleado-inicio-intro-title">Área de empleado</h2>
+    <p class="empleado-inicio-intro__text">Usa el menú lateral o los accesos de abajo para ir a cada módulo.</p>
+  </header>
 
-<div class="dashboard-cards">
-  <div class="card empleado-card-mock">
-    <div class="card-icon"><i class="bx bx-user"></i></div>
-    <div class="card-content">
-      <h3>Usuarios</h3>
-      <p>Gestión de usuarios (pendiente)</p>
-    </div>
-  </div>
-  <a href="{% url 'web_empleado_seccion' seccion='mensajes' %}" class="card empleado-card-mock" style="text-decoration:none;color:inherit;">
-    <div class="card-icon"><i class="bx bx-message"></i></div>
-    <div class="card-content">
-      <h3>Mensajes</h3>
-      <p>Canal con el administrador (como en Spring Boot)</p>
-    </div>
-  </a>
-  <div class="card empleado-card-mock">
-    <div class="card-icon"><i class="bx bx-shopping-bag"></i></div>
-    <div class="card-content">
-      <h3>Artículos</h3>
-      <p>Visualización de catálogo (pendiente)</p>
-    </div>
-  </div>
-  <div class="card empleado-card-mock">
-    <div class="card-icon"><i class="bx bx-cart"></i></div>
-    <div class="card-content">
-      <h3>Pedidos</h3>
-      <p>Seguimiento de pedidos (pendiente)</p>
-    </div>
-  </div>
-</div>
+  <nav class="empleado-module-grid" aria-label="Accesos a módulos">
+    <a href="{% url 'web_empleado_seccion' seccion='usuarios' %}" class="empleado-module-card empleado-module-card--link" data-accent="violet" aria-label="Ir a Usuarios">
+      <div class="empleado-module-card__icon"><i class="bx bx-group"></i></div>
+      <div class="empleado-module-card__body">
+        <h3 class="empleado-module-card__title">Usuarios</h3>
+        <p class="empleado-module-card__desc">Gestión de clientes y cuentas</p>
+      </div>
+      <span class="empleado-module-card__cta">Abrir <i class="bx bx-chevron-right"></i></span>
+    </a>
+
+    <a href="{% url 'web_empleado_mensajes' %}" class="empleado-module-card empleado-module-card--link" data-accent="cyan" aria-label="Ir a Mensajes">
+      <div class="empleado-module-card__icon"><i class="bx bx-message-rounded-dots"></i></div>
+      <div class="empleado-module-card__body">
+        <h3 class="empleado-module-card__title">Mensajes</h3>
+        <p class="empleado-module-card__desc">Canal con el administrador</p>
+      </div>
+      <span class="empleado-module-card__cta">Abrir <i class="bx bx-chevron-right"></i></span>
+    </a>
+
+    <a href="{% url 'web_empleado_seccion' seccion='productos' %}" class="empleado-module-card empleado-module-card--link" data-accent="amber" aria-label="Ir a visualización de artículos">
+      <div class="empleado-module-card__icon"><i class="bx bx-package"></i></div>
+      <div class="empleado-module-card__body">
+        <h3 class="empleado-module-card__title">Artículos</h3>
+        <p class="empleado-module-card__desc">Catálogo y stock</p>
+      </div>
+      <span class="empleado-module-card__cta">Abrir <i class="bx bx-chevron-right"></i></span>
+    </a>
+
+    <a href="{% url 'web_empleado_seccion' seccion='pedidos' %}" class="empleado-module-card empleado-module-card--link" data-accent="rose" aria-label="Ir a Pedidos">
+      <div class="empleado-module-card__icon"><i class="bx bx-receipt"></i></div>
+      <div class="empleado-module-card__body">
+        <h3 class="empleado-module-card__title">Pedidos</h3>
+        <p class="empleado-module-card__desc">Seguimiento de ventas</p>
+      </div>
+      <span class="empleado-module-card__cta">Abrir <i class="bx bx-chevron-right"></i></span>
+    </a>
+  </nav>
+</section>
 {% elif seccion == 'perfil' %}
 <div class="profile-card empleado-resumen-card">
   <img src="{% static 'frontend/imagenes/placeholder.svg' %}" alt="Foto de perfil" width="64" height="64">
@@ -178,6 +190,8 @@
   <div class="empty-state"><i class="bx bx-package" style="font-size:3rem;opacity:.5;"></i><h3>No hay productos</h3><p>Ajusta filtros para visualizar artículos.</p></div>
   {% endif %}
 </div>
+{% elif seccion == 'punto-venta' %}
+{% include "frontend/empleado/punto_venta.html" %}
 {% elif seccion == 'atencion-cliente' %}
 {% include "frontend/empleado/atencion-cliente.html" %}
 {% elif seccion == 'mensajes' %}

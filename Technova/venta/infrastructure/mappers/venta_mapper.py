@@ -8,6 +8,9 @@ class VentaMapper:
         return VentaEntidad(
             id=venta_model.id,
             usuario_id=venta_model.usuario_id,
+            tipo_venta=getattr(venta_model, "tipo_venta", "online"),
+            empleado_id=getattr(venta_model, "empleado_id", None),
+            administrador_id=getattr(venta_model, "administrador_id", None),
             fecha_venta=venta_model.fecha_venta,
             estado=venta_model.estado,
             total=venta_model.total,

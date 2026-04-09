@@ -49,7 +49,18 @@
         <div class="info-item"><span class="info-label">Estado:</span><span class="info-value">{{ pago.get_estado_pago_display|upper }}</span></div>
       </div>
 
-      {% if cliente %}
+      {% if venta.datos_facturacion_mostrador %}
+      <div class="info-section">
+        <h3>Facturación (mostrador)</h3>
+        {% with d=venta.datos_facturacion_mostrador %}
+        <div class="info-item"><span class="info-label">Nombre:</span><span class="info-value">{{ d.nombres }} {{ d.apellidos }}</span></div>
+        <div class="info-item"><span class="info-label">Documento:</span><span class="info-value">{{ d.tipo_documento }} {{ d.numero_documento }}</span></div>
+        <div class="info-item"><span class="info-label">Email:</span><span class="info-value">{{ d.correo_electronico|default:"—" }}</span></div>
+        <div class="info-item"><span class="info-label">Teléfono:</span><span class="info-value">{{ d.telefono|default:"—" }}</span></div>
+        <div class="info-item"><span class="info-label">Dirección:</span><span class="info-value">{{ d.direccion|default:"—" }}</span></div>
+        {% endwith %}
+      </div>
+      {% elif cliente %}
       <div class="info-section">
         <h3>Cliente</h3>
         <div class="info-item"><span class="info-label">Nombre:</span><span class="info-value">{{ cliente.nombres }} {{ cliente.apellidos }}</span></div>

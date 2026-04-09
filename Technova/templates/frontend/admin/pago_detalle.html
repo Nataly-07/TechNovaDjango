@@ -69,6 +69,14 @@
                 <span class="lbl">Monto total</span>
                 <span class="val monto sub-num">${{ pago.monto|intcomma }}</span>
               </div>
+              <div class="dato-caja">
+                <span class="lbl">Tipo de venta</span>
+                <span class="val">{{ tipo_venta_display }}</span>
+              </div>
+              <div class="dato-caja">
+                <span class="lbl">Registrada por</span>
+                <span class="val">{{ venta_origen_label }}</span>
+              </div>
             </div>
           </div>
         </section>
@@ -85,7 +93,22 @@
             </div>
           </section>
 
-          {% if cliente %}
+          {% if venta.datos_facturacion_mostrador %}
+          <section class="panel" aria-labelledby="hd-cli">
+            <h2 class="panel-hd" id="hd-cli"><i class="bx bx-user"></i> Datos de facturación (mostrador)</h2>
+            <div class="panel-bd">
+              <dl style="margin:0;">
+                {% with d=venta.datos_facturacion_mostrador %}
+                <div class="info-row"><dt>Nombre</dt><dd>{{ d.nombres }} {{ d.apellidos }}</dd></div>
+                <div class="info-row"><dt>Correo</dt><dd style="word-break:break-all;">{% if d.correo_electronico %}{{ d.correo_electronico }}{% else %}<span class="muted">—</span>{% endif %}</dd></div>
+                <div class="info-row"><dt>Teléfono</dt><dd>{% if d.telefono %}{{ d.telefono }}{% else %}<span class="muted">—</span>{% endif %}</dd></div>
+                <div class="info-row"><dt>Dirección</dt><dd>{% if d.direccion %}{{ d.direccion }}{% else %}<span class="muted">—</span>{% endif %}</dd></div>
+                <div class="info-row"><dt>Documento</dt><dd>{{ d.tipo_documento }} {{ d.numero_documento }}</dd></div>
+                {% endwith %}
+              </dl>
+            </div>
+          </section>
+          {% elif cliente %}
           <section class="panel" aria-labelledby="hd-cli">
             <h2 class="panel-hd" id="hd-cli"><i class="bx bx-user"></i> Cliente</h2>
             <div class="panel-bd">

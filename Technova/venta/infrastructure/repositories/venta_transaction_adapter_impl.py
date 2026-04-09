@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from carrito.models import Carrito
 from envio.models import Envio
+from correos.compra_notificacion_service import enviar_correo_compra_confirmada_cliente
 from mensajeria.services.notificaciones_admin import (
     notificar_checkout_completado,
     notificar_pedido_anulado,
@@ -186,6 +187,15 @@ class VentaTransactionAdapter(CheckoutPort, VentaAnulacionPort):
             )
 
         transaction.on_commit(_notificar_pedido)
+
+        def _correo_cliente() -> None:
+            enviar_correo_compra_confirmada_cliente(
+                venta_id=venta.id,
+                pago_id=pago.id,
+                canal="online",
+            )
+
+        transaction.on_commit(_correo_cliente)
 
         return CheckoutResultado(
             venta_id=venta.id,

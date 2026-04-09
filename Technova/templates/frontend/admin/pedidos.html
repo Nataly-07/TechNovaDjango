@@ -72,6 +72,8 @@
               <tr>
                 <th>Cliente</th>
                 <th>Email</th>
+                <th>Tipo</th>
+                <th>Realizada por</th>
                 <th>Fecha</th>
                 <th>Total</th>
                 <th>Estado</th>
@@ -83,6 +85,22 @@
               <tr>
                 <td>{{ v.usuario.nombres }} {{ v.usuario.apellidos }}</td>
                 <td style="color:#667eea;font-size:0.9em;">{{ v.usuario.correo_electronico }}</td>
+                <td>
+                  {% if v.tipo_venta == 'fisica' %}
+                    <span class="badge badge-fact">Física</span>
+                  {% else %}
+                    <span class="badge badge-abierta">Online</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if v.empleado %}
+                    Empleado: {{ v.empleado.nombres }} {{ v.empleado.apellidos }}
+                  {% elif v.administrador %}
+                    Admin: {{ v.administrador.nombres }} {{ v.administrador.apellidos }}
+                  {% else %}
+                    Cliente
+                  {% endif %}
+                </td>
                 <td>{{ v.fecha_venta }}</td>
                 <td style="color:#00cc44;font-weight:700;">${{ v.total|floatformat:0 }}</td>
                 <td>

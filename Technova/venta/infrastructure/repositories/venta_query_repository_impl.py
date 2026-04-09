@@ -7,6 +7,9 @@ def _venta_a_dict(venta) -> dict:
     return {
         "id": venta.id,
         "usuario_id": venta.usuario_id,
+        "tipo_venta": getattr(venta, "tipo_venta", "online"),
+        "empleado_id": getattr(venta, "empleado_id", None),
+        "administrador_id": getattr(venta, "administrador_id", None),
         "fecha_venta": venta.fecha_venta.isoformat(),
         "estado": venta.estado,
         "total": str(venta.total),

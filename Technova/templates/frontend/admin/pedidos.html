@@ -70,7 +70,6 @@
           <table>
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Cliente</th>
                 <th>Email</th>
                 <th>Fecha</th>
@@ -82,7 +81,6 @@
             <tbody>
               {% for v in ventas %}
               <tr>
-                <td><strong>#{{ v.id }}</strong></td>
                 <td>{{ v.usuario.nombres }} {{ v.usuario.apellidos }}</td>
                 <td style="color:#667eea;font-size:0.9em;">{{ v.usuario.correo_electronico }}</td>
                 <td>{{ v.fecha_venta }}</td>

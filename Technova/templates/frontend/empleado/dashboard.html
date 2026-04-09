@@ -81,7 +81,6 @@
   <table class="table-usuarios">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Nombre</th>
         <th>Correo</th>
         <th>Documento</th>
@@ -91,7 +90,6 @@
     <tbody>
       {% for u in usuarios_lista %}
       <tr>
-        <td>{{ u.id }}</td>
         <td>{{ u.nombres }} {{ u.apellidos }}</td>
         <td>{{ u.correo_electronico }}</td>
         <td>{{ u.tipo_documento }} {{ u.numero_documento }}</td>
@@ -141,7 +139,6 @@
   <table class="table-inventario">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Código</th>
         <th>Nombre</th>
         <th>Precio</th>
@@ -154,7 +151,6 @@
     <tbody>
       {% for p in productos_lista %}
       <tr>
-        <td>{{ p.id }}</td>
         <td>{{ p.codigo }}</td>
         <td>{{ p.nombre }}</td>
         <td>
@@ -239,7 +235,7 @@
   </div>
   <div class="filtro-group">
     <label for="busquedaPedido">Buscar</label>
-    <input type="text" id="busquedaPedido" name="busqueda" placeholder="ID o cliente" value="{{ busqueda }}">
+    <input type="text" id="busquedaPedido" name="busqueda" placeholder="Cliente o correo" value="{{ busqueda }}">
   </div>
   <div class="filtro-group filtro-accion">
     <button type="submit" class="btn-buscar"><i class="bx bx-search"></i> Buscar</button>
@@ -251,7 +247,6 @@
   <table class="table-pedidos-empleado">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Cliente</th>
         <th>Email</th>
         <th>Fecha</th>
@@ -262,7 +257,6 @@
     <tbody>
       {% for v in ventas_lista %}
       <tr>
-        <td><span class="pedido-id">#{{ v.id }}</span></td>
         <td><span class="pedido-cliente">{{ v.usuario.nombres }} {{ v.usuario.apellidos }}</span></td>
         <td><span class="pedido-email">{{ v.usuario.correo_electronico }}</span></td>
         <td>{{ v.fecha_venta }}</td>

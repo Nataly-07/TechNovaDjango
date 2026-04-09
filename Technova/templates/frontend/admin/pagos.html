@@ -87,9 +87,7 @@
           <table class="table-pagos">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Número de factura</th>
-                <th>Pedido #</th>
                 <th>Cliente</th>
                 <th>Email</th>
                 <th>Fecha de pago</th>
@@ -102,11 +100,7 @@
               {% for row in rows %}
               {% with pago=row.pago venta=row.venta cliente=row.cliente %}
               <tr>
-                <td>{{ pago.id }}</td>
                 <td>{{ pago.numero_factura|default:"N/A" }}</td>
-                <td>
-                  {% if venta %}<span style="color:#00d4ff;font-weight:600;">#{{ venta.id }}</span>{% else %}N/A{% endif %}
-                </td>
                 <td>
                   {% if cliente %}<span style="font-weight:600;color:#2c3e50;">{{ cliente.nombres }} {{ cliente.apellidos }}</span>{% else %}N/A{% endif %}
                 </td>

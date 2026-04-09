@@ -5,7 +5,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Pago #{{ pago.id }} — Technova</title>
+  <title>Detalle de pago — Technova</title>
   <link href="https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'frontend/css/estilodas.css' %}">
   <link rel="stylesheet" href="{% static 'frontend/css/stilotech.css' %}">
@@ -20,14 +20,14 @@
       <div class="page page-pago-detalle">
         <div class="hero">
           <div>
-            <h1><i class="bx bx-receipt"></i> Detalle de pago #{{ pago.id }}</h1>
+            <h1><i class="bx bx-receipt"></i> Detalle de pago</h1>
             <div class="hero-meta">
               <span class="status-badge {{ badge }}">{{ pago.get_estado_pago_display|upper }}</span>
               <span><i class="bx bx-calendar"></i> {{ fecha_pago_es }}</span>
             </div>
           </div>
           <div class="hero-actions">
-            <a href="{% url 'web_admin_pedido_detalle' venta.id %}" class="btn-pedido"><i class="bx bx-package"></i> Ver pedido #{{ venta.id }}</a>
+            <a href="{% url 'web_admin_pedido_detalle' venta.id %}" class="btn-pedido"><i class="bx bx-package"></i> Ver pedido</a>
             <a href="{% url 'web_admin_pagos' %}" class="btn-back"><i class="bx bx-arrow-back"></i> Volver a pagos</a>
           </div>
         </div>
@@ -49,10 +49,6 @@
             </div>
 
             <div class="grid-datos">
-              <div class="dato-caja">
-                <span class="lbl">ID de pago</span>
-                <span class="val">#{{ pago.id }}</span>
-              </div>
               <div class="dato-caja">
                 <span class="lbl">Número de factura</span>
                 <span class="val mono">{{ pago.numero_factura|default:"N/A" }}</span>
@@ -79,10 +75,9 @@
 
         <div class="grid-dos">
           <section class="panel" aria-labelledby="hd-venta">
-            <h2 class="panel-hd" id="hd-venta"><i class="bx bx-package"></i> Pedido #{{ venta.id }}</h2>
+            <h2 class="panel-hd" id="hd-venta"><i class="bx bx-package"></i> Pedido</h2>
             <div class="panel-bd">
               <dl style="margin:0;">
-                <div class="info-row"><dt>ID pedido</dt><dd>#{{ venta.id }}</dd></div>
                 <div class="info-row"><dt>Fecha de venta</dt><dd>{{ venta.fecha_venta|date:"d/m/Y" }}</dd></div>
                 <div class="info-row"><dt>Estado venta</dt><dd>{{ venta.get_estado_display }}</dd></div>
                 <div class="info-row"><dt>Total venta</dt><dd class="money sub-num">${{ venta.total|intcomma }}</dd></div>

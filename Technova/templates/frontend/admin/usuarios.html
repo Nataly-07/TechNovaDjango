@@ -64,7 +64,6 @@
           <table class="table-usuarios">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Nombre</th>
                 <th>Correo</th>
                 <th>Rol</th>
@@ -75,7 +74,6 @@
             <tbody>
               {% for u in usuarios %}
               <tr>
-                <td>{{ u.id }}</td>
                 <td>{{ u.nombres }} {{ u.apellidos }}</td>
                 <td>{{ u.correo_electronico }}</td>
                 <td><span class="rol-tag {{ u.rol }}">{{ u.get_rol_display }}</span></td>

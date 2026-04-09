@@ -505,16 +505,16 @@
           <summary>Listado de catálogo (muestra, hasta 15 filas)</summary>
           <div class="table-container">
             <table class="table-inventario">
-              <thead><tr><th>ID</th><th>Código</th><th>Nombre</th><th>Categoría</th><th>Marca</th><th>Precio</th><th>Stock</th></tr></thead>
+              <thead><tr><th>Código</th><th>Nombre</th><th>Categoría</th><th>Marca</th><th>Precio</th><th>Stock</th></tr></thead>
               <tbody>
                 {% for p in preview_productos %}
                 <tr>
-                  <td>{{ p.id }}</td><td>{{ p.codigo }}</td><td>{{ p.nombre }}</td>
+                  <td>{{ p.codigo }}</td><td>{{ p.nombre }}</td>
                   <td>{{ p.categoria|default:"—" }}</td><td>{{ p.marca|default:"—" }}</td>
                   <td>{% if p.precio_venta %}${{ p.precio_venta|floatformat:0 }}{% else %}${{ p.costo_unitario|floatformat:0 }}{% endif %}</td>
                   <td>{{ p.stock }}</td>
                 </tr>
-                {% empty %}<tr><td colspan="7">No hay datos para este filtro.</td></tr>{% endfor %}
+                {% empty %}<tr><td colspan="6">No hay datos para este filtro.</td></tr>{% endfor %}
               </tbody>
             </table>
           </div>
@@ -542,14 +542,14 @@
           <summary>Usuarios (muestra, hasta 15 filas)</summary>
           <div class="table-container">
             <table class="table-usuarios">
-              <thead><tr><th>ID</th><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th></tr></thead>
+              <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th></tr></thead>
               <tbody>
                 {% for u in preview_usuarios %}
                 <tr>
-                  <td>{{ u.id }}</td><td>{{ u.nombres }} {{ u.apellidos }}</td><td>{{ u.correo_electronico }}</td>
+                  <td>{{ u.nombres }} {{ u.apellidos }}</td><td>{{ u.correo_electronico }}</td>
                   <td>{{ u.get_rol_display }}</td><td>{% if u.activo %}Activo{% else %}Inactivo{% endif %}</td>
                 </tr>
-                {% empty %}<tr><td colspan="5">No hay datos.</td></tr>{% endfor %}
+                {% empty %}<tr><td colspan="4">No hay datos.</td></tr>{% endfor %}
               </tbody>
             </table>
           </div>
@@ -576,14 +576,14 @@
           <summary>Pagos (muestra, hasta 15 filas)</summary>
           <div class="table-container">
             <table class="table-inventario">
-              <thead><tr><th>ID</th><th>Factura</th><th>Fecha</th><th>Estado</th><th>Monto</th></tr></thead>
+              <thead><tr><th>Factura</th><th>Fecha</th><th>Estado</th><th>Monto</th></tr></thead>
               <tbody>
                 {% for p in preview_pagos %}
                 <tr>
-                  <td>#{{ p.id }}</td><td>{{ p.numero_factura }}</td><td>{{ p.fecha_pago }}</td>
+                  <td>{{ p.numero_factura }}</td><td>{{ p.fecha_pago }}</td>
                   <td>{{ p.get_estado_pago_display }}</td><td>${{ p.monto|floatformat:0 }}</td>
                 </tr>
-                {% empty %}<tr><td colspan="5">No hay datos.</td></tr>{% endfor %}
+                {% empty %}<tr><td colspan="4">No hay datos.</td></tr>{% endfor %}
               </tbody>
             </table>
           </div>
@@ -614,14 +614,14 @@
           <summary>Ventas (muestra, hasta 15 filas)</summary>
           <div class="table-container">
             <table class="table-inventario">
-              <thead><tr><th>ID</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th>Total</th></tr></thead>
+              <thead><tr><th>Cliente</th><th>Fecha</th><th>Estado</th><th>Total</th></tr></thead>
               <tbody>
                 {% for v in preview_ventas %}
                 <tr>
-                  <td>#{{ v.id }}</td><td>{{ v.usuario.nombres }} {{ v.usuario.apellidos }}</td>
+                  <td>{{ v.usuario.nombres }} {{ v.usuario.apellidos }}</td>
                   <td>{{ v.fecha_venta }}</td><td>{{ v.get_estado_display }}</td><td>${{ v.total|floatformat:0 }}</td>
                 </tr>
-                {% empty %}<tr><td colspan="5">No hay datos.</td></tr>{% endfor %}
+                {% empty %}<tr><td colspan="4">No hay datos.</td></tr>{% endfor %}
               </tbody>
             </table>
           </div>

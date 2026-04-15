@@ -1,7 +1,6 @@
 from django.urls import path
 
 from usuario.adapters.web.session_views import (
-    confirmar_correo_web,
     home_portal,
     login_web,
     logout_web,
@@ -197,11 +196,6 @@ urlpatterns = [
     path("login/", login_web, name="web_login"),
     path("logout/", logout_web, name="web_logout"),
     path("registro/", registro_web, name="web_registro"),
-    path(
-        "cuenta/confirmar-correo/<str:token>/",
-        confirmar_correo_web,
-        name="web_confirmar_correo",
-    ),
     path("cuenta/", home_portal, name="home_portal"),
     path("cliente/perfil/editar/", views.perfil_editar, name="web_cliente_perfil_editar"),
     path("cliente/perfil/desactivar/", views.perfil_desactivar, name="web_cliente_perfil_desactivar"),

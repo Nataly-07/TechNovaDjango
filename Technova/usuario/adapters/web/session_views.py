@@ -8,7 +8,6 @@ from django.contrib import messages
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
-from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from usuario.application.registro_usuario_service import registrar_usuario_desde_payload
@@ -56,36 +55,9 @@ def registro_web(request: HttpRequest) -> HttpResponse:
 
     messages.success(
         request,
-        "Cuenta creada. Revisa tu correo para confirmar tu identidad antes de finalizar una compra. "
-        "Luego puedes iniciar sesión.",
+        "Cuenta creada correctamente. Te enviamos un correo de bienvenida. Ya puedes iniciar sesión.",
     )
     return redirect("web_login")
-
-
-@require_http_methods(["GET"])
-def confirmar_correo_web(request: HttpRequest, token: str) -> HttpResponse:
-    """Confirma el correo con el token enviado al registrarse."""
-    token = (token or "").strip()
-    if not token:
-        messages.error(request, "El enlace no es válido.")
-        return redirect("web_login")
-
-    usuario = Usuario.objects.filter(token_verificacion_correo=token).first()
-    if usuario is None:
-        messages.error(request, "El enlace no es válido o ya fue usado.")
-        return redirect("web_login")
-
-    if usuario.token_verificacion_expira and usuario.token_verificacion_expira < timezone.now():
-        messages.error(request, "Este enlace expiró. Contacta soporte o vuelve a registrarte.")
-        return redirect("web_login")
-
-    Usuario.objects.filter(pk=usuario.pk).update(
-        correo_verificado=True,
-        token_verificacion_correo="",
-        token_verificacion_expira=None,
-    )
-    messages.success(request, "Correo confirmado. Ya puedes iniciar sesión y completar compras.")
-    return redirect(f"{reverse('web_login')}?accountActivated=true")
 
 
 def _urls_api_usuario() -> dict[str, str]:

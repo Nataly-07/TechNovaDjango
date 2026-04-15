@@ -195,6 +195,8 @@ TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL = _env_bool("TECHNOVA_ADMIN_PSE_LEGACY_COM
 
 # URL pública del sitio (enlaces absolutos en correos: confirmación de cuenta). Sin barra final.
 TECHNOVA_PUBLIC_BASE_URL = os.getenv("TECHNOVA_PUBLIC_BASE_URL", "http://127.0.0.1:8000").strip().rstrip("/")
+# URL absoluta del logo en correos (opcional). Si está vacío: TECHNOVA_PUBLIC_BASE_URL + static().
+TECHNOVA_EMAIL_LOGO_URL = os.getenv("TECHNOVA_EMAIL_LOGO_URL", "").strip()
 
 # Registro: False = envío sincrónico tras commit (más fiable; ver logs y errores SMTP al instante).
 # True = hilo en segundo plano (no bloquea el POST; puede ocultar errores si no hay logging).

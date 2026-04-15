@@ -41,6 +41,7 @@ class VentasApiJwtTestCase(TestCase):
             direccion="Calle Cliente",
             rol=Usuario.Rol.CLIENTE,
             activo=True,
+            correo_verificado=True,
         )
         self.proveedor = Proveedor.objects.create(
             identificacion="900555111",

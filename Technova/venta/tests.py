@@ -27,6 +27,7 @@ class FlujoVentaTestCase(TestCase):
             direccion="Calle 1",
             rol=Usuario.Rol.CLIENTE,
             activo=True,
+            correo_verificado=True,
         )
         self.proveedor = Proveedor.objects.create(
             identificacion="900111222",

@@ -587,6 +587,34 @@ def _cliente_login_required(view_func):
     return _wrapped
 
 
+def _cliente_login_y_correo_verificado_para_compra(view_func):
+    """
+    Sesión de cliente obligatoria; los usuarios con rol cliente deben tener el correo
+    verificado antes de avanzar en el checkout (coherente con la API de venta).
+    """
+
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        uid = request.session.get(SESSION_USUARIO_ID)
+        if not uid:
+            return redirect("web_login")
+        try:
+            usuario = Usuario.objects.get(pk=uid)
+        except Usuario.DoesNotExist:
+            request.session.flush()
+            return redirect("web_login")
+        if usuario.rol == Usuario.Rol.CLIENTE and not usuario.correo_verificado:
+            messages.warning(
+                request,
+                "Confirma tu correo electrónico antes de finalizar una compra. "
+                "Revisa el mensaje que enviamos al registrarte.",
+            )
+            return redirect("inicio_autenticado")
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
+
+
 def _admin_login_required(view_func):
     """Sesión activa y rol administrador."""
 
@@ -6325,7 +6353,7 @@ def carrito_vaciar(request):
     return redirect("web_carrito")
 
 
-@_cliente_login_required
+@_cliente_login_y_correo_verificado_para_compra
 @require_http_methods(["GET", "POST"])
 def checkout_informacion(request):
     """GET/POST /checkout/informacion — layout Spring + sesión checkout_informacion."""
@@ -6362,7 +6390,7 @@ def checkout_informacion(request):
     )
 
 
-@_cliente_login_required
+@_cliente_login_y_correo_verificado_para_compra
 @require_http_methods(["GET", "POST"])
 def checkout_direccion(request):
     """GET/POST /checkout/direccion — sesión checkout_direccion."""
@@ -6398,7 +6426,7 @@ def checkout_direccion(request):
     )
 
 
-@_cliente_login_required
+@_cliente_login_y_correo_verificado_para_compra
 @require_http_methods(["GET", "POST"])
 def checkout_envio(request):
     """GET/POST /checkout/envio — transportadora + fecha (como Spring)."""
@@ -6438,7 +6466,7 @@ def checkout_envio(request):
     )
 
 
-@_cliente_login_required
+@_cliente_login_y_correo_verificado_para_compra
 @require_http_methods(["GET", "POST"])
 def checkout_pago(request):
     """GET/POST /checkout/pago — PayPal sandbox en sesión checkout_pago."""
@@ -6467,7 +6495,7 @@ def checkout_pago(request):
     )
 
 
-@_cliente_login_required
+@_cliente_login_y_correo_verificado_para_compra
 @require_http_methods(["GET", "POST"])
 def checkout_revision(request):
     """GET /checkout/revision — resumen (Spring)."""
@@ -6503,7 +6531,7 @@ def checkout_revision(request):
     )
 
 
-@_cliente_login_required
+@_cliente_login_y_correo_verificado_para_compra
 @require_POST
 def checkout_finalizar(request):
     """POST /checkout/finalizar — CheckoutService + limpieza de sesión (Spring)."""
@@ -6515,7 +6543,7 @@ def checkout_finalizar(request):
     return _ejecutar_checkout_desde_sesion(request, uid)
 
 
-@_cliente_login_required
+@_cliente_login_y_correo_verificado_para_compra
 def checkout_paypal_iniciar(request):
     uid = request.session.get(SESSION_USUARIO_ID)
     pago = request.session.get(SESSION_CK_PAGO) or {}
@@ -6549,7 +6577,7 @@ def checkout_paypal_iniciar(request):
     return redirect(approval_url)
 
 
-@_cliente_login_required
+@_cliente_login_y_correo_verificado_para_compra
 def checkout_paypal_retorno(request):
     if (request.GET.get("cancel") or "").lower() in {"true", "1", "yes"}:
         messages.warning(request, "Pago cancelado en PayPal Sandbox.")
@@ -6573,7 +6601,7 @@ def checkout_paypal_retorno(request):
     return _ejecutar_checkout_desde_sesion(request, uid, numero_factura=numero_factura_pp)
 
 
-@_cliente_login_required
+@_cliente_login_y_correo_verificado_para_compra
 def checkout_confirmacion(request):
     """Pantalla de éxito alineada al modal Spring (sin carrito)."""
     data = request.session.pop(SESSION_CK_RESULT, None)

@@ -3,16 +3,12 @@ Vistas web con sesion (plantillas). Delegan autenticacion en el caso de uso de a
 """
 
 import logging
-from email.mime.image import MIMEImage
-from pathlib import Path
 
-from django.conf import settings
 from django.contrib import messages
-from django.core.mail import EmailMultiAlternatives
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
-from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from usuario.application.registro_usuario_service import registrar_usuario_desde_payload
@@ -22,72 +18,6 @@ from usuario.models import Usuario
 SESSION_USUARIO_ID = "usuario_id"
 SESSION_USUARIO_ROL = "usuario_rol"
 logger = logging.getLogger(__name__)
-
-
-def _adjuntar_logo_cid(msg: EmailMultiAlternatives) -> None:
-    """
-    Adjunta logo inline por CID para entorno local.
-    """
-    candidatos = [
-        Path(
-            "C:/Users/Marcela/.cursor/projects/d-Nataly-DjangoVI-TechNovaDjango/assets/"
-            "c__Users_Marcela_AppData_Roaming_Cursor_User_workspaceStorage_6fe0e0b928196acd4af263defd0b8f41_images_"
-            "image-f2ee58ae-53aa-485a-9edd-3ef89852adfe.png"
-        ),
-        Path(
-            "C:/Users/Marcela/.cursor/projects/d-Nataly-DjangoVI-TechNovaDjango/assets/"
-            "c__Users_Marcela_AppData_Roaming_Cursor_User_workspaceStorage_6fe0e0b928196acd4af263defd0b8f41_images_"
-            "image-56fb4712-af6f-4358-9bdb-fc0b62b35529.png"
-        ),
-        Path(
-            "C:/Users/Marcela/.cursor/projects/d-Nataly-DjangoVI-TechNovaDjango/assets/"
-            "c__Users_Marcela_AppData_Roaming_Cursor_User_workspaceStorage_6fe0e0b928196acd4af263defd0b8f41_images_"
-            "image-fb336cc0-7a1c-4878-aeb6-9fc5a2941b48.png"
-        ),
-    ]
-    logo_path = next((p for p in candidatos if p.exists()), None)
-    if logo_path is None:
-        return
-    logo = MIMEImage(logo_path.read_bytes(), _subtype="png")
-    logo.add_header("Content-ID", "<logo_technova>")
-    logo.add_header("Content-Disposition", "inline")
-    msg.attach(logo)
-
-
-def _enviar_bienvenida_registro_web(request: HttpRequest, usuario: Usuario) -> None:
-    """
-    Envia correo de bienvenida sin interrumpir el flujo de registro.
-    """
-    try:
-        correo = (getattr(usuario, "correo_electronico", None) or "").strip()
-        if not correo:
-            return
-
-        asunto = f"¡Bienvenido a Technova, {usuario.nombres}!"
-        tienda_url = request.build_absolute_uri("/")
-        html = render_to_string(
-            "correos/email_bienvenida.html",
-            {
-                "usuario": usuario,
-                "nombre_usuario": usuario.nombres,
-                "tienda_url": tienda_url,
-            },
-            request=request,
-        )
-        msg = EmailMultiAlternatives(
-            subject=asunto,
-            body="Bienvenido a Technova. Tu cuenta fue creada con éxito.",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[correo],
-        )
-        msg.attach_alternative(html, "text/html")
-        _adjuntar_logo_cid(msg)
-        msg.send(fail_silently=False)
-    except Exception:
-        logger.exception(
-            "No se pudo enviar correo de bienvenida para usuario_id=%s",
-            getattr(usuario, "id", None),
-        )
 
 
 @require_http_methods(["GET", "POST"])
@@ -124,9 +54,38 @@ def registro_web(request: HttpRequest) -> HttpResponse:
         messages.error(request, result.error)
         return redirect("web_registro")
 
-    _enviar_bienvenida_registro_web(request, result.usuario)
-    messages.success(request, "Cuenta creada correctamente. Ya puedes iniciar sesion.")
+    messages.success(
+        request,
+        "Cuenta creada. Revisa tu correo para confirmar tu identidad antes de finalizar una compra. "
+        "Luego puedes iniciar sesión.",
+    )
     return redirect("web_login")
+
+
+@require_http_methods(["GET"])
+def confirmar_correo_web(request: HttpRequest, token: str) -> HttpResponse:
+    """Confirma el correo con el token enviado al registrarse."""
+    token = (token or "").strip()
+    if not token:
+        messages.error(request, "El enlace no es válido.")
+        return redirect("web_login")
+
+    usuario = Usuario.objects.filter(token_verificacion_correo=token).first()
+    if usuario is None:
+        messages.error(request, "El enlace no es válido o ya fue usado.")
+        return redirect("web_login")
+
+    if usuario.token_verificacion_expira and usuario.token_verificacion_expira < timezone.now():
+        messages.error(request, "Este enlace expiró. Contacta soporte o vuelve a registrarte.")
+        return redirect("web_login")
+
+    Usuario.objects.filter(pk=usuario.pk).update(
+        correo_verificado=True,
+        token_verificacion_correo="",
+        token_verificacion_expira=None,
+    )
+    messages.success(request, "Correo confirmado. Ya puedes iniciar sesión y completar compras.")
+    return redirect(f"{reverse('web_login')}?accountActivated=true")
 
 
 def _urls_api_usuario() -> dict[str, str]:

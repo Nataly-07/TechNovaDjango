@@ -18,6 +18,9 @@ class Usuario(models.Model):
     direccion = models.TextField()
     rol = models.CharField(max_length=20, choices=Rol.choices, default=Rol.CLIENTE)
     activo = models.BooleanField(default=True)
+    correo_verificado = models.BooleanField(default=False)
+    token_verificacion_correo = models.CharField(max_length=128, blank=True, default="")
+    token_verificacion_expira = models.DateTimeField(null=True, blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technova — confirma tu correo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f0f2f8;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(80, 60, 120, 0.12);
+        }
+        .logo-wrap {
+            padding: 28px 20px 14px;
+            text-align: center;
+            background: #ffffff;
+        }
+        .logo-wrap img { max-width: 140px; height: auto; display: inline-block; }
+        .header {
+            background: linear-gradient(135deg, #5f72d8 0%, #6f43bf 100%);
+            padding: 26px 28px;
+            text-align: center;
+        }
+        .header h1 {
+            color: #ffffff;
+            font-size: 1.55rem;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+        }
+        .content { padding: 36px 28px; }
+        .welcome-message { text-align: center; margin-bottom: 22px; }
+        .welcome-message h2 {
+            color: #2c3e50;
+            font-size: 1.45rem;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        .welcome-message p { color: #5f6b7a; font-size: 1.02rem; }
+        .verify-box {
+            background: #f3efff;
+            border-radius: 10px;
+            padding: 22px;
+            margin: 22px 0;
+            border: 1px solid #e4dcfa;
+        }
+        .verify-box p { color: #4a5568; font-size: 0.98rem; text-align: center; }
+        .action-buttons { text-align: center; margin: 20px 0 12px; }
+        .btn-primary {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            padding: 14px 28px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+        .btn-secondary {
+            display: inline-block;
+            margin-top: 14px;
+            color: #6f43bf;
+            font-size: 0.95rem;
+            text-decoration: underline;
+        }
+        .footer {
+            background: #2d3142;
+            color: #e8eaf0;
+            padding: 26px;
+            text-align: center;
+            font-size: 0.88rem;
+        }
+        .footer p { margin-bottom: 8px; opacity: 0.95; }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="logo-wrap">
+            <img src="cid:logo_technova" alt="Technova">
+        </div>
+        <div class="header">
+            <h1>Bienvenida a Technova</h1>
+        </div>
+        <div class="content">
+            <div class="welcome-message">
+                <h2>Hola, {{ nombre_usuario }}</h2>
+                <p>Tu cuenta quedó registrada. Para proteger tu cuenta y completar compras, confirma que este correo es tuyo.</p>
+            </div>
+            <div class="verify-box">
+                <p>Una vez confirmado, podrás finalizar pedidos con normalidad.</p>
+            </div>
+            <div class="action-buttons">
+                <a href="{{ confirmar_url }}" class="btn-primary">Confirmar correo</a>
+                <div><a href="{{ tienda_url }}" class="btn-secondary">Ir a la tienda</a></div>
+            </div>
+            <p style="text-align: center; color: #8896a6; font-size: 0.85rem; margin-top: 24px;">
+                Si el botón no funciona, copia y pega este enlace en el navegador:<br>
+                <span style="word-break: break-all;">{{ confirmar_url }}</span>
+            </p>
+        </div>
+        <div class="footer">
+            <p><strong>Technova</strong> — tecnología con confianza</p>
+            <p>Este mensaje se envía de forma automática; para soporte usa los canales de la tienda.</p>
+            <p style="margin-top: 14px; opacity: 0.75;">© {% now "Y" %} Technova</p>
+        </div>
+    </div>
+</body>
+</html>

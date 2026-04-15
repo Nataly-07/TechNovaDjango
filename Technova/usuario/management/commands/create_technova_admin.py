@@ -71,6 +71,7 @@ class Command(BaseCommand):
             "direccion": "Oficina principal",
             "rol": Usuario.Rol.ADMIN,
             "activo": True,
+            "correo_verificado": True,
         }
 
         if existing_email:

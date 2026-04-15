@@ -10,8 +10,9 @@ from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-# Siempre cargar .env junto a manage.py (no depender del cwd al arrancar runserver).
+# Cargar .env: junto a manage.py (Technova/.env) y, si faltan claves, raíz del repo (TechNovaDjango/.env).
 load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR.parent / ".env", override=False)
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -54,7 +55,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "common.apps.CommonConfig",
     "web.apps.WebConfig",
-    "usuario",
+    "usuario.apps.UsuarioConfig",
     "proveedor",
     "producto",
     "compra",
@@ -192,7 +193,18 @@ TECHNOVA_PAYPAL_CURRENCY = os.getenv("TECHNOVA_PAYPAL_CURRENCY", "USD").strip().
 # Pon TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL=0 si tienes pagos PSE bancarios reales en "pse".
 TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL = _env_bool("TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL", True)
 
+# URL pública del sitio (enlaces absolutos en correos: confirmación de cuenta). Sin barra final.
+TECHNOVA_PUBLIC_BASE_URL = os.getenv("TECHNOVA_PUBLIC_BASE_URL", "http://127.0.0.1:8000").strip().rstrip("/")
+
+# Registro: False = envío sincrónico tras commit (más fiable; ver logs y errores SMTP al instante).
+# True = hilo en segundo plano (no bloquea el POST; puede ocultar errores si no hay logging).
+TECHNOVA_EMAIL_REGISTRO_ASYNC = _env_bool("TECHNOVA_EMAIL_REGISTRO_ASYNC", False)
+
 # Correo (remitente y campañas masivas)
+# Entrega a bandeja principal: usar SMTP de proveedor profesional (SendGrid, SES, Mailgun,
+# Google Workspace) y variables de entorno para credenciales — no servidor local en producción.
+# Reputación del dominio: configurar en DNS del dominio remitente registros SPF, DKIM y DMARC;
+# sin ellos Gmail/Outlook suelen marcar o rechazar mensajes aunque el código sea correcto.
 _default_from = os.getenv("DEFAULT_FROM_EMAIL", "").strip()
 if not _default_from:
     _default_from = os.getenv("EMAIL_HOST_USER", "").strip() or "Technova <noreply@technova.local>"

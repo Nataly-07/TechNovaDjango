@@ -77,6 +77,14 @@ class VentaTransactionAdapter(CheckoutPort, VentaAnulacionPort):
         if not detalles_carrito:
             raise ValueError("El carrito no tiene productos.")
 
+        usuario_checkout = Usuario.objects.filter(pk=usuario_id).first()
+        if usuario_checkout is None:
+            raise ValueError("Usuario no encontrado.")
+        if usuario_checkout.rol == Usuario.Rol.CLIENTE and not usuario_checkout.correo_verificado:
+            raise ValueError(
+                "Debes confirmar tu correo electrónico antes de completar la compra."
+            )
+
         total_productos = Decimal("0")
         venta = Venta.objects.create(
             usuario_id=usuario_id,

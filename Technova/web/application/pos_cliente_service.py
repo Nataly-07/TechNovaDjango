@@ -32,6 +32,7 @@ def obtener_usuario_sentinel_mostrador() -> Usuario:
                 direccion="No aplica — ventas en mostrador sin cuenta de cliente.",
                 rol=Usuario.Rol.CLIENTE,
                 activo=False,
+                correo_verificado=True,
             )
     except IntegrityError:
         return Usuario.objects.get(nombre_usuario=_SENTINEL_USERNAME)

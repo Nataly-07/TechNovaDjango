@@ -78,7 +78,7 @@ def admin_ordenes_compra(request):
         stats = {
             'total_ordenes': ordenes.count(),
             'pendientes': ordenes.filter(estado='pendiente').count(),
-            'recibidas': ordenes.filter(estado='recibida').count(),
+            'recibidas': ordenes.filter(estado__in=['recibida', 'completada']).count(),
             'canceladas': ordenes.filter(estado='cancelada').count(),
             'total_invertido': ordenes.aggregate(total=Sum('total'))['total'] or 0,
         }
@@ -127,8 +127,8 @@ def admin_orden_compra_detalle(request, orden_id):
             })
     
     try:
-        orden = OrdenCompra.objects.select_related('proveedor').prefetch_related(
-            'detalles__producto'
+        orden = OrdenCompra.objects.select_related("proveedor", "recepcion_validada_por").prefetch_related(
+            "detalles__producto"
         ).get(id=orden_id)
     except OrdenCompra.DoesNotExist:
         return render(request, 'frontend/admin/404.html', status=404)
@@ -179,17 +179,36 @@ def admin_orden_compra_cambiar_estado(request, orden_id):
                 'message': 'Estado no válido'
             }, status=400)
         
-        # Cambiar estado
+        from usuario.adapters.web.session_views import SESSION_USUARIO_ID
+
         orden.estado = nuevo_estado
-        orden.save()
-        
-        # Si la orden se marca como recibida, actualizar stock de productos
-        if nuevo_estado == OrdenCompra.Estado.RECIBIDA:
+
+        if nuevo_estado in (OrdenCompra.Estado.RECIBIDA, OrdenCompra.Estado.COMPLETADA):
             from producto.models import Producto
+
             for detalle in orden.detalles.all():
                 producto = detalle.producto
                 producto.stock += detalle.cantidad
-                producto.save()
+                producto.save(update_fields=["stock", "actualizado_en"])
+                detalle.cantidad_recibida = detalle.cantidad
+                detalle.save(update_fields=["cantidad_recibida"])
+            if nuevo_estado == OrdenCompra.Estado.COMPLETADA:
+                orden.recepcion_validada_en = timezone.now()
+                uid = request.session.get(SESSION_USUARIO_ID)
+                if uid:
+                    orden.recepcion_validada_por_id = uid
+                orden.save(
+                    update_fields=[
+                        "estado",
+                        "recepcion_validada_en",
+                        "recepcion_validada_por",
+                        "actualizado_en",
+                    ]
+                )
+            else:
+                orden.save(update_fields=["estado", "actualizado_en"])
+        else:
+            orden.save(update_fields=["estado", "actualizado_en"])
         
         return JsonResponse({
             'success': True,

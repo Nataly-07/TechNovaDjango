@@ -49,6 +49,11 @@
     color: #065f46;
 }
 
+.estado-badge--completada {
+    background: #d1fae5;
+    color: #065f46;
+}
+
 .estado-badge--cancelada {
     background: #fee2e2;
     color: #991b1b;
@@ -382,6 +387,15 @@
     </table>
 </div>
 
+{% if orden.texto_resumen_recepcion_inventario %}
+<div class="info-card" style="margin-bottom: 2rem; border-left: 4px solid #059669;">
+    <p style="margin: 0; font-weight: 600; color: #14532d;">{{ orden.texto_resumen_recepcion_inventario }}</p>
+    {% if orden.observaciones_recepcion %}
+    <p style="margin: 0.75rem 0 0; color: #475569; font-size: 0.9rem;"><strong>Observaciones de entrega:</strong> {{ orden.observaciones_recepcion }}</p>
+    {% endif %}
+</div>
+{% endif %}
+
 <!-- Resumen Total -->
 <div class="total-section">
     <div class="total-row">
@@ -406,17 +420,17 @@
     </a>
     
     {% if orden.estado == 'pendiente' %}
-    <button class="btn-action btn-action--success" onclick="cambiarEstado('recibida')">
-        <i class="bx bx-check"></i>
-        Marcar como Recibida
-    </button>
+    <a href="{% url 'web_admin_orden_validar_recepcion' orden.id %}" class="btn-action btn-action--success" style="text-decoration:none;display:inline-flex;align-items:center;gap:0.35rem;">
+        <i class="bx bx-check-shield"></i>
+        Validar recepción
+    </a>
     <button class="btn-action btn-action--warning" onclick="cambiarEstado('cancelada')">
         <i class="bx bx-x"></i>
         Cancelar Orden
     </button>
     {% endif %}
     
-    {% if orden.estado == 'recibida' %}
+    {% if orden.estado == 'recibida' or orden.estado == 'completada' %}
     <button class="btn-action btn-action--primary" onclick="imprimirOrden()">
         <i class="bx bx-printer"></i>
         Imprimir Orden

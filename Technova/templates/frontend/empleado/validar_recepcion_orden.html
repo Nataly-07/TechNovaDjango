@@ -1,0 +1,69 @@
+{% extends "frontend/empleado/base_empleado.html" %}
+{% load static %}
+
+{% block head_title %}Validar recepción — Orden #{{ orden.id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .vr-wrap { max-width: 800px; }
+  .vr-back {
+    display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.9rem; margin-bottom: 1rem;
+    border-radius: 999px; font-weight: 700; font-size: 0.85rem; color: #4338ca; background: #eef2ff;
+    text-decoration: none; border: 1px solid #c7d2fe;
+  }
+  .vr-card {
+    background: #fff; border-radius: 18px; padding: 1.5rem; border: 1px solid #e8edf7;
+    box-shadow: 0 8px 24px rgba(24, 39, 75, 0.06);
+  }
+  .vr-card h1 { margin: 0 0 0.5rem; font-size: 1.25rem; color: #0f172a; }
+  .vr-meta { color: #64748b; font-size: 0.88rem; margin-bottom: 1rem; }
+  .vr-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .vr-table th, .vr-table td { padding: 0.6rem 0.45rem; border-bottom: 1px solid #f1f5f9; text-align: left; }
+  .vr-table th { font-size: 0.7rem; text-transform: uppercase; color: #64748b; background: #f8fafc; }
+  .vr-table input[type="number"] { width: 100%; max-width: 110px; padding: 0.45rem; border-radius: 10px; border: 1px solid #cbd5e1; }
+  label.vr-l { display: block; font-weight: 700; font-size: 0.78rem; color: #475569; margin: 0.75rem 0 0.35rem; }
+  textarea.vr-ta { width: 100%; min-height: 76px; padding: 0.6rem; border-radius: 12px; border: 1px solid #cbd5e1; }
+  .vr-submit {
+    margin-top: 1.1rem; padding: 0.7rem 1.35rem; border: none; border-radius: 12px; font-weight: 700;
+    background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; cursor: pointer;
+  }
+</style>
+{% endblock %}
+
+{% block empleado_content %}
+<div class="vr-wrap">
+  <a class="vr-back" href="{% url 'web_empleado_ordenes_compra' %}"><i class="bx bx-arrow-back"></i> Volver al listado</a>
+  <div class="vr-card">
+    <h1><i class="bx bx-package"></i> Validar recepción — Orden #{{ orden.id }}</h1>
+    <p class="vr-meta">Proveedor: <strong>{{ orden.proveedor.nombre }}</strong> · {{ orden.fecha|date:"d/m/Y" }} · ${{ orden.total }}</p>
+    <p style="font-size:0.85rem;color:#475569;margin-bottom:1rem;">Confirma las cantidades recibidas. El inventario se actualizará al guardar.</p>
+
+    <form method="post" action="">
+      {% csrf_token %}
+      <table class="vr-table">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Pedida</th>
+            <th>Recibida</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in detalles %}
+          <tr>
+            <td><strong>{{ d.producto.nombre }}</strong></td>
+            <td>{{ d.cantidad }}</td>
+            <td>
+              <input type="number" name="cantidad_recibida_{{ d.id }}" min="0" max="9999999" value="{{ d.cantidad }}" required>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <label class="vr-l" for="observaciones_recepcion">Observaciones (opcional)</label>
+      <textarea class="vr-ta" id="observaciones_recepcion" name="observaciones_recepcion" placeholder="Ej.: Una caja llegó golpeada"></textarea>
+      <button type="submit" class="vr-submit"><i class="bx bx-check-shield"></i> Guardar validación</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

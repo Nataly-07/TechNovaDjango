@@ -1,0 +1,457 @@
+{% extends "frontend/base_admin.html" %}
+{% load static %}
+
+{% block title %}Solicitudes Órdenes de Compra Proveedor | Technova{% endblock %}
+
+{% block extra_css %}
+<style>
+  .socp-page {
+    --socp-indigo: #4f46e5;
+    --socp-violet: #7c3aed;
+    --socp-amber: #f59e0b;
+    --socp-slate: #64748b;
+    --socp-card: #ffffff;
+    --socp-border: #e2e8f0;
+    --socp-glow: 0 20px 50px rgba(79, 70, 229, 0.08);
+    max-width: 1180px;
+    margin: 0 auto;
+    padding-bottom: 2rem;
+  }
+
+  .socp-breadcrumb {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--socp-slate);
+    margin-bottom: 1rem;
+  }
+  .socp-breadcrumb a {
+    color: var(--socp-indigo);
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    background: #eef2ff;
+    transition: background 0.2s, color 0.2s;
+  }
+  .socp-breadcrumb a:hover {
+    background: #e0e7ff;
+    color: #4338ca;
+  }
+  .socp-breadcrumb span { opacity: 0.5; }
+
+  .socp-hero {
+    position: relative;
+    border-radius: 22px;
+    padding: 1.75rem 1.85rem;
+    background: linear-gradient(135deg, #faf5ff 0%, #eef2ff 45%, #f8fafc 100%);
+    border: 1px solid rgba(124, 58, 237, 0.12);
+    box-shadow: var(--socp-glow);
+    margin-bottom: 1.35rem;
+    overflow: hidden;
+  }
+  .socp-hero::before {
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    width: 42%;
+    height: 100%;
+    background: radial-gradient(circle at 80% 20%, rgba(124, 58, 237, 0.15), transparent 55%);
+    pointer-events: none;
+  }
+  .socp-hero-inner {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.25rem;
+  }
+  .socp-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #5b21b6;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    margin-bottom: 0.65rem;
+  }
+  .socp-hero h1 {
+    margin: 0;
+    font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .socp-hero p {
+    margin: 0.55rem 0 0;
+    max-width: 36rem;
+    color: var(--socp-slate);
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+  .socp-hero-icon {
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.65rem;
+    color: #fff;
+    background: linear-gradient(145deg, var(--socp-violet), var(--socp-indigo));
+    box-shadow: 0 12px 28px rgba(79, 70, 229, 0.35);
+    flex-shrink: 0;
+  }
+
+  .socp-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 1.25rem;
+  }
+  .socp-stat {
+    background: var(--socp-card);
+    border-radius: 16px;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--socp-border);
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .socp-stat span {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--socp-slate);
+  }
+  .socp-stat strong {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+  }
+  .socp-stat--pend strong { color: #c2410c; }
+  .socp-stat--pend { border-color: #fed7aa; background: linear-gradient(180deg, #fffbeb 0%, #fff 100%); }
+
+  .socp-alert {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 1rem 1.2rem;
+    border-radius: 16px;
+    margin-bottom: 1.15rem;
+    background: linear-gradient(90deg, #fff7ed, #fff);
+    border: 1px solid #fdba74;
+    color: #9a3412;
+    box-shadow: 0 8px 24px rgba(245, 158, 11, 0.12);
+  }
+  .socp-alert i {
+    font-size: 1.75rem;
+    color: var(--socp-amber);
+  }
+  .socp-alert strong { font-weight: 800; }
+
+  .socp-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+  }
+  .socp-filter-form {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+  }
+  .socp-filter-form label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #475569;
+  }
+  .socp-select-wrap {
+    position: relative;
+    display: inline-block;
+  }
+  .socp-select-wrap select {
+    appearance: none;
+    padding: 0.65rem 2.25rem 0.65rem 0.9rem;
+    border-radius: 12px;
+    border: 1px solid var(--socp-border);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #334155;
+    background: #fff;
+    min-width: 200px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .socp-select-wrap select:focus {
+    outline: none;
+    border-color: var(--socp-indigo);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  }
+  .socp-select-wrap i {
+    position: absolute;
+    right: 0.65rem;
+    pointer-events: none;
+    color: #94a3b8;
+    font-size: 1.1rem;
+  }
+
+  .socp-meta {
+    font-size: 0.8rem;
+    color: var(--socp-slate);
+  }
+
+  .socp-table-wrap {
+    background: var(--socp-card);
+    border-radius: 18px;
+    border: 1px solid var(--socp-border);
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+  }
+  .socp-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  .socp-table {
+    width: 100%;
+    min-width: 820px;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .socp-table thead th {
+    text-align: left;
+    padding: 0.85rem 1rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #64748b;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid var(--socp-border);
+  }
+  .socp-table tbody td {
+    padding: 0.95rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    vertical-align: middle;
+  }
+  .socp-table tbody tr {
+    transition: background 0.15s ease;
+  }
+  .socp-table tbody tr:hover {
+    background: #fafbff;
+  }
+  .socp-table tbody tr:last-child td { border-bottom: none; }
+
+  .socp-id {
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+    color: var(--socp-indigo);
+    font-size: 0.82rem;
+  }
+  .socp-product {
+    font-weight: 600;
+    color: #0f172a;
+    max-width: 220px;
+    line-height: 1.35;
+  }
+  .socp-qty {
+    font-weight: 700;
+    color: #475569;
+  }
+
+  .socp-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.28rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .socp-badge--edicion { background: #e0e7ff; color: #3730a3; }
+  .socp-badge--pend { background: #fef3c7; color: #92400e; }
+  .socp-badge--ok { background: #d1fae5; color: #065f46; }
+  .socp-badge--no { background: #fee2e2; color: #991b1b; }
+
+  .socp-oc-link {
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+    color: #0d9488;
+    text-decoration: none;
+  }
+  .socp-oc-link:hover { text-decoration: underline; }
+  .socp-dash { color: #cbd5e1; }
+
+  .socp-btn-open {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    color: #fff;
+    background: linear-gradient(135deg, var(--socp-indigo), #6366f1);
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .socp-btn-open:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
+    color: #fff;
+  }
+
+  .socp-empty {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: var(--socp-slate);
+  }
+  .socp-empty i {
+    font-size: 3rem;
+    color: #cbd5e1;
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+  .socp-empty p { margin: 0; font-size: 0.95rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="socp-page">
+  <nav class="socp-breadcrumb" aria-label="Navegación">
+    <a href="{% url 'web_admin_ordenes_compra' %}"><i class="bx bx-arrow-back"></i> Órdenes de compra</a>
+    <span>/</span>
+    <span>Solicitudes Órdenes de Compra Proveedor</span>
+  </nav>
+
+  <header class="socp-hero">
+    <div class="socp-hero-inner">
+      <div>
+        <div class="socp-hero-badge"><i class="bx bx-shield-quarter"></i> Reabastecimiento</div>
+        <h1>Solicitudes Órdenes de Compra Proveedor</h1>
+        <p>Gestiona las propuestas de compra del personal. Al aprobar, se genera una orden oficial vinculada para trazabilidad.</p>
+      </div>
+      <div class="socp-hero-icon" aria-hidden="true"><i class="bx bx-clipboard"></i></div>
+    </div>
+  </header>
+
+  <div class="socp-stats">
+    <div class="socp-stat socp-stat--pend">
+      <span>Pendientes de revisión</span>
+      <strong>{{ pendientes_count }}</strong>
+    </div>
+    <div class="socp-stat">
+      <span>Resultados (filtro actual)</span>
+      <strong>{{ total_filtrado }}</strong>
+    </div>
+  </div>
+
+  {% if pendientes_count %}
+  <div class="socp-alert" role="status">
+    <i class="bx bx-bell-ring"></i>
+    <div>
+      Hay <strong>{{ pendientes_count }}</strong> solicitud{% if pendientes_count != 1 %}es{% endif %} esperando tu decisión. Revisa cantidad y proveedor antes de aprobar.
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="socp-toolbar">
+    <form method="get" class="socp-filter-form" aria-label="Filtrar por estado">
+      <label for="estado">Estado</label>
+      <div class="socp-select-wrap">
+        <select name="estado" id="estado" onchange="this.form.submit()">
+          <option value="">Todos los estados</option>
+          {% for val, label in estados %}
+          <option value="{{ val }}" {% if estado_filtro == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <i class="bx bx-chevron-down"></i>
+      </div>
+    </form>
+    {% if total_filtrado > 500 %}
+    <p class="socp-meta">Mostrando las 500 más recientes de {{ total_filtrado }}.</p>
+    {% endif %}
+  </div>
+
+  <div class="socp-table-wrap">
+    <div class="socp-table-scroll">
+      <table class="socp-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Fecha</th>
+            <th>Empleado</th>
+            <th>Producto</th>
+            <th>Cant.</th>
+            <th>Estado</th>
+            <th>Orden</th>
+            <th style="text-align:right;">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in solicitudes %}
+          <tr>
+            <td><span class="socp-id">#{{ s.id }}</span></td>
+            <td style="white-space:nowrap;color:#64748b;">{{ s.creado_en|date:"d/m/Y" }}<br><span style="font-size:0.78rem;">{{ s.creado_en|date:"H:i" }}</span></td>
+            <td><strong style="color:#0f172a;">{{ s.empleado.nombres }} {{ s.empleado.apellidos }}</strong></td>
+            <td><span class="socp-product">{{ s.producto.nombre }}</span></td>
+            <td><span class="socp-qty">{{ s.cantidad }}</span></td>
+            <td>
+              {% if s.estado == 'borrador' %}
+              <span class="socp-badge socp-badge--edicion">{{ s.get_estado_display }}</span>
+              {% elif s.estado == 'pendiente' %}
+              <span class="socp-badge socp-badge--pend">Pendiente</span>
+              {% elif s.estado == 'aprobada' %}
+              <span class="socp-badge socp-badge--ok">Aprobada</span>
+              {% else %}
+              <span class="socp-badge socp-badge--no">Rechazada</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if s.orden_compra %}
+              <a class="socp-oc-link" href="{% url 'web_admin_orden_compra_detalle' orden_id=s.orden_compra.id %}">OC #{{ s.orden_compra.id }}</a>
+              {% else %}
+              <span class="socp-dash">—</span>
+              {% endif %}
+            </td>
+            <td style="text-align:right;">
+              <a class="socp-btn-open" href="{% url 'web_admin_solicitud_oc_prov_detalle' solicitud_id=s.id %}">
+                Abrir <i class="bx bx-chevron-right"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8">
+              <div class="socp-empty">
+                <i class="bx bx-inbox"></i>
+                <p>No hay solicitudes con los criterios seleccionados.</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

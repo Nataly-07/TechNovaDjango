@@ -1,0 +1,72 @@
+{% extends "frontend/base_admin.html" %}
+{% load static %}
+
+{% block title %}Validar recepción — Orden #{{ orden.id }} | Technova{% endblock %}
+
+{% block extra_css %}
+<style>
+  .vr-wrap { max-width: 800px; margin: 0 auto; }
+  .vr-back {
+    display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.9rem; margin-bottom: 1rem;
+    border-radius: 999px; font-weight: 700; font-size: 0.85rem; color: #4338ca; background: #eef2ff;
+    text-decoration: none; border: 1px solid #c7d2fe;
+  }
+  .vr-card {
+    background: #fff; border-radius: 18px; padding: 1.5rem; border: 1px solid #e2e8f0;
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06); margin-bottom: 1rem;
+  }
+  .vr-card h1 { margin: 0 0 0.5rem; font-size: 1.35rem; color: #0f172a; }
+  .vr-meta { color: #64748b; font-size: 0.9rem; margin-bottom: 1.25rem; }
+  .vr-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  .vr-table th, .vr-table td { padding: 0.65rem 0.5rem; border-bottom: 1px solid #f1f5f9; text-align: left; }
+  .vr-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; background: #f8fafc; }
+  .vr-table input[type="number"] { width: 100%; max-width: 110px; padding: 0.45rem 0.5rem; border-radius: 10px; border: 1px solid #cbd5e1; }
+  label.vr-l { display: block; font-weight: 700; font-size: 0.8rem; color: #475569; margin: 0.75rem 0 0.35rem; }
+  textarea.vr-ta { width: 100%; min-height: 80px; padding: 0.65rem; border-radius: 12px; border: 1px solid #cbd5e1; }
+  .vr-submit {
+    margin-top: 1.25rem; padding: 0.75rem 1.5rem; border: none; border-radius: 12px; font-weight: 800;
+    background: linear-gradient(135deg, #059669, #047857); color: #fff; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(5, 150, 105, 0.35);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vr-wrap">
+  <a class="vr-back" href="{% url 'web_admin_ordenes_compra' %}"><i class="bx bx-arrow-back"></i> Volver a órdenes</a>
+  <div class="vr-card">
+    <h1><i class="bx bx-package"></i> Validar recepción — Orden #{{ orden.id }}</h1>
+    <p class="vr-meta">Proveedor: <strong>{{ orden.proveedor.nombre }}</strong> · Fecha: {{ orden.fecha|date:"d/m/Y" }} · Total: ${{ orden.total }}</p>
+    <p style="font-size:0.88rem;color:#475569;">Confirma la <strong>cantidad recibida</strong> por producto (por defecto coincide con lo pedido). Al guardar, el stock sube y la orden pasa a <strong>Completada</strong>.</p>
+
+    <form method="post" action="">
+      {% csrf_token %}
+      <table class="vr-table">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Cant. pedida</th>
+            <th>Cant. recibida</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in detalles %}
+          <tr>
+            <td><strong>{{ d.producto.nombre }}</strong><br><span style="font-size:0.8rem;color:#64748b;">{{ d.producto.codigo }}</span></td>
+            <td>{{ d.cantidad }}</td>
+            <td>
+              <input type="number" name="cantidad_recibida_{{ d.id }}" min="0" max="9999999" value="{{ d.cantidad }}" required>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <label class="vr-l" for="observaciones_recepcion">Observaciones de entrega (opcional)</label>
+      <textarea class="vr-ta" id="observaciones_recepcion" name="observaciones_recepcion" placeholder="Ej.: Una caja llegó golpeada"></textarea>
+      <div>
+        <button type="submit" class="vr-submit"><i class="bx bx-check-shield"></i> Guardar validación e ingresar a inventario</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

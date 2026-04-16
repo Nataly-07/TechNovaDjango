@@ -66,3 +66,24 @@ def empleado_login_required(view_func):
         return view_func(request, *args, **kwargs)
 
     return _wrapped
+
+
+def admin_o_empleado_login_required(view_func):
+    """Administrador o empleado autenticado (p. ej. recepción de órdenes de compra)."""
+
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        uid = request.session.get(SESSION_USUARIO_ID)
+        if not uid:
+            return redirect("web_login")
+        try:
+            usuario = Usuario.objects.get(pk=uid)
+        except Usuario.DoesNotExist:
+            request.session.flush()
+            return redirect("web_login")
+        if usuario.rol not in (Usuario.Rol.ADMIN, Usuario.Rol.EMPLEADO):
+            return redirect("inicio_autenticado")
+        request.usuario_sesion = usuario  # type: ignore[attr-defined]
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped

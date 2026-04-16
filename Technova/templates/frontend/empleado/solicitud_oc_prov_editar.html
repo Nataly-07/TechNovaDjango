@@ -1,0 +1,111 @@
+{% extends "frontend/empleado/base_empleado.html" %}
+{% load static %}
+
+{% block head_title %}Editar solicitud #{{ solicitud.id }} — Technova{% endblock %}
+
+{% block extra_css %}
+<style>
+  .oc-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 22px 24px;
+    max-width: 720px;
+    border: 1px solid #e8edf7;
+    box-shadow: 0 8px 24px rgba(24, 39, 75, 0.06);
+  }
+  .oc-card h3 { margin: 0 0 8px; font-size: 1.2rem; color: #1e293b; }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+    padding: 14px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+  }
+  .meta-grid div span { display: block; font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
+  .meta-grid div strong { color: #0f172a; }
+  label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 6px; }
+  select, input, textarea {
+    width: 100%; max-width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #cbd5e1; margin-bottom: 14px;
+  }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
+  .btn-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: #fff; border: none; padding: 11px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;
+  }
+  .btn-send {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: #fff; border: none; padding: 11px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;
+  }
+  .back { color: #4f46e5; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 16px; }
+</style>
+{% endblock %}
+
+{% block empleado_content %}
+<a class="back" href="{% url 'web_empleado_solicitudes_oc_prov' %}"><i class="bx bx-arrow-back"></i> Volver al listado</a>
+
+<div class="oc-card">
+  <h3>Solicitud #{{ solicitud.id }}</h3>
+  <p style="color:#64748b;margin:0 0 8px;">Ajusta producto, cantidad o comentario. Al enviarla, la solicitud quedará bloqueada para edición.</p>
+
+  <div class="meta-grid" id="snapshots">
+    <div><span>Proveedor</span><strong id="disp-prov">{% if solicitud.proveedor %}{{ solicitud.proveedor.nombre }}{% else %}—{% endif %}</strong></div>
+    <div><span>Marca</span><strong id="disp-marca">{{ solicitud.marca_snapshot|default:"—" }}</strong></div>
+    <div><span>Color</span><strong id="disp-color">{{ solicitud.color_snapshot|default:"—" }}</strong></div>
+    <div><span>Stock actual</span><strong id="disp-stock">{{ solicitud.producto.stock }}</strong></div>
+  </div>
+
+  <form method="post" action="{% url 'web_empleado_solicitud_oc_prov_editar' solicitud_id=solicitud.id %}">
+    {% csrf_token %}
+    <label for="producto_id">Producto</label>
+    <select name="producto_id" id="producto_id">
+      {% for p in productos %}
+      <option value="{{ p.id }}" {% if p.id == solicitud.producto_id %}selected{% endif %}>{{ p.codigo }} — {{ p.nombre }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="cantidad">Cantidad solicitada</label>
+    <input type="number" name="cantidad" id="cantidad" min="1" value="{{ solicitud.cantidad }}" required>
+
+    <label for="costo_unitario">Costo unitario <span style="font-weight:400;color:#64748b;">(sugerido del catálogo; editable)</span></label>
+    <input type="number" name="costo_unitario" id="costo_unitario" step="0.01" min="0" value="{{ solicitud.costo_unitario_snapshot }}" required>
+
+    <label for="comentario_empleado">Comentario</label>
+    <textarea name="comentario_empleado" id="comentario_empleado" rows="3">{{ solicitud.comentario_empleado }}</textarea>
+
+    <div class="btn-row">
+      <button type="submit" class="btn-primary"><i class="bx bx-save"></i> Guardar cambios</button>
+    </div>
+  </form>
+
+  <form method="post" action="{% url 'web_empleado_solicitud_oc_prov_enviar' solicitud_id=solicitud.id %}" style="margin-top:20px;padding-top:20px;border-top:1px solid #e2e8f0;">
+    {% csrf_token %}
+    <button type="submit" class="btn-send"><i class="bx bx-send"></i> Enviar al administrador</button>
+    <p style="font-size:0.85rem;color:#64748b;margin:8px 0 0;">Pasará a estado <strong>Pendiente</strong> y se notificará al administrador.</p>
+  </form>
+</div>
+
+<script>
+(function() {
+  const sel = document.getElementById('producto_id');
+  const tpl = "{% url 'web_empleado_api_producto_oc_prov' producto_id=999999 %}";
+  function load(pid) {
+    if (!pid) return;
+    fetch(tpl.replace('999999', String(pid)))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        document.getElementById('disp-prov').textContent = d.proveedor_nombre || '—';
+        document.getElementById('disp-marca').textContent = d.marca || '—';
+        document.getElementById('disp-color').textContent = d.color || '—';
+        document.getElementById('disp-stock').textContent = d.stock;
+        var ci = document.getElementById('costo_unitario');
+        if (ci) ci.value = d.costo_unitario || '0';
+      })
+      .catch(function() {});
+  }
+  sel.addEventListener('change', function() { load(sel.value); });
+})();
+</script>
+{% endblock %}

@@ -112,9 +112,35 @@
     color: #856404;
   }
 
+  .badge-aprobada {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+
   .badge-recibida {
     background: #d4edda;
     color: #155724;
+  }
+
+  .btn-validar-recepcion {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-validar-recepcion:hover {
+    color: white;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
   }
 
   .btn-recibir {
@@ -355,12 +381,26 @@
 <div class="ordenes-container">
   <div class="ordenes-header">
     <h2><i class='bx bx-cart'></i> Gestión de Órdenes de Compra</h2>
-    <div style="display: flex; gap: 10px;">
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <a href="{% url 'web_admin_solicitudes_oc_prov' %}" class="btn-agregar" style="{% if solicitudes_oc_prov_pendientes %}background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);{% endif %}">
+        <i class='bx bx-clipboard'></i> Solicitudes de empleados
+        {% if solicitudes_oc_prov_pendientes %}
+          <span style="background: rgba(255,255,255,0.25); padding: 2px 8px; border-radius: 999px; font-size: 0.85rem;">{{ solicitudes_oc_prov_pendientes }} pendiente{% if solicitudes_oc_prov_pendientes != 1 %}s{% endif %}</span>
+        {% endif %}
+      </a>
       <a href="{% url 'web_admin_orden_compra_crear' %}" class="btn-agregar">
         <i class='bx bx-plus-circle'></i> Nueva Orden
       </a>
     </div>
   </div>
+
+  {% if solicitudes_oc_prov_pendientes %}
+  <div class="alert" style="background: #fff7ed; border: 1px solid #fdba74; color: #9a3412; margin-bottom: 20px;">
+    <i class='bx bx-bell'></i>
+    <span>Hay <strong>{{ solicitudes_oc_prov_pendientes }}</strong> solicitud{% if solicitudes_oc_prov_pendientes != 1 %}es{% endif %} de reabastecimiento pendiente{% if solicitudes_oc_prov_pendientes != 1 %}s{% endif %} de revisión.</span>
+    <a href="{% url 'web_admin_solicitudes_oc_prov' %}" style="margin-left: auto; font-weight: 600; color: #c2410c;">Ver solicitudes →</a>
+  </div>
+  {% endif %}
 
   {% for message in messages %}
     <div class="alert alert-{{ message.tags }}">
@@ -388,23 +428,26 @@
           <td>${{ orden.total|floatformat:2 }}</td>
           <td>
             {% if orden.estado == 'pendiente' %}
-              <span class="badge-estado badge-pendiente">Pendiente</span>
-            {% elif orden.estado == 'recibida' %}
-              <span class="badge-estado badge-recibida">Recibida</span>
+              <span class="badge-estado badge-aprobada">Aprobada</span>
+            {% elif orden.estado == 'completada' or orden.estado == 'recibida' %}
+              <span class="badge-estado badge-recibida">Completada</span>
+            {% elif orden.estado == 'cancelada' %}
+              <span class="badge-estado" style="background:#fee2e2;color:#991b1b;">Cancelada</span>
+            {% else %}
+              <span class="badge-estado badge-pendiente">{{ orden.estado }}</span>
             {% endif %}
           </td>
           <td onclick="event.stopPropagation()">
             {% if orden.estado == 'pendiente' %}
-              <form action="{% url 'web_admin_orden_compra_recibir' orden.id %}" method="post" style="display:inline;">
-                {% csrf_token %}
-                <button type="button" class="btn-recibir" onclick="confirmarRecepcion(this.form)" title="Recibir Pedido">
-                  <i class='bx bx-check-double'></i> Recibir Orden
-                </button>
-              </form>
-            {% elif orden.estado == 'recibida' %}
+              <a href="{% url 'web_admin_orden_validar_recepcion' orden.id %}" class="btn-validar-recepcion" title="Validar recepción de mercancía">
+                <i class='bx bx-check-shield'></i> Validar Recepción
+              </a>
+            {% elif orden.estado == 'completada' or orden.estado == 'recibida' %}
               <span style="color: #28a745; font-size: 0.9em;">
                 <i class='bx bx-check'></i> Completada
               </span>
+            {% else %}
+              <span style="color:#94a3b8;">—</span>
             {% endif %}
           </td>
         </tr>
@@ -447,12 +490,18 @@
         </div>
       </div>
 
+      <div id="modalRecepcionWrap" style="display:none;margin-top:14px;padding:14px 16px;border-radius:14px;background:#ecfdf5;border:1px solid #a7f3d0;">
+        <p id="modalRecepcionText" style="margin:0;font-size:0.92rem;font-weight:600;color:#14532d;line-height:1.45;"></p>
+        <p id="modalRecepcionObs" style="margin:10px 0 0;font-size:0.85rem;color:#475569;"></p>
+      </div>
+
       <h4 class="detalle-productos-title">Productos de la orden</h4>
       <table class="detalle-productos-table">
         <thead>
           <tr>
             <th>Producto</th>
             <th style="text-align:center;">Cant.</th>
+            <th style="text-align:center;">Recib.</th>
             <th style="text-align:right;">Precio Unit.</th>
             <th style="text-align:right;">Subtotal</th>
           </tr>
@@ -475,23 +524,6 @@
 
 {% block extra_js %}
 <script>
-  function confirmarRecepcion(form) {
-    Swal.fire({
-      title: '¿Recibir Orden?',
-      text: "El stock de los productos se actualizará automáticamente. Esta acción no se puede deshacer.",
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#28a745',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Sí, recibir productos',
-      cancelButtonText: 'Cancelar'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        form.submit();
-      }
-    })
-  }
-
   function formatCurrency(value) {
     return '$ ' + Number(value || 0).toLocaleString('es-CO');
   }
@@ -507,7 +539,7 @@
       }
     });
 
-    fetch('/admin/ordenes-compra/api/' + id)
+    fetch("{% url 'web_admin_ordenes_compra_api' orden_id=999999 %}".replace('999999', String(id)))
       .then(response => {
         if (!response.ok) throw new Error('Error al cargar la orden');
         return response.json();
@@ -520,9 +552,24 @@
         const fecha = new Date(orden.fecha);
         document.getElementById('modalFecha').textContent = fecha.toLocaleDateString('es-CO');
         const estadoEl = document.getElementById('modalEstado');
-        estadoEl.textContent = orden.estado === 'recibida' ? 'Recibida' : 'Pendiente';
-        estadoEl.className = 'modal-estado-badge ' + (orden.estado === 'recibida' ? 'modal-estado-recibida' : 'modal-estado-pendiente');
+        const labels = { pendiente: 'Aprobada', recibida: 'Completada', completada: 'Completada', cancelada: 'Cancelada' };
+        estadoEl.textContent = labels[orden.estado] || orden.estado;
+        const done = orden.estado === 'recibida' || orden.estado === 'completada';
+        estadoEl.className = 'modal-estado-badge ' + (done ? 'modal-estado-recibida' : 'modal-estado-pendiente');
         document.getElementById('modalTotal').textContent = formatCurrency(orden.total);
+
+        const rw = document.getElementById('modalRecepcionWrap');
+        const rt = document.getElementById('modalRecepcionText');
+        const ro = document.getElementById('modalRecepcionObs');
+        if (orden.recepcion_resumen) {
+          rw.style.display = 'block';
+          rt.textContent = orden.recepcion_resumen;
+          ro.textContent = orden.observaciones_recepcion ? ('Observaciones: ' + orden.observaciones_recepcion) : '';
+        } else {
+          rw.style.display = 'none';
+          rt.textContent = '';
+          ro.textContent = '';
+        }
 
         // Llenar tabla
         const tbody = document.getElementById('modalTablaCuerpo');
@@ -530,9 +577,11 @@
 
         orden.detalles.forEach(d => {
           const tr = document.createElement('tr');
+          const rec = (d.cantidad_recibida != null && d.cantidad_recibida !== '') ? d.cantidad_recibida : '—';
           tr.innerHTML = `
                       <td>${d.producto_nombre}</td>
                       <td style="text-align: center;">${d.cantidad}</td>
+                      <td style="text-align: center;font-size:0.85rem;color:#64748b;">Recib.: ${rec}</td>
                       <td style="text-align: right;">${formatCurrency(d.precio_unitario)}</td>
                       <td style="text-align: right;">${formatCurrency(d.subtotal)}</td>
                   `;

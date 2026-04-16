@@ -6,7 +6,7 @@ from django.urls import reverse
 from decimal import Decimal
 from datetime import date, datetime
 
-from web.adapters.http.decorators import admin_login_required
+from web.adapters.http.decorators import admin_login_required, admin_o_empleado_login_required
 from orden.application.orden_compra_service import OrdenCompraService
 from orden.dto.orden_compra_dto import OrdenCompraDto, DetalleOrdenDto
 
@@ -59,9 +59,16 @@ def listar_ordenes(request):
         # List<OrdenCompraDto> ordenes = ordenCompraService.listarOrdenes();
         ordenes = orden_compra_service.listar_ordenes()
         
+        from orden.infrastructure.models import SolicitudOrdenCompraProv
+
+        solicitudes_oc_prov_pendientes = SolicitudOrdenCompraProv.objects.filter(
+            estado=SolicitudOrdenCompraProv.Estado.PENDIENTE
+        ).count()
+
         context = {
             'ordenes': ordenes,
-            'usuario': usuario
+            'usuario': usuario,
+            'solicitudes_oc_prov_pendientes': solicitudes_oc_prov_pendientes,
         }
         
         # return "frontend/admin/ordenes/lista";
@@ -71,7 +78,8 @@ def listar_ordenes(request):
         messages.error(request, f'Error al cargar las órdenes: {str(e)}')
         return render(request, 'frontend/admin/ordenes/lista.html', {
             'ordenes': [],
-            'usuario': usuario
+            'usuario': usuario,
+            'solicitudes_oc_prov_pendientes': 0,
         })
 
 
@@ -193,43 +201,48 @@ def recibir_orden(request, orden_id):
     return redirect('web_admin_ordenes_compra')
 
 
-@admin_login_required
+@admin_o_empleado_login_required
 @require_GET
 def obtener_detalle_orden_api(request, orden_id):
     """
     GET /admin/ordenes/api/{id}/
-    Equivalente a: @GetMapping("/api/{id}") @ResponseBody public ResponseEntity<OrdenCompraDto> obtenerDetalleOrden(@PathVariable Integer id)
+    Detalle de orden (modelo) con datos de recepción para modal y validaciones.
     """
+    from orden.infrastructure.models import OrdenCompra
+
     try:
-        # OrdenCompraDto orden = ordenCompraService.obtenerOrdenPorId(id);
-        orden = orden_compra_service.obtener_orden_por_id(orden_id)
-        
-        if orden is not None:
-            # return ResponseEntity.ok(orden);
-            return JsonResponse({
-                'id': orden.id,
-                'proveedor_id': orden.proveedor_id,
-                'proveedor_nombre': orden.proveedor_nombre,
-                'fecha': orden.fecha.strftime('%Y-%m-%d') if orden.fecha else None,
-                'total': float(orden.total) if orden.total else 0,
-                'estado': orden.estado,
-                'detalles': [
-                    {
-                        'producto_id': d.producto_id,
-                        'producto_nombre': d.producto_nombre,
-                        'cantidad': d.cantidad,
-                        'precio_unitario': float(d.precio_unitario) if d.precio_unitario else 0,
-                        'subtotal': float(d.subtotal) if d.subtotal else 0
-                    }
-                    for d in orden.detalles or []
-                ]
-            })
-        else:
-            # return ResponseEntity.notFound().build();
-            return JsonResponse({'error': 'Orden no encontrada'}, status=404)
-            
+        orden = OrdenCompra.objects.select_related("proveedor", "recepcion_validada_por").prefetch_related(
+            "detalles__producto"
+        ).get(pk=orden_id)
+    except OrdenCompra.DoesNotExist:
+        return JsonResponse({"error": "Orden no encontrada"}, status=404)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse(
+        {
+            "id": orden.id,
+            "proveedor_id": orden.proveedor_id,
+            "proveedor_nombre": orden.proveedor.nombre,
+            "fecha": orden.fecha.strftime("%Y-%m-%d") if orden.fecha else None,
+            "total": float(orden.total) if orden.total else 0,
+            "estado": orden.estado,
+            "observaciones_recepcion": orden.observaciones_recepcion or "",
+            "recepcion_resumen": orden.texto_resumen_recepcion_inventario(),
+            "detalles": [
+                {
+                    "detalle_id": d.id,
+                    "producto_id": d.producto_id,
+                    "producto_nombre": d.producto.nombre,
+                    "cantidad": d.cantidad,
+                    "cantidad_recibida": d.cantidad_recibida,
+                    "precio_unitario": float(d.precio_unitario) if d.precio_unitario else 0,
+                    "subtotal": float(d.subtotal) if d.subtotal else 0,
+                }
+                for d in orden.detalles.all()
+            ],
+        }
+    )
 
 
 def _crear_dto_desde_formulario(request) -> OrdenCompraDto:

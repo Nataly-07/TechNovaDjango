@@ -15,6 +15,11 @@ class DetalleOrden(models.Model):
         related_name="detalles_orden_compra",
     )
     cantidad = models.PositiveIntegerField()
+    cantidad_recibida = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Cantidad física ingresada al inventario en la validación de recepción.",
+    )
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2)
     subtotal = models.DecimalField(max_digits=14, decimal_places=2)
 

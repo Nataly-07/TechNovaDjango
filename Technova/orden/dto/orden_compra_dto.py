@@ -6,9 +6,11 @@ from typing import List, Optional
 
 @dataclass
 class DetalleOrdenDto:
+    detalle_id: Optional[int] = None
     producto_id: Optional[int] = None
     producto_nombre: Optional[str] = None
     cantidad: Optional[int] = None
+    cantidad_recibida: Optional[int] = None
     precio_unitario: Optional[Decimal] = None
     subtotal: Optional[Decimal] = None
 

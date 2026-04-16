@@ -44,11 +44,13 @@ class OrdenCompraService:
             # Agregar detalles
             for detalle in orden.detalles.all():
                 detalle_dto = DetalleOrdenDto(
+                    detalle_id=detalle.id,
                     producto_id=detalle.producto_id,
                     producto_nombre=detalle.producto.nombre,
                     cantidad=detalle.cantidad,
+                    cantidad_recibida=detalle.cantidad_recibida,
                     precio_unitario=detalle.precio_unitario,
-                    subtotal=detalle.subtotal
+                    subtotal=detalle.subtotal,
                 )
                 orden_dto.detalles.append(detalle_dto)
             
@@ -118,19 +120,33 @@ class OrdenCompraService:
             # Obtener la orden
             orden = OrdenCompra.objects.select_related('proveedor').prefetch_related('detalles__producto').get(id=orden_id)
             
-            if orden.estado != 'pendiente':
+            if orden.estado != "pendiente":
                 raise Exception("Solo se pueden recibir órdenes en estado pendiente")
-            
-            # Cambiar estado
-            orden.estado = 'recibida'
-            orden.save()
-            
+
+            from django.utils import timezone as dj_tz
+
+            # Cambiar estado y marcar recepción (flujo rápido sin formulario; sin usuario en auditoría)
+            orden.estado = OrdenCompra.Estado.COMPLETADA
+            orden.recepcion_validada_en = dj_tz.now()
+            orden.observaciones_recepcion = ""
+            orden.save(
+                update_fields=[
+                    "estado",
+                    "recepcion_validada_en",
+                    "observaciones_recepcion",
+                    "actualizado_en",
+                ]
+            )
+
             # Actualizar stock de productos
             from producto.models import Producto
+
             for detalle in orden.detalles.all():
                 producto = detalle.producto
                 producto.stock += detalle.cantidad
-                producto.save()
+                producto.save(update_fields=["stock", "actualizado_en"])
+                detalle.cantidad_recibida = detalle.cantidad
+                detalle.save(update_fields=["cantidad_recibida"])
             
             return True
             
@@ -172,11 +188,13 @@ class OrdenCompraService:
         
         for detalle in orden.detalles.all():
             detalle_dto = DetalleOrdenDto(
+                detalle_id=detalle.id,
                 producto_id=detalle.producto_id,
                 producto_nombre=detalle.producto.nombre,
                 cantidad=detalle.cantidad,
+                cantidad_recibida=detalle.cantidad_recibida,
                 precio_unitario=detalle.precio_unitario,
-                subtotal=detalle.subtotal
+                subtotal=detalle.subtotal,
             )
             orden_dto.detalles.append(detalle_dto)
         

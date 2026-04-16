@@ -23,8 +23,20 @@ from web.adapters.http.ordenes_views import (
     recibir_orden,
     obtener_detalle_orden_api,
 )
+from web.adapters.http.views_recepcion_orden_compra import (
+    empleado_ordenes_compra_lista,
+    validar_recepcion_orden_compra,
+)
 from web.adapters.http.debug_ordenes import debug_ordenes, debug_ordenes_auth
 from web.adapters.http.views_promociones import admin_producto_promocionar, admin_producto_info
+from web.adapters.http.views_solicitud_oc_prov import (
+    admin_solicitud_oc_prov_detalle,
+    admin_solicitudes_oc_prov_lista,
+    empleado_api_producto_oc_prov,
+    empleado_solicitud_oc_prov_editar,
+    empleado_solicitud_oc_prov_enviar,
+    empleado_solicitudes_oc_prov_lista,
+)
 
 urlpatterns = [
     path(
@@ -77,6 +89,37 @@ urlpatterns = [
         "empleado/notificaciones/",
         views.empleado_notificaciones,
         name="web_empleado_notificaciones",
+    ),
+    path(
+        "empleado/solicitudes-oc-prov/",
+        empleado_solicitudes_oc_prov_lista,
+        name="web_empleado_solicitudes_oc_prov",
+    ),
+    path(
+        "empleado/solicitudes-oc-prov/<int:solicitud_id>/editar/",
+        empleado_solicitud_oc_prov_editar,
+        name="web_empleado_solicitud_oc_prov_editar",
+    ),
+    path(
+        "empleado/solicitudes-oc-prov/<int:solicitud_id>/enviar/",
+        empleado_solicitud_oc_prov_enviar,
+        name="web_empleado_solicitud_oc_prov_enviar",
+    ),
+    path(
+        "empleado/solicitudes-oc-prov/api/producto/<int:producto_id>/",
+        empleado_api_producto_oc_prov,
+        name="web_empleado_api_producto_oc_prov",
+    ),
+    path("empleado/ordenes-compra/", empleado_ordenes_compra_lista, name="web_empleado_ordenes_compra"),
+    path(
+        "empleado/ordenes-compra/<int:orden_id>/validar-recepcion/",
+        validar_recepcion_orden_compra,
+        name="web_empleado_orden_validar_recepcion",
+    ),
+    path(
+        "empleado/ordenes-compra/api/<int:orden_id>/",
+        obtener_detalle_orden_api,
+        name="web_empleado_ordenes_compra_api",
     ),
     path(
         "empleado/punto-venta/",
@@ -159,7 +202,22 @@ urlpatterns = [
     path("admin/ordenes/crear/", mostrar_formulario_crear, name="web_admin_orden_compra_crear"),
     path("admin/ordenes/guardar/", guardar_orden, name="web_admin_orden_compra_guardar"),
     path("admin/ordenes/recibir/<int:orden_id>/", recibir_orden, name="web_admin_orden_compra_recibir"),
+    path(
+        "admin/ordenes/<int:orden_id>/validar-recepcion/",
+        validar_recepcion_orden_compra,
+        name="web_admin_orden_validar_recepcion",
+    ),
     path("admin/ordenes/api/<int:orden_id>/", obtener_detalle_orden_api, name="web_admin_ordenes_compra_api"),
+    path(
+        "admin/ordenes/solicitudes-empleados/",
+        admin_solicitudes_oc_prov_lista,
+        name="web_admin_solicitudes_oc_prov",
+    ),
+    path(
+        "admin/ordenes/solicitudes-empleados/<int:solicitud_id>/",
+        admin_solicitud_oc_prov_detalle,
+        name="web_admin_solicitud_oc_prov_detalle",
+    ),
     # URLs antiguas (mantener para compatibilidad)
     path("admin/ordenes-compra/", admin_ordenes_compra, name="web_admin_ordenes_compra_old"),
     path("admin/ordenes-compra/test/", admin_ordenes_compra_test, name="web_admin_ordenes_compra_test"),

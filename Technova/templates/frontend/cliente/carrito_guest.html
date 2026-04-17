@@ -1,0 +1,259 @@
+{% extends "frontend/base_tienda.html" %}
+{% load static %}
+{% block title %}Carrito — Technova{% endblock %}
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'frontend/css/producto.css' %}">
+<style>
+  .carrito-guest-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 20px;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.12), rgba(124, 58, 237, 0.12));
+    border-radius: 16px;
+    border: 1px solid rgba(0, 212, 255, 0.2);
+  }
+  .carrito-guest-top a {
+    font-weight: 600;
+    color: #0f172a;
+    text-decoration: none;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+  }
+  .carrito-guest-top a:hover { border-color: #94a3b8; }
+  .carrito-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 12px 0 24px;
+  }
+  .carrito-header { text-align: center; margin-bottom: 28px; }
+  .carrito-header h1 {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 2.2em;
+    margin-bottom: 8px;
+  }
+  .carrito-header p { color: #64748b; font-size: 1.05rem; }
+  .carrito-content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 28px;
+    margin-top: 12px;
+  }
+  @media (max-width: 900px) { .carrito-content { grid-template-columns: 1fr; } }
+  .productos-carrito {
+    background: var(--janna-light, #f8fafc);
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.08);
+    padding: 20px;
+  }
+  .producto-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 15px 0;
+    border-bottom: 1px solid #eee;
+    flex-wrap: wrap;
+  }
+  .producto-item:last-child { border-bottom: none; }
+  .producto-imagen {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 10px;
+    background: #f1f5f9;
+  }
+  .producto-info { flex: 1; min-width: 140px; }
+  .producto-nombre { font-weight: 700; margin-bottom: 6px; color: #1e293b; }
+  .producto-precio { color: var(--bondi-blue, #0ea5e9); font-weight: 700; }
+  .cantidad-controls { display: flex; align-items: center; gap: 8px; }
+  .cantidad-btn {
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+  .cantidad-input {
+    width: 52px;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 6px;
+  }
+  .eliminar-btn {
+    background: var(--danger, #dc3545);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  .resumen-carrito {
+    background: var(--janna-light, #f8fafc);
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.08);
+    padding: 20px;
+    height: fit-content;
+  }
+  .resumen-total {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: var(--bondi-blue, #0ea5e9);
+    margin-bottom: 18px;
+  }
+  .btn-proceder {
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 14px 24px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 10px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    box-sizing: border-box;
+  }
+  .btn-vaciar {
+    background: var(--danger, #dc3545);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 10px 18px;
+    cursor: pointer;
+    width: 100%;
+    font-weight: 600;
+  }
+  .carrito-vacio {
+    text-align: center;
+    padding: 48px 20px;
+    color: #64748b;
+    background: var(--janna-light, #f8fafc);
+    border-radius: 15px;
+  }
+  .carrito-vacio h2 { color: #94a3b8; margin-bottom: 12px; }
+  .carrito-vacio a {
+    display: inline-block;
+    background: var(--gradient-primary);
+    color: white;
+    padding: 12px 24px;
+    text-decoration: none;
+    border-radius: 25px;
+    font-weight: 700;
+    margin-top: 12px;
+  }
+  .msg-carrito { margin-bottom: 16px; }
+  .carrito-invite-note {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin-top: 10px;
+    line-height: 1.45;
+  }
+</style>
+{% endblock %}
+{% block body %}
+<div class="carrito-container" style="padding-left:16px;padding-right:16px;">
+  <nav class="carrito-guest-top" aria-label="Navegación carrito invitado">
+    <a href="{% url 'root' %}">← Volver a la tienda</a>
+    <span style="display:flex;flex-wrap:wrap;gap:8px;">
+      <a href="{% url 'web_login' %}?next={% url 'web_carrito' %}">Iniciar sesión</a>
+      <a href="{% url 'web_registro' %}">Crear cuenta</a>
+    </span>
+  </nav>
+
+  {% if messages %}
+    <div class="msg-carrito">
+      {% for message in messages %}
+        <p style="padding:10px 14px;border-radius:10px;background:{% if message.tags == 'error' %}#fee{% else %}#ecfdf5{% endif %};color:{% if message.tags == 'error' %}#b91c1c{% else %}#065f46{% endif %};">{{ message }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="carrito-header">
+    <h1>🛒 Tu carrito</h1>
+    <p>Revisa tus productos. Para pagar necesitas una cuenta.</p>
+  </div>
+
+  {% if carrito_items %}
+  <div class="carrito-content">
+    <div class="productos-carrito">
+      <h3 style="margin-bottom:12px;color:#334155;">Productos</h3>
+      {% for it in carrito_items %}
+      <div class="producto-item">
+        {% if it.imagen %}
+          <img class="producto-imagen" src="{{ it.imagen }}" alt="" data-placeholder="{% static 'frontend/imagenes/placeholder.svg' %}" onerror="this.onerror=null;this.src=this.dataset.placeholder">
+        {% else %}
+          <img class="producto-imagen" src="{% static 'frontend/imagenes/placeholder.svg' %}" alt="">
+        {% endif %}
+        <div class="producto-info">
+          <div class="producto-nombre">{{ it.nombre_producto }}</div>
+          <div class="producto-precio">$<span>{{ it.precio_unitario }}</span> c/u</div>
+        </div>
+        <div class="cantidad-controls">
+          {% if it.cantidad > 1 %}
+          <form method="post" action="{% url 'web_carrito_actualizar' %}" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="detalle_id" value="{{ it.detalle_id }}">
+            <input type="hidden" name="cantidad" value="{{ it.cantidad|add:'-1' }}">
+            <button type="submit" class="cantidad-btn" aria-label="Menos">−</button>
+          </form>
+          {% else %}
+          <span class="cantidad-btn" style="opacity:0.45;cursor:not-allowed;">−</span>
+          {% endif %}
+          <form method="post" action="{% url 'web_carrito_actualizar' %}" style="display:inline;display:flex;align-items:center;gap:6px;">
+            {% csrf_token %}
+            <input type="hidden" name="detalle_id" value="{{ it.detalle_id }}">
+            <input type="number" class="cantidad-input" name="cantidad" value="{{ it.cantidad }}" min="1" {% if it.stock %}max="{{ it.stock }}"{% endif %} title="Cantidad">
+            <button type="submit" style="font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;">OK</button>
+          </form>
+          <form method="post" action="{% url 'web_carrito_actualizar' %}" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="detalle_id" value="{{ it.detalle_id }}">
+            <input type="hidden" name="cantidad" value="{{ it.cantidad|add:'1' }}">
+            <button type="submit" class="cantidad-btn" {% if it.cantidad >= it.stock %}disabled style="opacity:0.45"{% endif %} aria-label="Más">+</button>
+          </form>
+        </div>
+        <form method="post" action="{% url 'web_carrito_eliminar' %}" data-technova-confirm='{"title":"¿Eliminar producto?","text":"Se quitará esta línea de tu carrito.","confirmText":"Eliminar","cancelText":"Cancelar","icon":"warning"}'>
+          {% csrf_token %}
+          <input type="hidden" name="detalle_id" value="{{ it.detalle_id }}">
+          <button type="submit" class="eliminar-btn" title="Eliminar"><i class="bx bx-trash"></i></button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="resumen-carrito">
+      <h3 style="margin-bottom:12px;color:#334155;">Resumen</h3>
+      <div class="resumen-total">Total: $<span>{{ carrito_total|floatformat:0 }}</span></div>
+      <a class="btn-proceder" href="{% url 'web_login' %}?next={% url 'web_cliente_checkout_info' %}">Proceder al pago</a>
+      <p class="carrito-invite-note">Inicia sesión o regístrate para continuar al checkout. Tu carrito se conservará al entrar.</p>
+      <form method="post" action="{% url 'web_carrito_vaciar' %}" data-technova-confirm='{"title":"¿Vaciar carrito?","text":"Se eliminarán todos los productos del carrito.","confirmText":"Vaciar","cancelText":"Cancelar","icon":"warning"}'>
+        {% csrf_token %}
+        <button type="submit" class="btn-vaciar">Vaciar carrito</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div class="carrito-vacio">
+    <h2>Tu carrito está vacío</h2>
+    <p>Explora el catálogo y agrega productos sin crear cuenta.</p>
+    <a href="{% url 'root' %}">Continuar comprando</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

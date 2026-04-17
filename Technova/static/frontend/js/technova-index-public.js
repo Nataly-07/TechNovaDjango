@@ -1,14 +1,32 @@
 /**
- * Index público `/`: búsqueda avanzada (API Django) y carrito → login (misma idea que Spring).
+ * Index público `/`: búsqueda avanzada (API Django) y carrito de invitado (sesión Django + CSRF).
+ * Enter: envío del formulario. Texto: búsqueda reactiva con debounce al escribir.
  */
 (function () {
-  function loginUrl() {
-    return (
-      (typeof window.TECHNOVA_URL_LOGIN === "string" && window.TECHNOVA_URL_LOGIN) ||
-      "/login/"
-    );
+  var debounceTimer = null;
+  var BUSQUEDA_DEBOUNCE_MS = 320;
+  /** Evita que `change` del panel dispare búsqueda duplicada al sincronizar selects desde el menú. */
+  var _filtroIndexSilenciaChange = false;
+
+  function clearBusquedaDebounce() {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
   }
 
+  function buscarProductosDebounced() {
+    clearBusquedaDebounce();
+    debounceTimer = setTimeout(function () {
+      debounceTimer = null;
+      buscarAvanzado();
+    }, BUSQUEDA_DEBOUNCE_MS);
+  }
+
+  function buscarProductosInmediato() {
+    clearBusquedaDebounce();
+    return buscarAvanzado();
+  }
   function escapeHtml(texto) {
     return String(texto || "")
       .replaceAll("&", "&amp;")
@@ -105,11 +123,69 @@
       "</div>" +
       "<p>4.5 ⭐</p>" +
       precioPart +
-      '<a href="' +
-      loginUrl() +
-      '" class="carrito-btn carrito-btn--carrusel">&#128722;</a>' +
+      '<button type="button" class="carrito-btn carrito-btn--carrusel js-carrito-index" data-producto-id="' +
+      p.id +
+      '" title="Agregar al carrito">&#128722;</button>' +
       "</div>"
     );
+  }
+
+  function csrfToken() {
+    var el = document.querySelector("input[name=csrfmiddlewaretoken]");
+    if (el && el.value) return el.value;
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : "";
+  }
+
+  function catalogoTieneEndpointCarrito() {
+    return (
+      typeof window.TECHNOVA_URL_CATALOGO_CARRITO === "string" &&
+      window.TECHNOVA_URL_CATALOGO_CARRITO.length > 0
+    );
+  }
+
+  async function postJsonCarritoSesion(url, body) {
+    var t = csrfToken();
+    var r = await fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": t,
+      },
+      body: JSON.stringify(body),
+    });
+    var j = await r.json().catch(function () {
+      return {};
+    });
+    if (!r.ok) {
+      throw new Error(j.message || r.statusText || "Error");
+    }
+    if (j.ok !== true) {
+      throw new Error(j.message || "Respuesta inválida del servidor.");
+    }
+    return j;
+  }
+
+  async function agregarCarritoIndexProducto(productoId, nombre) {
+    if (!catalogoTieneEndpointCarrito()) {
+      throw new Error("Carrito no disponible en esta página.");
+    }
+    await postJsonCarritoSesion(window.TECHNOVA_URL_CATALOGO_CARRITO, {
+      producto_id: parseInt(productoId, 10),
+    });
+    var label = nombre || "Producto agregado al carrito";
+    if (window.CarritoAlerts && typeof window.CarritoAlerts.success === "function") {
+      await window.CarritoAlerts.success(label);
+    } else if (window.Swal) {
+      await window.Swal.fire({
+        icon: "success",
+        title: "Listo",
+        text: label,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    }
   }
 
   async function buscarAvanzado() {
@@ -165,80 +241,197 @@
     }
   }
 
+  function cerrarPanelFiltrosIndex() {
+    var fc = document.getElementById("filtrosContainer");
+    var toggle = document.getElementById("btnFiltrosToggle");
+    if (fc) {
+      fc.style.display = "none";
+      fc.setAttribute("aria-hidden", "true");
+    }
+    if (toggle) toggle.classList.remove("active");
+  }
+
+  function abrirPanelFiltrosIndex() {
+    var fc = document.getElementById("filtrosContainer");
+    var toggle = document.getElementById("btnFiltrosToggle");
+    if (fc) {
+      fc.style.display = "block";
+      fc.setAttribute("aria-hidden", "false");
+    }
+    if (toggle) toggle.classList.add("active");
+  }
+
+  /** Solo campos del panel (marca, categoría, precios, disponibilidad); no borra el texto del buscador. */
+  function limpiarTodoPanelFiltros() {
+    clearBusquedaDebounce();
+    _filtroIndexSilenciaChange = true;
+    try {
+      var marca = document.getElementById("filtroMarca");
+      var categoria = document.getElementById("filtroCategoria");
+      var min = document.getElementById("filtroPrecioMin");
+      var max = document.getElementById("filtroPrecioMax");
+      var disp = document.getElementById("filtroDisponibilidad");
+      if (marca) marca.value = "";
+      if (categoria) categoria.value = "";
+      if (min) min.value = "";
+      if (max) max.value = "";
+      if (disp) disp.value = "";
+    } finally {
+      _filtroIndexSilenciaChange = false;
+    }
+    cerrarPanelFiltrosIndex();
+    buscarProductosInmediato();
+  }
+
   function limpiarFiltros() {
-    var marca = document.getElementById("filtroMarca");
-    var categoria = document.getElementById("filtroCategoria");
-    var min = document.getElementById("filtroPrecioMin");
-    var max = document.getElementById("filtroPrecioMax");
-    var disp = document.getElementById("filtroDisponibilidad");
-    var term = document.getElementById("busquedaTermino");
-    if (marca) marca.value = "";
-    if (categoria) categoria.value = "";
-    if (min) min.value = "";
-    if (max) max.value = "";
-    if (disp) disp.value = "";
-    if (term) term.value = "";
+    clearBusquedaDebounce();
+    _filtroIndexSilenciaChange = true;
+    try {
+      var marca = document.getElementById("filtroMarca");
+      var categoria = document.getElementById("filtroCategoria");
+      var min = document.getElementById("filtroPrecioMin");
+      var max = document.getElementById("filtroPrecioMax");
+      var disp = document.getElementById("filtroDisponibilidad");
+      var term = document.getElementById("busquedaTermino");
+      if (marca) marca.value = "";
+      if (categoria) categoria.value = "";
+      if (min) min.value = "";
+      if (max) max.value = "";
+      if (disp) disp.value = "";
+      if (term) term.value = "";
+    } finally {
+      _filtroIndexSilenciaChange = false;
+    }
+    cerrarPanelFiltrosIndex();
     document.getElementById("resultadosBusqueda")?.classList.remove("show");
     var o = document.getElementById("productosOriginales");
     if (o) o.style.display = "";
   }
 
-  function needLoginGuest(msg) {
-    if (window.TechnovaUi && window.TechnovaUi.needLogin) {
-      return window.TechnovaUi.needLogin(
-        msg || "Debes iniciar sesión primero para agregar productos al carrito."
-      );
-    }
-    window.location.href = loginUrl();
-    return Promise.resolve();
-  }
-
-  function onCarritoLink(ev) {
-    if (ev.target.closest && ev.target.closest(".acciones-usuario")) {
-      return;
-    }
-    var a = ev.target.closest && ev.target.closest("a.carrito-btn");
-    if (!a || !window.TECHNOVA_INDEX_PUBLIC) return;
+  function onCarritoInvitadoClick(ev) {
+    var btn = ev.target.closest && ev.target.closest(".js-carrito-index");
+    if (!btn || !window.TECHNOVA_INDEX_PUBLIC) return;
+    if (btn.disabled) return;
     ev.preventDefault();
     ev.stopPropagation();
-    needLoginGuest();
+    var pid = btn.getAttribute("data-producto-id");
+    if (!pid) return;
+    var wrap = btn.closest(".producto, .producto-card");
+    var h3 = wrap && wrap.querySelector("h3");
+    var nombre = h3 ? h3.textContent.trim() : "Producto";
+    agregarCarritoIndexProducto(pid, nombre).catch(function (e) {
+      var msg = e.message || "No se pudo agregar al carrito.";
+      if (window.Swal) {
+        window.Swal.fire({ icon: "error", title: "Error", text: msg });
+      } else {
+        window.alert(msg);
+      }
+    });
   }
 
-  function scrollToCatalogo() {
-    var el = document.getElementById("catalogo-publico");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  function alturaBandaSuperiorIndex() {
+    var shell = document.querySelector(".tecn-header-shell");
+    if (!shell) return 20;
+    return Math.round(shell.getBoundingClientRect().height) + 16;
+  }
+
+  /** Desplaza la vista al bloque de resultados filtrados (arriba), tras pintar el grid. */
+  function scrollVistaResultadosProductos() {
+    var el = document.getElementById("resultadosBusqueda");
+    if (!el || !el.classList.contains("show")) return;
+    var y =
+      el.getBoundingClientRect().top +
+      window.scrollY -
+      alturaBandaSuperiorIndex();
+    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+  }
+
+  function despuesFiltroCatalogoScroll(promiseBusqueda) {
+    Promise.resolve(promiseBusqueda).then(function () {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          scrollVistaResultadosProductos();
+        });
+      });
+    });
   }
 
   function aplicarFiltroCategoria(val) {
-    var sel = document.getElementById("filtroCategoria");
-    var fc = document.getElementById("filtrosContainer");
-    var toggle = document.getElementById("btnFiltrosToggle");
-    if (sel) sel.value = val || "";
-    if (fc) {
-      fc.style.display = "block";
-      if (toggle) toggle.classList.add("active");
+    _filtroIndexSilenciaChange = true;
+    try {
+      var sel = document.getElementById("filtroCategoria");
+      if (sel) sel.value = val || "";
+    } finally {
+      _filtroIndexSilenciaChange = false;
     }
-    scrollToCatalogo();
-    buscarAvanzado();
+    cerrarPanelFiltrosIndex();
+    despuesFiltroCatalogoScroll(buscarProductosInmediato());
   }
 
   function aplicarFiltroMarca(val) {
-    var sel = document.getElementById("filtroMarca");
-    var fc = document.getElementById("filtrosContainer");
-    var toggle = document.getElementById("btnFiltrosToggle");
-    if (sel) sel.value = val || "";
-    if (fc) {
-      fc.style.display = "block";
-      if (toggle) toggle.classList.add("active");
+    _filtroIndexSilenciaChange = true;
+    try {
+      var sel = document.getElementById("filtroMarca");
+      if (sel) sel.value = val || "";
+    } finally {
+      _filtroIndexSilenciaChange = false;
     }
-    scrollToCatalogo();
-    buscarAvanzado();
+    cerrarPanelFiltrosIndex();
+    despuesFiltroCatalogoScroll(buscarProductosInmediato());
   }
 
   document.addEventListener("DOMContentLoaded", function () {
     window.TECHNOVA_API_PREFIX = window.TECHNOVA_API_PREFIX || "/api/v1";
 
-    document.addEventListener("click", onCarritoLink, true);
+    var formBusqueda = document.getElementById("indexFormBusqueda");
+    if (formBusqueda) {
+      formBusqueda.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        buscarProductosInmediato();
+      });
+    }
+
+    var inputTerm = document.getElementById("busquedaTermino");
+    if (inputTerm) {
+      inputTerm.addEventListener("input", function () {
+        buscarProductosDebounced();
+      });
+    }
+
+    ["filtroMarca", "filtroCategoria", "filtroDisponibilidad"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("change", function () {
+          if (_filtroIndexSilenciaChange) return;
+          buscarProductosInmediato();
+          cerrarPanelFiltrosIndex();
+        });
+      }
+    });
+    ["filtroPrecioMin", "filtroPrecioMax"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("input", function () {
+          buscarProductosDebounced();
+        });
+        el.addEventListener("change", function () {
+          if (_filtroIndexSilenciaChange) return;
+          buscarProductosInmediato();
+          cerrarPanelFiltrosIndex();
+        });
+      }
+    });
+
+    var btnLimpiarTodo = document.getElementById("btnLimpiarTodoFiltros");
+    if (btnLimpiarTodo) {
+      btnLimpiarTodo.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        limpiarTodoPanelFiltros();
+      });
+    }
+
+    document.addEventListener("click", onCarritoInvitadoClick, true);
 
     document.querySelectorAll(".index-sub-cat").forEach(function (btn) {
       btn.addEventListener("click", function (ev) {
@@ -257,26 +450,31 @@
     });
   });
 
-  window.buscarProductos = buscarAvanzado;
+  window.buscarProductos = buscarProductosInmediato;
   window.limpiarFiltros = limpiarFiltros;
+  window.limpiarTodoPanelFiltros = limpiarTodoPanelFiltros;
   window.toggleFiltros = function () {
     var el = document.getElementById("filtrosContainer");
     var btn = document.getElementById("btnFiltrosToggle");
     if (!el) return;
-    var shouldOpen = el.style.display === "none";
-    el.style.display = shouldOpen ? "block" : "none";
-    if (btn) btn.classList.toggle("active", shouldOpen);
+    var hidden =
+      el.style.display === "none" ||
+      window.getComputedStyle(el).display === "none";
+    if (hidden) {
+      abrirPanelFiltrosIndex();
+    } else {
+      cerrarPanelFiltrosIndex();
+    }
   };
 
   document.addEventListener("click", function (ev) {
     var filtros = document.getElementById("filtrosContainer");
     var btn = document.getElementById("btnFiltrosToggle");
-    if (!filtros || filtros.style.display === "none") return;
+    if (!filtros || window.getComputedStyle(filtros).display === "none") return;
     var clickedInside =
       filtros.contains(ev.target) || (btn && btn.contains(ev.target));
     if (!clickedInside) {
-      filtros.style.display = "none";
-      if (btn) btn.classList.remove("active");
+      cerrarPanelFiltrosIndex();
     }
   });
 })();

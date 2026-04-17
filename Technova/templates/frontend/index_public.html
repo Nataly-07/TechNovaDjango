@@ -10,53 +10,60 @@
   </a>
 
   <div class="busqueda-header-wrapper">
-    <div class="busqueda-input-wrapper">
-      <input type="text" id="busquedaTermino" class="busqueda-input" placeholder="Buscar productos..."
-             autocomplete="off"
-             onkeypress="if(event.key === 'Enter') buscarProductos()">
-      <button type="button" onclick="buscarProductos()" class="btn-buscar"><span>🔍</span></button>
-      <button type="button" onclick="limpiarFiltros()" class="btn-limpiar"><span>✕</span></button>
-      <button type="button" onclick="toggleFiltros()" class="btn-filtros-toggle" id="btnFiltrosToggle"><span>⚙️ Filtros</span></button>
-    </div>
-    <div class="filtros-header-container" id="filtrosContainer" style="display: none;">
-      <div class="filtro-header-item">
-        <label>MARCA</label>
-        <select id="filtroMarca" class="filtro-select-header">
-          <option value="">Todas</option>
-          {% for m in marcas %}
-          <option value="{{ m }}">{{ m }}</option>
-          {% endfor %}
-        </select>
+    <form id="indexFormBusqueda" class="index-form-busqueda" role="search" action="#" method="get">
+      <div class="busqueda-input-wrapper">
+        <input type="search" id="busquedaTermino" name="q" class="busqueda-input" placeholder="Buscar productos..."
+               autocomplete="off" enterkeyhint="search" aria-label="Buscar productos">
+        <button type="submit" class="btn-buscar" title="Buscar" aria-label="Buscar"><span>🔍</span></button>
+        <button type="button" onclick="limpiarFiltros()" class="btn-limpiar" title="Limpiar búsqueda" aria-label="Limpiar búsqueda"><span>✕</span></button>
+        <button type="button" onclick="toggleFiltros()" class="btn-filtros-toggle" id="btnFiltrosToggle"><span>⚙️ Filtros</span></button>
       </div>
-      <div class="filtro-header-item">
-        <label>CATEGORÍA</label>
-        <select id="filtroCategoria" class="filtro-select-header">
-          <option value="">Todas</option>
-          {% for c in categorias %}
-          <option value="{{ c }}">{{ c }}</option>
-          {% endfor %}
-        </select>
+    </form>
+    <div class="filtros-header-container" id="filtrosContainer" style="display: none;" aria-hidden="true">
+      <div class="filtros-header-campos">
+        <div class="filtro-header-item">
+          <label>MARCA</label>
+          <select id="filtroMarca" class="filtro-select-header">
+            <option value="">Todas</option>
+            {% for m in marcas %}
+            <option value="{{ m }}">{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filtro-header-item">
+          <label>CATEGORÍA</label>
+          <select id="filtroCategoria" class="filtro-select-header">
+            <option value="">Todas</option>
+            {% for c in categorias %}
+            <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filtro-header-item">
+          <label>PRECIO MÍN</label>
+          <input type="number" id="filtroPrecioMin" class="filtro-input-header" placeholder="0" min="0" step="0.01">
+        </div>
+        <div class="filtro-header-item">
+          <label>PRECIO MÁX</label>
+          <input type="number" id="filtroPrecioMax" class="filtro-input-header" placeholder="∞" min="0" step="0.01">
+        </div>
+        <div class="filtro-header-item">
+          <label>DISPONIBILIDAD</label>
+          <select id="filtroDisponibilidad" class="filtro-select-header">
+            <option value="">Todas</option>
+            <option value="disponible">Disponible</option>
+            <option value="agotado">Agotado</option>
+          </select>
+        </div>
       </div>
-      <div class="filtro-header-item">
-        <label>PRECIO MÍN</label>
-        <input type="number" id="filtroPrecioMin" class="filtro-input-header" placeholder="0" min="0" step="0.01">
-      </div>
-      <div class="filtro-header-item">
-        <label>PRECIO MÁX</label>
-        <input type="number" id="filtroPrecioMax" class="filtro-input-header" placeholder="∞" min="0" step="0.01">
-      </div>
-      <div class="filtro-header-item">
-        <label>DISPONIBILIDAD</label>
-        <select id="filtroDisponibilidad" class="filtro-select-header">
-          <option value="">Todas</option>
-          <option value="disponible">Disponible</option>
-          <option value="agotado">Agotado</option>
-        </select>
+      <div class="filtros-header-acciones">
+        <button type="button" class="btn-filtros-limpiar-todo" id="btnLimpiarTodoFiltros">Limpiar todo</button>
       </div>
     </div>
   </div>
 
   <div class="acciones-usuario">
+    <a href="{% url 'web_carrito' %}" class="account" id="linkCarritoIndex" title="Ver carrito"><span>🛒 Carrito</span></a>
     <a href="{% url 'web_login' %}" class="account" id="linkIniciarSesionIndex"><span>Iniciar Sesión</span></a>
     <a href="{% url 'web_registro' %}" class="account"><span>Crear Cuenta</span></a>
   </div>
@@ -106,7 +113,7 @@
         <img src="{{ p.imagen }}" alt="{{ p.nombre }}" loading="lazy"
              data-placeholder="{% static 'frontend/imagenes/placeholder.svg' %}"
              onerror="this.onerror=null;this.src=this.dataset.placeholder">
-        <a href="{% url 'web_producto_detalle' p.id %}"><span class="detalles">Ver Más Detalles</span></a>
+        <a href="{% url 'web_producto_detalle' p.id %}" class="js-producto-modal-link" data-producto-id="{{ p.id }}"><span class="detalles">Ver Más Detalles</span></a>
         <h3>{{ p.nombre }}</h3>
         <div class="producto-stock">
           {% if p.stock > 0 %}
@@ -122,7 +129,7 @@
         {% else %}
         <p><strong>$<span>{{ p.precio_descuento|floatformat:0 }}</span></strong></p>
         {% endif %}
-        <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--carrusel">&#128722;</a>
+        <button type="button" class="carrito-btn carrito-btn--carrusel js-carrito-index" data-producto-id="{{ p.id }}" title="Agregar al carrito"{% if p.stock <= 0 %} disabled aria-disabled="true"{% endif %}>&#128722;</button>
       </div>
       {% empty %}
       <p style="padding:20px;text-align:center;color:#666;">No hay productos disponibles por ahora.</p>
@@ -164,7 +171,7 @@
         <img src="{{ p.imagen }}" alt="{{ p.nombre }}" loading="lazy"
              data-placeholder="{% static 'frontend/imagenes/placeholder.svg' %}"
              onerror="this.onerror=null;this.src=this.dataset.placeholder">
-        <a href="{% url 'web_producto_detalle' p.id %}"><span class="detalles">Ver Más Detalles</span></a>
+        <a href="{% url 'web_producto_detalle' p.id %}" class="js-producto-modal-link" data-producto-id="{{ p.id }}"><span class="detalles">Ver Más Detalles</span></a>
         <h3>{{ p.nombre }}</h3>
         <div class="producto-stock">
           {% if p.stock > 0 %}
@@ -180,7 +187,7 @@
         {% else %}
         <p><strong>$<span>{{ p.precio_descuento|floatformat:0 }}</span></strong></p>
         {% endif %}
-        <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--carrusel">&#128722;</a>
+        <button type="button" class="carrito-btn carrito-btn--carrusel js-carrito-index" data-producto-id="{{ p.id }}" title="Agregar al carrito"{% if p.stock <= 0 %} disabled aria-disabled="true"{% endif %}>&#128722;</button>
       </div>
       {% endfor %}
     </div>
@@ -198,7 +205,7 @@
       <img src="{{ oferta_dia.imagen }}" alt="{{ oferta_dia.nombre }}" loading="lazy"
            data-placeholder="{% static 'frontend/imagenes/placeholder.svg' %}"
            onerror="this.onerror=null;this.src=this.dataset.placeholder">
-      <a href="{% url 'web_producto_detalle' oferta_dia.id %}" class="link-detalles">Ver Más Detalles</a>
+      <a href="{% url 'web_producto_detalle' oferta_dia.id %}" class="link-detalles js-producto-modal-link" data-producto-id="{{ oferta_dia.id }}">Ver Más Detalles</a>
       <h3>{{ oferta_dia.nombre }}</h3>
       <div class="producto-stock">
         {% if oferta_dia.stock > 0 %}
@@ -214,7 +221,7 @@
       {% else %}
       <p><strong>$<span>{{ oferta_dia.precio_descuento|floatformat:0 }}</span></strong></p>
       {% endif %}
-      <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--dia">&#128722;</a>
+      <button type="button" class="carrito-btn carrito-btn--dia js-carrito-index" data-producto-id="{{ oferta_dia.id }}" title="Agregar al carrito"{% if oferta_dia.stock <= 0 %} disabled aria-disabled="true"{% endif %}>&#128722;</button>
     </div>
   </div>
   {% if ofertas_interes %}
@@ -229,7 +236,7 @@
         <img src="{{ p.imagen }}" alt="{{ p.nombre }}" loading="lazy"
              data-placeholder="{% static 'frontend/imagenes/placeholder.svg' %}"
              onerror="this.onerror=null;this.src=this.dataset.placeholder">
-        <a href="{% url 'web_producto_detalle' p.id %}" class="link-detalles">Ver Más Detalles</a>
+        <a href="{% url 'web_producto_detalle' p.id %}" class="link-detalles js-producto-modal-link" data-producto-id="{{ p.id }}">Ver Más Detalles</a>
         <h3>{{ p.nombre }}</h3>
         <div class="producto-stock">
           {% if p.stock > 0 %}
@@ -245,7 +252,7 @@
         {% else %}
         <p><strong>$<span>{{ p.precio_descuento|floatformat:0 }}</span></strong></p>
         {% endif %}
-        <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--mini">&#128722;</a>
+        <button type="button" class="carrito-btn carrito-btn--mini js-carrito-index" data-producto-id="{{ p.id }}" title="Agregar al carrito"{% if p.stock <= 0 %} disabled aria-disabled="true"{% endif %}>&#128722;</button>
       </div>
       {% endfor %}
     </div>
@@ -322,8 +329,9 @@
 <script>
   window.TECHNOVA_INDEX_PUBLIC = true;
   window.TECHNOVA_URL_LOGIN = "{% filter escapejs %}{% url 'web_login' %}{% endfilter %}";
+  window.TECHNOVA_URL_CATALOGO_CARRITO = "{% filter escapejs %}{% url 'web_catalogo_agregar_carrito' %}{% endfilter %}";
 </script>
 <script src="{% static 'frontend/js/carrusel.js' %}"></script>
-<script src="{% static 'frontend/js/technova-producto-modal.js' %}?v=2"></script>
-<script src="{% static 'frontend/js/technova-index-public.js' %}?v=4"></script>
+<script src="{% static 'frontend/js/technova-producto-modal.js' %}?v=3"></script>
+<script src="{% static 'frontend/js/technova-index-public.js' %}?v=8"></script>
 {% endblock %}

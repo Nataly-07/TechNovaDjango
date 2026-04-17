@@ -70,6 +70,14 @@ from web.application.producto_excel_import import (
     importar_productos_desde_bytes,
     respuesta_plantilla_excel,
 )
+from web.application.guest_carrito import (
+    guest_cart_add,
+    guest_cart_clear,
+    guest_cart_line_items,
+    guest_cart_preview,
+    guest_cart_remove,
+    guest_cart_update,
+)
 from web.adapters.http import views_empleado as _empleado_pos_views
 
 logger = logging.getLogger(__name__)
@@ -115,6 +123,13 @@ def _carrito_preview_para_usuario(uid: int | None) -> list[dict]:
             }
         )
     return out
+
+
+def _carrito_preview_desde_request(request) -> list[dict]:
+    uid = request.session.get(SESSION_USUARIO_ID)
+    if uid:
+        return _carrito_preview_para_usuario(uid)
+    return guest_cart_preview(request, 8)
 
 
 def _transportadoras_para_checkout():
@@ -1261,10 +1276,9 @@ def home(request):
     return render(request, "frontend/cliente/home.html", ctx)
 
 
-@_cliente_login_required
 @require_POST
 def catalogo_agregar_carrito(request):
-    """Agregar al carrito desde el catálogo (sesión Django + CSRF). Sin JWT."""
+    """Agregar al carrito desde el catálogo (sesión Django + CSRF). Invitados: carrito en sesión."""
     uid = request.session.get(SESSION_USUARIO_ID)
     try:
         payload = json.loads(request.body.decode() or "{}")
@@ -1272,14 +1286,17 @@ def catalogo_agregar_carrito(request):
     except (ValueError, TypeError, json.JSONDecodeError):
         return JsonResponse({"ok": False, "message": "Solicitud inválida."}, status=400)
     try:
-        get_carrito_lineas_service().agregar_producto(uid, producto_id, 1)
+        if uid:
+            get_carrito_lineas_service().agregar_producto(uid, producto_id, 1)
+        else:
+            guest_cart_add(request, producto_id, 1)
     except ValueError as exc:
         return JsonResponse({"ok": False, "message": str(exc)}, status=400)
     return JsonResponse(
         {
             "ok": True,
             "message": "Producto agregado al carrito.",
-            "carrito_preview": _carrito_preview_para_usuario(uid),
+            "carrito_preview": _carrito_preview_desde_request(request),
         }
     )
 
@@ -6248,26 +6265,32 @@ def notificaciones_cliente(request):
     )
 
 
-@_cliente_login_required
 def carrito_page(request):
     uid = request.session.get(SESSION_USUARIO_ID)
-    svc = get_carrito_lineas_service()
-    items = svc.listar_items(uid)
+    if uid:
+        svc = get_carrito_lineas_service()
+        items = svc.listar_items(uid)
+        tpl = "frontend/cliente/carrito.html"
+        es_invitado = False
+    else:
+        items = guest_cart_line_items(request)
+        tpl = "frontend/cliente/carrito_guest.html"
+        es_invitado = True
     total = Decimal("0")
     for it in items:
         total += Decimal(it.get("subtotal_linea", "0"))
     return render(
         request,
-        "frontend/cliente/carrito.html",
+        tpl,
         {
             "carrito_items": items,
             "carrito_total": total,
             "usuario_id": uid,
+            "es_invitado_carrito": es_invitado,
         },
     )
 
 
-@_cliente_login_required
 @require_POST
 def carrito_actualizar(request):
     uid = request.session.get(SESSION_USUARIO_ID)
@@ -6281,7 +6304,12 @@ def carrito_actualizar(request):
         messages.error(request, "Datos no válidos.")
         return redirect("web_carrito")
     try:
-        get_carrito_lineas_service().actualizar_cantidad(uid, detalle_id, cantidad)
+        if uid:
+            get_carrito_lineas_service().actualizar_cantidad(uid, detalle_id, cantidad)
+        else:
+            if detalle_id >= 0:
+                raise ValueError("Sesión requerida para esta acción.")
+            guest_cart_update(request, detalle_id, cantidad)
         if wants_json:
             return JsonResponse({"ok": True, "message": "Cantidad actualizada."})
         messages.success(request, "Cantidad actualizada.")
@@ -6292,7 +6320,6 @@ def carrito_actualizar(request):
     return redirect("web_carrito")
 
 
-@_cliente_login_required
 @require_POST
 def carrito_eliminar(request):
     uid = request.session.get(SESSION_USUARIO_ID)
@@ -6305,7 +6332,12 @@ def carrito_eliminar(request):
         messages.error(request, "Ítem no válido.")
         return redirect("web_carrito")
     try:
-        get_carrito_lineas_service().eliminar_detalle(uid, detalle_id)
+        if uid:
+            get_carrito_lineas_service().eliminar_detalle(uid, detalle_id)
+        else:
+            if detalle_id >= 0:
+                raise ValueError("Sesión requerida para esta acción.")
+            guest_cart_remove(request, detalle_id)
         if wants_json:
             return JsonResponse({"ok": True, "message": "Producto eliminado del carrito."})
         messages.success(request, "Producto eliminado del carrito.")
@@ -6316,11 +6348,13 @@ def carrito_eliminar(request):
     return redirect("web_carrito")
 
 
-@_cliente_login_required
 @require_POST
 def carrito_vaciar(request):
     uid = request.session.get(SESSION_USUARIO_ID)
-    get_carrito_lineas_service().vaciar(uid)
+    if uid:
+        get_carrito_lineas_service().vaciar(uid)
+    else:
+        guest_cart_clear(request)
     messages.success(request, "Carrito vaciado.")
     return redirect("web_carrito")
 

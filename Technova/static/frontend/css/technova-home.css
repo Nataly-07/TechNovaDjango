@@ -53,6 +53,11 @@
   z-index: 40;
 }
 
+.tecn-header-shell .index-form-busqueda {
+  width: 100%;
+  margin: 0;
+}
+
 .tecn-header-shell .busqueda-input-wrapper {
   min-height: 46px;
   padding: 6px 10px 6px 16px;
@@ -109,8 +114,34 @@
   margin-bottom: 8px;
 }
 
-.tecn-header-shell .filtros-header-container .filtro-header-item:last-child {
+.tecn-header-shell .filtros-header-campos .filtro-header-item:last-child {
   margin-bottom: 0;
+}
+
+.tecn-header-shell .filtros-header-acciones {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tecn-header-shell .btn-filtros-limpiar-todo {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.tecn-header-shell .btn-filtros-limpiar-todo:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #1e293b;
 }
 
 .tecn-header-shell .busqueda-input {

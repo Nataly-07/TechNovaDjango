@@ -1083,6 +1083,7 @@
 
       <form id="loginForm" action="{% url 'web_login' %}" method="post" novalidate style="display: block !important; width: 100% !important; visibility: visible !important; opacity: 1 !important;">
         {% csrf_token %}
+        <input type="hidden" name="next" id="loginNextField" value="{{ next|default:'' }}">
 
         <div class="form-group" style="display: block !important; width: 100% !important; margin-bottom: 20px !important; visibility: visible !important; opacity: 1 !important; height: auto !important;">
           <label for="email" style="display: block !important; margin-bottom: 6px !important; color: #4a5568 !important; font-weight: 600 !important; font-size: 13px !important; visibility: visible !important;">Correo electrónico</label>

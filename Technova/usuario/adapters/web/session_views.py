@@ -89,6 +89,7 @@ def login_web(request: HttpRequest) -> HttpResponse:
             "api_usuario": _urls_api_usuario(),
             "account_activated": request.GET.get("accountActivated") == "true",
             "account_deactivated_notice": request.GET.get("accountDeactivated") == "true",
+            "next": (request.GET.get("next") or "").strip(),
         }
         return render(request, "usuarios/login.html", ctx)
 
@@ -112,11 +113,18 @@ def login_web(request: HttpRequest) -> HttpResponse:
     usuario = resultado.usuario
     request.session[SESSION_USUARIO_ID] = usuario.id
     request.session[SESSION_USUARIO_ROL] = usuario.rol
+    if usuario.rol == Usuario.Rol.CLIENTE:
+        from web.application.guest_carrito import merge_guest_cart_into_user
+
+        merge_guest_cart_into_user(request, usuario.id)
     messages.success(request, "Sesion iniciada correctamente.")
     if usuario.rol == Usuario.Rol.ADMIN:
         return redirect("web_admin_perfil")
     if usuario.rol == Usuario.Rol.EMPLEADO:
         return redirect("web_empleado_inicio")
+    nxt = (request.POST.get("next") or request.GET.get("next") or "").strip()
+    if nxt.startswith("/") and not nxt.startswith("//"):
+        return redirect(nxt)
     return redirect("inicio_autenticado")
 
 
@@ -144,6 +152,9 @@ def home_portal(request: HttpRequest) -> HttpResponse:
 
 @require_http_methods(["POST"])
 def logout_web(request: HttpRequest) -> HttpResponse:
+    # Descartar mensajes pendientes (p. ej. "Sesion iniciada...") antes de invalidar la sesión,
+    # para que no reaparezcan en la siguiente pantalla (login).
+    list(messages.get_messages(request))
     request.session.flush()
     messages.info(request, "Sesion cerrada.")
     return redirect("web_login")

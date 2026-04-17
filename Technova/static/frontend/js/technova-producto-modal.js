@@ -197,6 +197,14 @@
   }
 
   function close() {
+    if (window.TECHNOVA_PRODUCTO_DETALLE_STANDALONE) {
+      var dest =
+        (typeof window.TECHNOVA_URL_ROOT === "string" &&
+          window.TECHNOVA_URL_ROOT.trim()) ||
+        "/";
+      window.location.href = dest;
+      return;
+    }
     var root = document.getElementById("producto-modal-root");
     if (!root) return;
     root.classList.remove("is-open");

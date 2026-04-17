@@ -44,7 +44,7 @@
   color: #721c24;
 }
 
-/* Botón carrito en carrusel (invitado → login) */
+/* Botón carrito en carrusel (invitado: sesión; pago tras login) */
 .carrito-btn--carrusel {
   text-decoration: none;
   color: #fff;

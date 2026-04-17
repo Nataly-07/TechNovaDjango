@@ -109,42 +109,6 @@ def home(request):
 
 @cliente_login_required
 @require_POST
-def catalogo_agregar_carrito(request):
-    """Agregar al carrito desde el catálogo (sesión Django + CSRF). Sin JWT."""
-    uid = request.session.get(SESSION_USUARIO_ID)
-    try:
-        payload = json.loads(request.body.decode() or "{}")
-        producto_id = int(payload.get("producto_id"))
-    except (ValueError, TypeError, json.JSONDecodeError):
-        return JsonResponse({"ok": False, "message": "Solicitud inválida."}, status=400)
-    try:
-        get_carrito_lineas_service().agregar_producto(uid, producto_id, 1)
-    except ValueError as exc:
-        return JsonResponse({"ok": False, "message": str(exc)}, status=400)
-    carrito_preview = []
-    for it in get_carrito_lineas_service().listar_items(uid)[:8]:
-        carrito_preview.append(
-            {
-                "detalle_id": it.get("detalle_id"),
-                "producto_id": it.get("producto_id"),
-                "nombre_producto": it.get("nombre_producto", ""),
-                "imagen": it.get("imagen") or "",
-                "cantidad": int(it.get("cantidad", 1)),
-                "stock": int(it.get("stock", 0) or 0),
-                "precio_unitario": str(it.get("precio_unitario", "0")),
-            }
-        )
-    return JsonResponse(
-        {
-            "ok": True,
-            "message": "Producto agregado al carrito.",
-            "carrito_preview": carrito_preview,
-        }
-    )
-
-
-@cliente_login_required
-@require_POST
 def catalogo_toggle_favorito(request):
     """Alternar favorito desde el catálogo (sesión Django + CSRF). Sin JWT."""
     uid = request.session.get(SESSION_USUARIO_ID)
@@ -161,3 +125,7 @@ def catalogo_toggle_favorito(request):
             "message": "Favorito actualizado.",
         }
     )
+
+
+# Misma implementación que `web.views` (carrito de invitado en sesión).
+from web.views import catalogo_agregar_carrito  # noqa: E402

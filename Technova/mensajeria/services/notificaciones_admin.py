@@ -165,9 +165,10 @@ def notificar_envio_cambio_estado(
 
 
 def notificar_usuario_nuevo(usuario: Usuario) -> None:
+    nombre_completo = f"{usuario.nombres} {usuario.apellidos}".strip()
     msg = (
         f"Nuevo usuario en el sistema.\n"
-        f"Nombre: {usuario.nombres} {usuario.apellidos}\n"
+        f"Nombre: {nombre_completo}\n"
         f"Correo: {usuario.correo_electronico}\n"
         f"Rol: {usuario.get_rol_display()}"
     )
@@ -176,30 +177,81 @@ def notificar_usuario_nuevo(usuario: Usuario) -> None:
         mensaje=msg,
         tipo="usuario.nuevo",
         icono="user-plus",
-        data_adicional={"usuario_id": usuario.id},
+        data_adicional={
+            "usuario_id": usuario.id,
+            "nombre": nombre_completo,
+            "email": usuario.correo_electronico,
+            "rol": usuario.get_rol_display(),
+        },
     )
+
+
+def _normalizar_clave_campo_perfil(campo: str) -> str:
+    s = (campo or "").strip().lower()
+    for a, b in (("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u"), ("ñ", "n")):
+        s = s.replace(a, b)
+    return s
+
+
+def _etiqueta_campo_perfil(campo: str) -> str:
+    c = _normalizar_clave_campo_perfil(campo)
+    return {
+        "telefono": "Teléfono",
+        "direccion": "Dirección",
+        "nombres": "Nombres",
+        "apellidos": "Apellidos",
+        "contrasena": "Contraseña",
+        "password": "Contraseña",
+    }.get(c, (campo or "").replace("_", " ").strip().title() or "Campo")
+
+
+def _formatear_linea_cambio_perfil(campo: str, valor_nuevo: str) -> str:
+    """Una línea tipo «Campo: valor nuevo» para la tarjeta y el mensaje guardado."""
+    c = _normalizar_clave_campo_perfil(campo)
+    v = (valor_nuevo or "").strip()
+    lab = _etiqueta_campo_perfil(campo)
+    if c in ("contrasena", "password"):
+        return f"{lab}: actualizada"
+    if not v:
+        return ""
+    return f"{lab}: {v}"
 
 
 def notificar_usuario_actualizado(
     *,
     usuario_id: int,
     correo: str,
-    cambios: list[str],
-    origen: str = "perfil",
+    detalles: list[dict[str, str]],
 ) -> None:
-    cambios_txt = ", ".join(cambios) if cambios else "datos"
-    msg = (
-        f"Se actualizó un usuario.\n"
-        f"Correo: {correo}\n"
-        f"Cambios: {cambios_txt}\n"
-        f"Origen: {origen}"
-    )
+    """
+    Notifica a admins con el detalle real del cambio (sin origen de formulario).
+
+    `detalles`: items con claves `campo` (telefono|direccion|nombres|apellidos|contrasena|…)
+    y `valor_nuevo` (texto; vacío si no aplica, p. ej. contraseña).
+    """
+    lineas: list[str] = []
+    for item in detalles:
+        if not isinstance(item, dict):
+            continue
+        lineas.append(
+            _formatear_linea_cambio_perfil(
+                str(item.get("campo", "")),
+                str(item.get("valor_nuevo", "")),
+            )
+        )
+    lineas = [ln for ln in lineas if ln]
+    cuerpo_cambios = "\n".join(lineas) if lineas else "Datos actualizados."
+    msg = f"Se actualizó un usuario.\nCorreo: {correo}\n{cuerpo_cambios}"
     notificar_admins(
         titulo=f"Usuario actualizado · {correo}",
         mensaje=msg,
         tipo="usuario.actualizado",
         icono="edit-alt",
-        data_adicional={"usuario_id": usuario_id, "cambios": cambios, "origen": origen},
+        data_adicional={
+            "usuario_id": usuario_id,
+            "email": correo,
+            "lineas_cambios": lineas,
+        },
     )
 
 

@@ -15,6 +15,7 @@ from urllib import request as urllib_request
 from xml.sax.saxutils import escape as _xml_escape
 
 from django.contrib import messages
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.contrib.auth.hashers import make_password
 from django.conf import settings
 from django.core.paginator import Paginator
@@ -1103,6 +1104,23 @@ def empleado_notificaciones(request):
     total_recibidas = len(svc.listar_notificaciones_filtradas(usuario.id))
     total_no_leidas = len(svc.listar_notificaciones_filtradas(usuario.id, leida=False))
 
+    def _norm_notif_client(it: dict) -> dict:
+        extra = it.get("data_adicional")
+        if not isinstance(extra, dict):
+            extra = {}
+        return {
+            "id": it.get("id"),
+            "titulo": it.get("titulo"),
+            "mensaje": it.get("mensaje"),
+            "tipo": it.get("tipo"),
+            "icono": it.get("icono") or "bell",
+            "leida": bool(it.get("leida")),
+            "fecha_creacion": it.get("fechaCreacion") or it.get("fecha_creacion") or "",
+            "data_adicional": extra,
+        }
+
+    items_norm = [_norm_notif_client(it) for it in items[:500]]
+
     return render(
         request,
         "frontend/empleado/notificaciones.html",
@@ -1110,6 +1128,7 @@ def empleado_notificaciones(request):
             "usuario": usuario,
             "seccion": "notificaciones",
             "notificaciones": items[:500],
+            "notificaciones_items_json": _notificaciones_json_for_script(items_norm),
             "total_recibidas": total_recibidas,
             "total_no_leidas": total_no_leidas,
             "filtro_leida": leida_filtro,
@@ -1155,6 +1174,9 @@ def empleado_notificaciones_poll(request):
             "icono": n.get("icono") or "bell",
             "leida": bool(n.get("leida")),
             "fecha_creacion": n.get("fechaCreacion") or n.get("fecha_creacion"),
+            "data_adicional": n.get("data_adicional")
+            if isinstance(n.get("data_adicional"), dict)
+            else {},
         }
         for n in items[:500]
     ]
@@ -1181,22 +1203,21 @@ def empleado_perfil_editar(request):
         if not credenciales_coinciden(current_password, usuario.contrasena_hash):
             messages.error(request, "La contraseña actual no es correcta.")
             return redirect("web_empleado_perfil_editar")
-        cambios = []
+        detalles = []
         if usuario.telefono != telefono:
-            cambios.append("teléfono")
+            detalles.append({"campo": "telefono", "valor_nuevo": telefono})
         if usuario.direccion != direccion:
-            cambios.append("dirección")
+            detalles.append({"campo": "direccion", "valor_nuevo": direccion})
         usuario.telefono = telefono
         usuario.direccion = direccion
         usuario.save(update_fields=["telefono", "direccion", "actualizado_en"])
-        if cambios:
+        if detalles:
             from mensajeria.services.notificaciones_admin import notificar_usuario_actualizado
 
             notificar_usuario_actualizado(
                 usuario_id=usuario.id,
                 correo=usuario.correo_electronico,
-                cambios=cambios,
-                origen="empleado_perfil",
+                detalles=detalles,
             )
         messages.success(request, "Perfil actualizado correctamente.")
         return redirect("web_empleado_seccion", seccion="perfil")
@@ -1774,15 +1795,15 @@ def admin_perfil_editar(request):
                 ),
             )
 
-        cambios: list[str] = []
+        detalles: list[dict[str, str]] = []
         if usuario.nombres != nombres:
-            cambios.append("nombres")
+            detalles.append({"campo": "nombres", "valor_nuevo": nombres})
         if usuario.apellidos != apellidos:
-            cambios.append("apellidos")
+            detalles.append({"campo": "apellidos", "valor_nuevo": apellidos})
         if usuario.telefono != telefono:
-            cambios.append("teléfono")
+            detalles.append({"campo": "telefono", "valor_nuevo": telefono})
         if usuario.direccion != direccion:
-            cambios.append("dirección")
+            detalles.append({"campo": "direccion", "valor_nuevo": direccion})
 
         usuario.nombres = nombres
         usuario.apellidos = apellidos
@@ -1793,18 +1814,17 @@ def admin_perfil_editar(request):
         if wants_pw_change:
             usuario.contrasena_hash = make_password(new_password)
             update_fields.append("contrasena_hash")
-            cambios.append("contraseña")
+            detalles.append({"campo": "contrasena", "valor_nuevo": ""})
 
         usuario.save(update_fields=update_fields)
 
-        if cambios:
+        if detalles:
             from mensajeria.services.notificaciones_admin import notificar_usuario_actualizado
 
             notificar_usuario_actualizado(
                 usuario_id=usuario.id,
                 correo=usuario.correo_electronico,
-                cambios=cambios,
-                origen="admin_perfil",
+                detalles=detalles,
             )
 
         messages.success(request, "Perfil actualizado correctamente.")
@@ -1820,6 +1840,30 @@ def admin_perfil_editar(request):
             direccion=usuario.direccion,
             show_password_change=False,
         ),
+    )
+
+
+def _notificacion_admin_item_dict(n: Notificacion) -> dict:
+    extra = getattr(n, "data_adicional", None)
+    if not isinstance(extra, dict):
+        extra = {}
+    return {
+        "id": n.id,
+        "titulo": n.titulo,
+        "mensaje": n.mensaje,
+        "tipo": n.tipo,
+        "icono": n.icono or "bell",
+        "leida": n.leida,
+        "fecha_creacion": n.fecha_creacion.isoformat(),
+        "data_adicional": extra,
+    }
+
+
+def _notificaciones_json_for_script(items: list[dict]) -> str:
+    """JSON incrustable en <script> (mitiga cierre accidental de etiqueta)."""
+    raw = json.dumps(items, ensure_ascii=True)
+    return mark_safe(
+        raw.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
     )
 
 
@@ -1869,6 +1913,7 @@ def admin_notificaciones(request):
         qs = qs.filter(Q(titulo__icontains=q) | Q(mensaje__icontains=q))
 
     notificaciones = list(qs[:500])
+    notificaciones_items = [_notificacion_admin_item_dict(n) for n in notificaciones]
     total_recibidas = Notificacion.objects.filter(usuario_id=admin_uid).count()
     total_no_leidas = Notificacion.objects.filter(usuario_id=admin_uid, leida=False).count()
 
@@ -1878,6 +1923,7 @@ def admin_notificaciones(request):
         {
             "usuario": usuario,
             "notificaciones": notificaciones,
+            "notificaciones_items_json": _notificaciones_json_for_script(notificaciones_items),
             "total_recibidas": total_recibidas,
             "total_no_leidas": total_no_leidas,
             "filtro_leida": leida_filtro,
@@ -1911,18 +1957,7 @@ def admin_notificaciones_poll(request):
         usuario_id=admin_uid, leida=False
     ).count()
 
-    items = [
-        {
-            "id": n.id,
-            "titulo": n.titulo,
-            "mensaje": n.mensaje,
-            "tipo": n.tipo,
-            "icono": n.icono,
-            "leida": n.leida,
-            "fecha_creacion": n.fecha_creacion.isoformat(),
-        }
-        for n in notificaciones
-    ]
+    items = [_notificacion_admin_item_dict(n) for n in notificaciones]
     return JsonResponse(
         {
             "total_recibidas": total_recibidas,
@@ -1986,6 +2021,27 @@ def _producto_modal_dict(p: Producto) -> dict:
     }
 
 
+ADMIN_USUARIOS_PAGE_SIZE = 15
+
+
+def _usuarios_pagination_items(paginator: Paginator, page_number: int) -> list[dict]:
+    """Ítems para plantilla: páginas y huecos («…») usando get_elided_page_range si existe."""
+    items: list[dict] = []
+    try:
+        elided = paginator.get_elided_page_range(page_number, on_each_side=1, on_ends=1)
+    except AttributeError:
+        for i in paginator.page_range:
+            items.append({"kind": "page", "num": i})
+        return items
+
+    for x in elided:
+        if isinstance(x, int):
+            items.append({"kind": "page", "num": x})
+        else:
+            items.append({"kind": "gap"})
+    return items
+
+
 def _proveedor_modal_dict(p: Proveedor) -> dict:
     return {
         "id": p.id,
@@ -2015,17 +2071,39 @@ def admin_usuarios(request):
             | Q(numero_documento__icontains=busqueda)
         )
 
-    usuarios = list(qs)
+    paginator = Paginator(qs, ADMIN_USUARIOS_PAGE_SIZE)
+    raw_page = (request.GET.get("page") or "").strip()
+    try:
+        page_num = int(raw_page)
+    except ValueError:
+        page_num = 1
+    try:
+        page_obj = paginator.page(page_num)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        last_page = paginator.num_pages
+        page_obj = paginator.page(last_page if last_page >= 1 else 1)
+
+    usuarios = page_obj.object_list
     usuarios_json = json.dumps(
         [_usuario_modal_dict(u) for u in usuarios],
         ensure_ascii=False,
     )
+
+    qd = request.GET.copy()
+    qd.pop("page", None)
+    filtros_query = qd.urlencode()
+
     ctx = {
         "usuario": usuario,
         "usuarios": usuarios,
         "usuarios_json": mark_safe(usuarios_json),
         "rol": rol,
         "busqueda": busqueda,
+        "page_obj": page_obj,
+        "filtros_query": filtros_query,
+        "pagination_items": _usuarios_pagination_items(paginator, page_obj.number),
         "total_usuarios": Usuario.objects.count(),
         "total_clientes": Usuario.objects.filter(rol=Usuario.Rol.CLIENTE).count(),
         "total_admin": Usuario.objects.filter(rol=Usuario.Rol.ADMIN).count(),
@@ -6069,22 +6147,21 @@ def perfil_editar(request):
         if not credenciales_coinciden(current_password, usuario.contrasena_hash):
             messages.error(request, "La contraseña actual no es correcta.")
             return redirect("web_cliente_perfil_editar")
-        cambios = []
+        detalles = []
         if usuario.telefono != telefono:
-            cambios.append("teléfono")
+            detalles.append({"campo": "telefono", "valor_nuevo": telefono})
         if usuario.direccion != direccion:
-            cambios.append("dirección")
+            detalles.append({"campo": "direccion", "valor_nuevo": direccion})
         usuario.telefono = telefono
         usuario.direccion = direccion
         usuario.save(update_fields=["telefono", "direccion", "actualizado_en"])
-        if cambios:
+        if detalles:
             from mensajeria.services.notificaciones_admin import notificar_usuario_actualizado
 
             notificar_usuario_actualizado(
                 usuario_id=usuario.id,
                 correo=usuario.correo_electronico,
-                cambios=cambios,
-                origen="cliente_perfil",
+                detalles=detalles,
             )
         messages.success(request, "Perfil actualizado correctamente.")
         return redirect("web_cliente_perfil")

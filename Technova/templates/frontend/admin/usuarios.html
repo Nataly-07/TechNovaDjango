@@ -33,11 +33,35 @@
         </div>
         {% endfor %}
 
-        <div class="stats-bar">
-          <div class="stat-card"><h4>Total</h4><p class="number">{{ total_usuarios }}</p></div>
-          <div class="stat-card" style="background: linear-gradient(135deg, #00cc44 0%, #00a638 100%);"><h4>Clientes</h4><p class="number">{{ total_clientes }}</p></div>
-          <div class="stat-card" style="background: linear-gradient(135deg, #007acc 0%, #005fa3 100%);"><h4>Administradores</h4><p class="number">{{ total_admin }}</p></div>
-          <div class="stat-card" style="background: linear-gradient(135deg, #ff9500 0%, #ff7700 100%);"><h4>Empleados</h4><p class="number">{{ total_empleados }}</p></div>
+        <div class="stats-bar stats-bar--usuarios-kpi">
+          <div class="stat-card stat-card--usu-total">
+            <span class="stat-card__kpi-icon" aria-hidden="true"><i class="bx bx-group"></i></span>
+            <div class="stat-card__kpi-text">
+              <h4>Total</h4>
+              <p class="number">{{ total_usuarios }}</p>
+            </div>
+          </div>
+          <div class="stat-card stat-card--usu-clientes">
+            <span class="stat-card__kpi-icon" aria-hidden="true"><i class="bx bx-user"></i></span>
+            <div class="stat-card__kpi-text">
+              <h4>Clientes</h4>
+              <p class="number">{{ total_clientes }}</p>
+            </div>
+          </div>
+          <div class="stat-card stat-card--usu-admin">
+            <span class="stat-card__kpi-icon" aria-hidden="true"><i class="bx bx-shield-quarter"></i></span>
+            <div class="stat-card__kpi-text">
+              <h4>Administradores</h4>
+              <p class="number">{{ total_admin }}</p>
+            </div>
+          </div>
+          <div class="stat-card stat-card--usu-empleados">
+            <span class="stat-card__kpi-icon" aria-hidden="true"><i class="bx bx-briefcase-alt-2"></i></span>
+            <div class="stat-card__kpi-text">
+              <h4>Empleados</h4>
+              <p class="number">{{ total_empleados }}</p>
+            </div>
+          </div>
         </div>
 
         <form class="filtros-section" method="get" action="{% url 'web_admin_usuarios' %}">
@@ -103,6 +127,41 @@
               {% endfor %}
             </tbody>
           </table>
+
+          {% if page_obj.paginator.num_pages > 1 %}
+          <nav class="usuarios-pagination" aria-label="Paginación del listado de usuarios">
+            <div class="usuarios-pagination__inner">
+              {% if page_obj.has_previous %}
+              <a class="usuarios-pagination__btn usuarios-pagination__btn--nav" href="{% url 'web_admin_usuarios' %}?{% if filtros_query %}{{ filtros_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">
+                <i class="bx bx-chevron-left"></i> Anterior
+              </a>
+              {% else %}
+              <span class="usuarios-pagination__btn usuarios-pagination__btn--nav usuarios-pagination__btn--disabled"><i class="bx bx-chevron-left"></i> Anterior</span>
+              {% endif %}
+
+              <div class="usuarios-pagination__pages" role="group" aria-label="Ir a página">
+                {% for item in pagination_items %}
+                  {% if item.kind == 'gap' %}
+                  <span class="usuarios-pagination__gap" aria-hidden="true">…</span>
+                  {% elif item.num == page_obj.number %}
+                  <span class="usuarios-pagination__num usuarios-pagination__num--current" aria-current="page">{{ item.num }}</span>
+                  {% else %}
+                  <a class="usuarios-pagination__num" href="{% url 'web_admin_usuarios' %}?{% if filtros_query %}{{ filtros_query }}&amp;{% endif %}page={{ item.num }}">{{ item.num }}</a>
+                  {% endif %}
+                {% endfor %}
+              </div>
+
+              {% if page_obj.has_next %}
+              <a class="usuarios-pagination__btn usuarios-pagination__btn--nav" href="{% url 'web_admin_usuarios' %}?{% if filtros_query %}{{ filtros_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">
+                Siguiente <i class="bx bx-chevron-right"></i>
+              </a>
+              {% else %}
+              <span class="usuarios-pagination__btn usuarios-pagination__btn--nav usuarios-pagination__btn--disabled">Siguiente <i class="bx bx-chevron-right"></i></span>
+              {% endif %}
+            </div>
+          </nav>
+          {% endif %}
+
           {% else %}
           <div class="empty-state"><i class="bx bx-user-x" style="font-size:4rem;opacity:.5;"></i><h3>No se encontraron usuarios</h3><p>Prueba otros filtros.</p></div>
           {% endif %}
@@ -592,5 +651,6 @@
       if (e.target === this) cerrarModal();
     });
   </script>
+  {% include "frontend/admin/snippets/admin_alert_success_dismiss_script.html" %}
 </body>
 </html>

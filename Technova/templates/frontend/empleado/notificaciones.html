@@ -86,13 +86,184 @@
 
     function normalizeMsg(s) {
       s = String(s || "");
-      return s.replace(/\\s+/g, " ").trim();
+      return s.replace(/\s+/g, " ").trim();
     }
 
     function truncateMsg(s, max) {
       s = String(s || "");
       if (s.length <= max) return s;
       return s.slice(0, max - 1) + "…";
+    }
+
+    function capitalizeLabel(s) {
+      s = String(s || "").trim();
+      if (!s) return s;
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    function getData(n) {
+      var d = n.data_adicional;
+      return d && typeof d === "object" ? d : {};
+    }
+
+    function parseUsuarioMensajeLegacy(msg) {
+      var o = { nombre: "", email: "", rol: "", cambios: [], origen: "" };
+      String(msg || "").split(/\r?\n/).forEach(function (raw) {
+        var line = String(raw || "").trim();
+        if (!line) return;
+        var m;
+        m = line.match(/^Nombre:\s*(.+)$/i);
+        if (m) o.nombre = m[1].trim();
+        m = line.match(/^Correo:\s*(.+)$/i);
+        if (m) o.email = m[1].trim();
+        m = line.match(/^Rol:\s*(.+)$/i);
+        if (m) o.rol = m[1].trim();
+        m = line.match(/^Cambios:\s*(.+)$/i);
+        if (m) {
+          o.cambios = m[1].split(",").map(function (x) { return x.trim(); }).filter(Boolean);
+        }
+        m = line.match(/^Origen:\s*(.+)$/i);
+        if (m) o.origen = m[1].trim();
+      });
+      return o;
+    }
+
+    function lineasCambioDesdeMensajeUsuarioActualizado(msg) {
+      var skip = /^(Se actualizó un usuario\.?|Correo:|Cambios:|Origen:)/i;
+      return String(msg || "")
+        .split(/\r?\n/)
+        .map(function (ln) {
+          return String(ln || "").trim();
+        })
+        .filter(function (ln) {
+          return ln && !skip.test(ln);
+        });
+    }
+
+    function notifRowHtml(label, value, iconClass) {
+      value = String(value == null ? "" : value).trim();
+      if (!value) return "";
+      return (
+        '<div class="notif-card__row">' +
+          '<span class="notif-card__row-icon" aria-hidden="true"><i class="bx ' + iconClass + '"></i></span>' +
+          '<div class="notif-card__row-body">' +
+            '<span class="notif-card__row-label">' + esc(label) + "</span> " +
+            '<span class="notif-card__row-value">' + esc(value) + "</span>" +
+          "</div>" +
+        "</div>"
+      );
+    }
+
+    function fallbackBodyFromMessage(msg) {
+      var lines = String(msg || "")
+        .split(/\r?\n/)
+        .map(function (ln) { return String(ln || "").trim(); })
+        .filter(Boolean);
+      if (!lines.length) {
+        return '<p class="notif-card__muted">—</p>';
+      }
+      var blocks = [];
+      for (var li = 0; li < lines.length; li++) {
+        var line = lines[li];
+        var colon = line.indexOf(":");
+        if (colon > 0 && colon < 48 && line.toLowerCase().indexOf("http") !== 0) {
+          var lab = line.slice(0, colon).trim();
+          var val = line.slice(colon + 1).trim();
+          blocks.push(
+            '<div class="notif-card__line">' +
+              '<span class="notif-card__line-k">' + esc(lab) + ":</span> " +
+              '<span class="notif-card__line-v">' + esc(val) + "</span>" +
+            "</div>"
+          );
+        } else {
+          blocks.push('<div class="notif-card__line notif-card__line--plain">' + esc(line) + "</div>");
+        }
+      }
+      return '<div class="notif-card__lines">' + blocks.join("") + "</div>";
+    }
+
+    function buildNotificationBodyHtml(n) {
+      var tipo = String(n.tipo || "").toLowerCase();
+      var d = getData(n);
+      var msg = n.mensaje || "";
+
+      if (tipo === "usuario.nuevo") {
+        var nombre = String(d.nombre || "").trim();
+        var email = String(d.email || "").trim();
+        var rol = String(d.rol || "").trim();
+        if (!nombre || !email || !rol) {
+          var leg = parseUsuarioMensajeLegacy(msg);
+          if (!nombre) nombre = leg.nombre;
+          if (!email) email = leg.email;
+          if (!rol) rol = leg.rol;
+        }
+        var rows =
+          notifRowHtml("Nombre", nombre, "bx-user") +
+          notifRowHtml("Email", email, "bx-envelope") +
+          notifRowHtml("Rol asignado", rol, "bx-id-card");
+        return rows || fallbackBodyFromMessage(msg);
+      }
+
+      if (tipo === "usuario.actualizado") {
+        var mail = String(d.email || d.correo || "").trim();
+        var rawLc = d.lineas_cambios;
+        var lineas = Array.isArray(rawLc) ? rawLc.slice() : [];
+        if (!lineas.length && typeof rawLc === "string") {
+          try {
+            var parsed = JSON.parse(rawLc);
+            if (Array.isArray(parsed)) lineas = parsed.slice();
+          } catch (e1) {}
+        }
+        var cambiosLegacy = Array.isArray(d.cambios) ? d.cambios : [];
+        if (!mail) {
+          var leg2 = parseUsuarioMensajeLegacy(msg);
+          if (!mail) mail = leg2.email;
+        }
+        if (!lineas.length) {
+          lineas = lineasCambioDesdeMensajeUsuarioActualizado(msg);
+        }
+        if (!lineas.length) {
+          var mCam = String(msg || "").match(/Cambios:\s*(.+)/im);
+          if (mCam && mCam[1]) {
+            lineas = mCam[1].split(",").map(function (x) {
+              return capitalizeLabel(x.trim());
+            }).filter(Boolean);
+          }
+        }
+        if (!lineas.length && cambiosLegacy.length) {
+          for (var ci = 0; ci < cambiosLegacy.length; ci++) {
+            var c0 = String(cambiosLegacy[ci] || "").trim();
+            if (c0) lineas.push(capitalizeLabel(c0));
+          }
+        }
+        var h = "";
+        if (mail) {
+          h += notifRowHtml("Email", mail, "bx-envelope");
+        }
+        if (lineas.length) {
+          h += '<div class="notif-card__changes-title">Cambios realizados</div>';
+          h += '<ul class="notif-card__bullets">';
+          for (var lix = 0; lix < lineas.length; lix++) {
+            var one = String(lineas[lix] || "").trim();
+            if (!one) continue;
+            h += '<li><span class="notif-card__bullet-text">' + esc(one) + "</span></li>";
+          }
+          h += "</ul>";
+        }
+        if (!h) {
+          var sinOrigen = String(msg || "")
+            .split(/\r?\n/)
+            .map(function (ln) { return String(ln || "").trim(); })
+            .filter(function (ln) {
+              return ln && !/^origen:/i.test(ln);
+            })
+            .join("\n");
+          h = fallbackBodyFromMessage(sinOrigen);
+        }
+        return h;
+      }
+
+      return fallbackBodyFromMessage(msg);
     }
 
     function fmtFecha(iso) {
@@ -185,7 +356,7 @@
         var cardClass = "notif-card notif-card--" + nivel.key + unreadClass;
 
         var icon = n.icono ? ("bx bx-" + String(n.icono)) : "bx bx-bell";
-        var snippet = truncateMsg(normalizeMsg(n.mensaje), 190);
+        var bodyHtml = buildNotificationBodyHtml(n);
 
         var accion = n.leida
           ? '<span class="muted">—</span>'
@@ -210,7 +381,7 @@
                 '</div>' +
               '</div>' +
             '</div>' +
-            '<div class="notif-card__desc" title="' + esc(normalizeMsg(n.mensaje)) + '">' + esc(snippet) + '</div>' +
+            '<div class="notif-card__desc" title="' + esc(normalizeMsg(n.mensaje)) + '">' + bodyHtml + '</div>' +
             '<div class="notif-card__bottom">' +
               '<div class="notif-card__date">' + esc(fmtFecha(n.fecha_creacion)) + '</div>' +
               '<div class="notif-card__action">' + accion + '</div>' +
@@ -231,7 +402,8 @@
           if (elR) elR.textContent = String(data.total_recibidas || 0);
           if (elN) elN.textContent = String(data.total_no_leidas || 0);
           renderMarcarTodas(Number(data.total_no_leidas || 0));
-          renderCards(data.notificaciones || []);
+          lastItems = data.notificaciones || [];
+          renderCards(lastItems);
         })
         .catch(function () {});
     }
@@ -241,13 +413,14 @@
         document.querySelectorAll(".notif-module-btn").forEach(function (b) { b.classList.remove("is-active"); });
         btn.classList.add("is-active");
         activeModulo = btn.getAttribute("data-modulo") || "todos";
-        poll();
+        renderCards(lastItems);
       });
     });
 
+    var lastItems = {{ notificaciones_items_json|default:"[]" }};
     renderMarcarTodas(Number({{ total_no_leidas|default:0 }}));
-    // Cargar primera vez desde HTML (server render) vía poll para normalizar
-    poll();
+    renderCards(lastItems);
+    setTimeout(poll, 2000);
     setInterval(poll, 12000);
   })();
   </script>

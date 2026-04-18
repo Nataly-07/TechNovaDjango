@@ -15,6 +15,7 @@ from venta.models import Venta
 
 class MensajeriaQueryRepository(MensajeriaQueryPort):
     def _notif_dict(self, n: Notificacion) -> dict:
+        extra = n.data_adicional if isinstance(n.data_adicional, dict) else {}
         return {
             "id": n.id,
             "userId": n.usuario_id,
@@ -22,8 +23,10 @@ class MensajeriaQueryRepository(MensajeriaQueryPort):
             "titulo": n.titulo,
             "mensaje": n.mensaje,
             "tipo": n.tipo,
+            "icono": n.icono or "bell",
             "leida": n.leida,
             "fechaCreacion": n.fecha_creacion.isoformat(),
+            "data_adicional": extra,
         }
 
     def listar_notificaciones(self, usuario_id: int | None) -> list[dict]:

@@ -22,7 +22,7 @@
         </div>
 
         {% for message in messages %}
-        <div class="alert" style="padding:12px 16px;border-radius:10px;margin-bottom:16px;background:{% if message.tags == 'error' %}#fee{% else %}#ecfdf5{% endif %};color:{% if message.tags == 'error' %}#b91c1c{% else %}#065f46{% endif %};">
+        <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}" style="padding:12px 16px;border-radius:10px;margin-bottom:16px;">
           {{ message }}
         </div>
         {% endfor %}
@@ -160,5 +160,6 @@
       });
     })();
   </script>
+  {% include "frontend/admin/snippets/admin_alert_success_dismiss_script.html" %}
 </body>
 </html>

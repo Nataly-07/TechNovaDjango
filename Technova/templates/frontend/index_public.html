@@ -63,7 +63,7 @@
   </div>
 
   <div class="acciones-usuario">
-    <a href="{% url 'web_carrito' %}" class="account" id="linkCarritoIndex" title="Ver carrito"><span>🛒 Carrito</span></a>
+    <a href="{% url 'web_carrito' %}" class="account account--cart-badge" id="linkCarritoIndex" title="Ver carrito"><span>🛒 Carrito</span><span class="tecn-cart-count" data-tecn-cart-count hidden></span></a>
     <a href="{% url 'web_login' %}" class="account" id="linkIniciarSesionIndex"><span>Iniciar Sesión</span></a>
     <a href="{% url 'web_registro' %}" class="account"><span>Crear Cuenta</span></a>
   </div>
@@ -330,8 +330,11 @@
   window.TECHNOVA_INDEX_PUBLIC = true;
   window.TECHNOVA_URL_LOGIN = "{% filter escapejs %}{% url 'web_login' %}{% endfilter %}";
   window.TECHNOVA_URL_CATALOGO_CARRITO = "{% filter escapejs %}{% url 'web_catalogo_agregar_carrito' %}{% endfilter %}";
+  window.TECHNOVA_URL_CARRITO = "{% filter escapejs %}{% url 'web_carrito' %}{% endfilter %}";
+  window.TECHNOVA_URL_CATALOGO_FAVORITO = "{% filter escapejs %}{% url 'web_catalogo_toggle_favorito' %}{% endfilter %}";
+  window.TECHNOVA_URL_CHECKOUT_INFO = "{% filter escapejs %}{% url 'web_cliente_checkout_info' %}{% endfilter %}";
 </script>
 <script src="{% static 'frontend/js/carrusel.js' %}"></script>
-<script src="{% static 'frontend/js/technova-producto-modal.js' %}?v=3"></script>
-<script src="{% static 'frontend/js/technova-index-public.js' %}?v=8"></script>
+<script src="{% static 'frontend/js/technova-producto-modal.js' %}?v=7"></script>
+<script src="{% static 'frontend/js/technova-index-public.js' %}?v=9"></script>
 {% endblock %}

@@ -108,6 +108,18 @@
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
         }
+
+        /* Alias solicitado para el CTA del correo (mismos estilos que .cta-button) */
+        .boton-estilo {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white !important;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
         
         .custom-message {
             background: #e8f4fd;
@@ -157,7 +169,8 @@
                 padding: 20px;
             }
             
-            .cta-button {
+            .cta-button,
+            .boton-estilo {
                 display: block;
                 text-align: center;
                 padding: 12px 20px;
@@ -225,9 +238,7 @@
                 {% endif %}
                 
                 <center>
-                    <a href="#" class="cta-button">
-                        <i class="bx bx-cart"></i> Ver Producto
-                    </a>
+                    <a href="{{ producto_url }}" class="boton-estilo">Ver Producto</a>
                 </center>
             </div>
             

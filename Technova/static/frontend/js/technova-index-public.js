@@ -171,9 +171,16 @@
     if (!catalogoTieneEndpointCarrito()) {
       throw new Error("Carrito no disponible en esta página.");
     }
-    await postJsonCarritoSesion(window.TECHNOVA_URL_CATALOGO_CARRITO, {
+    var j = await postJsonCarritoSesion(window.TECHNOVA_URL_CATALOGO_CARRITO, {
       producto_id: parseInt(productoId, 10),
     });
+    if (Array.isArray(j.carrito_preview)) {
+      document.dispatchEvent(
+        new CustomEvent("technova:carrito-preview-update", {
+          detail: { items: j.carrito_preview },
+        })
+      );
+    }
     var label = nombre || "Producto agregado al carrito";
     if (window.CarritoAlerts && typeof window.CarritoAlerts.success === "function") {
       await window.CarritoAlerts.success(label);

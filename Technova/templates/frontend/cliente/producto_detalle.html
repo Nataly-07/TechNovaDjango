@@ -2,19 +2,26 @@
 {% load static %}
 {% block title %}Producto — Technova{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'frontend/css/technova-home.css' %}?v=8">
+<link rel="stylesheet" href="{% static 'frontend/css/technova-home.css' %}?v=9">
+<link rel="stylesheet" href="{% static 'frontend/css/index-home.css' %}?v=12">
 {% endblock %}
 {% block body %}
 {% include "frontend/cliente/partials/header_tienda_shell.html" %}
+<main class="producto-detalle-standalone-page" id="productoDetallePageMain" aria-label="Tienda Technova">
+  <div class="producto-detalle-standalone-inner">
+    <p class="producto-detalle-standalone-lead">Usa el menú para explorar el catálogo o cierra la ficha del producto para volver al inicio.</p>
+  </div>
+</main>
 {% endblock %}
 {% block extra_js %}
 <script>
   window.TECHNOVA_URL_ROOT = "{% filter escapejs %}{% url 'root' %}{% endfilter %}";
   window.TECHNOVA_PRODUCTO_DETALLE_STANDALONE = true;
-  window.TECHNOVA_SESION_SERVIDOR = true;
+  window.TECHNOVA_SESION_SERVIDOR = {% if sesion_servidor %}true{% else %}false{% endif %};
   window.TECHNOVA_USUARIO_ID = {% if usuario_id is not None %}{{ usuario_id }}{% else %}null{% endif %};
   window.TECHNOVA_URL_CATALOGO_CARRITO = "{% url 'web_catalogo_agregar_carrito' %}";
   window.TECHNOVA_URL_CATALOGO_FAVORITO = "{% url 'web_catalogo_toggle_favorito' %}";
+  window.TECHNOVA_URL_CHECKOUT_INFO = "{% url 'web_cliente_checkout_info' %}";
   window.TECHNOVA_URL_FAVORITOS = "{% url 'web_favoritos' %}";
   window.TECHNOVA_URL_CARRITO = "{% url 'web_carrito' %}";
   window.TECHNOVA_URL_FAVORITO_QUITAR = "{% url 'web_favorito_quitar' %}";
@@ -22,13 +29,13 @@
   window.TECHNOVA_URL_CARRITO_ACTUALIZAR = "{% url 'web_carrito_actualizar' %}";
   window.TECHNOVA_URL_CARRITO_ELIMINAR = "{% url 'web_carrito_eliminar' %}";
 </script>
-<script type="application/json" id="favoritosPreviewData">[]</script>
-<script type="application/json" id="carritoPreviewData">[]</script>
+{{ favoritos_preview|json_script:"favoritosPreviewData" }}
+{{ carrito_preview|json_script:"carritoPreviewData" }}
 <script src="{% static 'frontend/js/carrusel.js' %}"></script>
-<script src="{% static 'frontend/js/technova-producto-modal.js' %}?v=3"></script>
-<script src="{% static 'frontend/js/technova-cliente-home.js' %}?v=15"></script>
+<script src="{% static 'frontend/js/technova-producto-modal.js' %}?v=7"></script>
+<script src="{% static 'frontend/js/technova-cliente-home.js' %}?v=16"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
+  function technovaInitProductoDetallePagina() {
     var lOut = document.getElementById('linkCerrarSesionHeader');
     if (lOut && window.TechnovaAuth) {
       lOut.addEventListener('click', function (e) {
@@ -39,6 +46,11 @@
     if (window.TechnovaProductoModal) {
       window.TechnovaProductoModal.open({{ producto_id }});
     }
+  }
+  window.addEventListener('load', function () {
+    requestAnimationFrame(function () {
+      technovaInitProductoDetallePagina();
+    });
   });
 </script>
 {% endblock %}

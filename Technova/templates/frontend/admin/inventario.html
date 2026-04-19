@@ -22,6 +22,12 @@
     window.INV_URL_PRODUCTO_EDITAR = function (pk) {
       return "{% url 'web_admin_producto_editar' 987654321 %}".split("987654321").join(String(pk));
     };
+    window.INV_URL_PROMO_ACTUALIZAR = function (pk) {
+      return "{% url 'web_admin_producto_promocion_actualizar' 987654321 %}".split("987654321").join(String(pk));
+    };
+    window.INV_URL_PROMO_TERMINAR = function (pk) {
+      return "{% url 'web_admin_producto_promocion_terminar' 987654321 %}".split("987654321").join(String(pk));
+    };
   </script>
 </head>
 <body>
@@ -204,6 +210,60 @@
           });
       };
 
+    /** Actualiza la columna «Precio venta» tras enviar promoción (sin recargar toda la página). */
+    window.invActualizarFilaTrasPromocion = window.invActualizarFilaTrasPromocion || function (pf) {
+      function esc(s) {
+        return String(s == null ? "" : s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+      if (!pf || pf.id == null) return;
+      var tr = document.querySelector(
+        '#tbodyProductos tr[data-producto-id="' + String(pf.id) + '"]'
+      );
+      if (!tr || !tr.cells || tr.cells.length < 3) {
+        window.location.reload();
+        return;
+      }
+      var cell = tr.cells[2];
+      if (pf.promocion_activa && pf.precio_promocion_fmt) {
+        cell.innerHTML =
+          '<div class="inv-price-stack">' +
+          '<span class="inv-price-old">' +
+          esc(pf.precio_base_fmt) +
+          "</span>" +
+          '<span class="inv-price-promo">' +
+          esc(pf.precio_promocion_fmt) +
+          "</span>" +
+          "</div>";
+      } else {
+        cell.innerHTML =
+          '<span class="inv-price">' + esc(pf.precio_base_fmt || "—") + "</span>";
+      }
+    };
+    window.invPromoTrasExito = window.invPromoTrasExito || function (data) {
+      if (data && data.producto_fila) {
+        window.invActualizarFilaTrasPromocion(data.producto_fila);
+      } else {
+        window.location.reload();
+      }
+    };
+
+    window.invMensajeFechaPromoRequerida = function () {
+      return "Por favor, selecciona una fecha de vencimiento para la oferta.";
+    };
+    window.invValidarFechaFinPromocion = function () {
+      var el = document.getElementById("fechaFinPromocion");
+      if (!el || !String(el.value || "").trim()) {
+        alert(window.invMensajeFechaPromoRequerida());
+        if (el) el.focus();
+        return false;
+      }
+      return true;
+    };
+
     // abrirModalPromocion: implementación única al pie del HTML (después del modal en el DOM).
     window.enviarPromocion = window.enviarPromocion || function () {
       console.log("🚀 EJECUTANDO ENVÍO REAL (fallback temprano)");
@@ -242,7 +302,16 @@
       payload.append('mensaje', 'Te tenemos una promoción especial que no querrás perderte.');
       payload.append('mensaje_usuario', ((document.getElementById('mensajePromocion') || {}).value || '').trim());
       payload.append('precio_promocion', (document.getElementById('precioPromocion') || {}).value || '0');
-      payload.append('fecha_fin_promocion', (document.getElementById('fechaFinPromocion') || {}).value || '');
+      var finEarly = (document.getElementById('fechaFinPromocion') || {}).value || '';
+        if (!String(finEarly).trim()) {
+        alert(window.invMensajeFechaPromoRequerida ? window.invMensajeFechaPromoRequerida() : 'Selecciona fecha de fin.');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = "Promocionar y Notificar";
+        }
+        return;
+      }
+      payload.append('fecha_fin_promocion', finEarly);
       payload.append('precio_regular', String(
         (typeof window.__promoPrecioBaseNum === 'number' && window.__promoPrecioBaseNum > 0)
           ? window.__promoPrecioBaseNum
@@ -262,13 +331,22 @@
       .then(function (data) {
         if (data.success || data.status === 'ok') {
           alert("✅ ¡Promoción enviada con éxito!");
-          location.reload();
+          if (typeof window.invPromoTrasExito === "function") {
+            window.invPromoTrasExito(data);
+          }
+          if (typeof window.cerrarModal === "function") {
+            window.cerrarModal();
+          }
+          if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Promocionar y Notificar";
+          }
           return;
         }
         alert("❌ Error: " + (data.error || "Falla en el servidor"));
         if (btn) {
           btn.disabled = false;
-          btn.innerText = "Enviar Promoción";
+          btn.innerText = "Promocionar y Notificar";
         }
       })
       .catch(function (error) {
@@ -276,7 +354,7 @@
         alert("Error de conexión.");
         if (btn) {
           btn.disabled = false;
-          btn.innerText = "Enviar Promoción";
+          btn.innerText = "Promocionar y Notificar";
         }
       });
     };
@@ -1057,6 +1135,26 @@
           <label for="edit_descripcion"><i class="bx bx-align-left"></i> Descripción</label>
           <textarea name="descripcion" id="edit_descripcion" maxlength="4000" placeholder="Opcional" aria-describedby="edit-feed-descripcion"></textarea>
           <p class="field-feedback" id="edit-feed-descripcion" role="status"></p>
+        </div>
+        <div id="edit_gestion_promocion" class="inv-gestion-promo" style="display:none;border:2px solid #667eea;border-radius:12px;padding:16px 18px;margin:12px 0;background:linear-gradient(135deg,rgba(102,126,234,0.1),rgba(118,75,162,0.07));">
+          <h4 style="margin:0 0 8px;font-size:1.05rem;color:#1e293b;"><i class="bx bx-purchase-tag-alt"></i> Gestión de Promoción</h4>
+          <p style="margin:0 0 14px;font-size:0.9rem;color:#475569;">Ajusta la vigencia o el precio de oferta, o termina la promoción sin modificar el resto de la ficha.</p>
+          <div class="form-row">
+            <div class="form-group field-neutral" style="flex:1;">
+              <label for="edit_promo_precio"><i class="bx bx-money"></i> Precio en oferta</label>
+              <input type="text" id="edit_promo_precio" inputmode="decimal" placeholder="Ej. 899000" autocomplete="off" aria-describedby="edit-feed-promo-precio">
+              <p class="field-feedback" id="edit-feed-promo-precio" role="status"></p>
+            </div>
+            <div class="form-group field-neutral" style="flex:1;">
+              <label for="edit_promo_fecha_fin"><i class="bx bx-calendar-event"></i> Fecha y hora de fin *</label>
+              <input type="datetime-local" id="edit_promo_fecha_fin" autocomplete="off" aria-describedby="edit-feed-promo-fecha">
+              <p class="field-feedback" id="edit-feed-promo-fecha" role="status"></p>
+            </div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px;">
+            <button type="button" class="btn-modal btn-modal-primary" id="btnEditPromoGuardar"><i class="bx bx-save"></i> Guardar cambios de promoción</button>
+            <button type="button" class="btn-modal" id="btnEditPromoTerminar" style="background:#b91c1c;color:#fff;border:none;"><i class="bx bx-x-circle"></i> Terminar promoción ahora</button>
+          </div>
         </div>
         <div class="form-group field-neutral" data-edit-wrap="imagen_url">
           <label for="edit_imagen_url"><i class="bx bx-image"></i> URL de imagen principal</label>
@@ -2195,6 +2293,7 @@
     window.cerrarModalEditarProducto = cerrarModalEditarProducto;
 
     function abrirEditarProducto(id) {
+      window.__editProductoId = parseInt(id, 10);
       var modal = document.getElementById('modalEditarProducto');
       var form = document.getElementById('formEditarProducto');
       var urlFn = window.INV_URL_PRODUCTO_EDITAR;
@@ -2269,6 +2368,39 @@
           }
           invSyncCurrencyPreview('edit_costo_unitario', 'inv-preview-costo-edit');
           invSyncCurrencyPreview('edit_precio_venta', 'inv-preview-precio-edit');
+          (function invSyncGestionPromoEdit() {
+            var wrap = document.getElementById('edit_gestion_promocion');
+            if (!wrap) return;
+            if (p.promocion_activa && p.precio_promocion != null) {
+              wrap.style.display = 'block';
+              document.getElementById('edit_promo_precio').value =
+                Number(p.precio_promocion).toFixed(2);
+              var fin = document.getElementById('edit_promo_fecha_fin');
+              fin.value = '';
+              if (p.fecha_fin_promocion) {
+                try {
+                  var d = new Date(p.fecha_fin_promocion);
+                  if (!isNaN(d.getTime())) {
+                    var pad = function (n) {
+                      return (n < 10 ? '0' : '') + n;
+                    };
+                    fin.value =
+                      d.getFullYear() +
+                      '-' +
+                      pad(d.getMonth() + 1) +
+                      '-' +
+                      pad(d.getDate()) +
+                      'T' +
+                      pad(d.getHours()) +
+                      ':' +
+                      pad(d.getMinutes());
+                  }
+                } catch (_e) {}
+              }
+            } else {
+              wrap.style.display = 'none';
+            }
+          })();
           validateNombreEdit();
           validateCategoriaEdit();
           validateMarcaEdit();
@@ -2293,6 +2425,113 @@
         });
     }
     window.abrirEditarProducto = abrirEditarProducto;
+
+    function invCsrfTokenInventario() {
+      var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : '';
+    }
+
+    (function bindEditPromoGestion() {
+      function postPromoForm(url, body) {
+        return fetch(url, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'X-CSRFToken': invCsrfTokenInventario(),
+            Accept: 'application/json',
+          },
+          body: body,
+        }).then(function (r) {
+          return r.json().then(function (data) {
+            return { ok: r.ok, data: data };
+          });
+        });
+      }
+      var btnG = document.getElementById('btnEditPromoGuardar');
+      var btnT = document.getElementById('btnEditPromoTerminar');
+      if (btnG) {
+        btnG.addEventListener('click', function () {
+          var pid = window.__editProductoId;
+          if (!Number.isFinite(pid)) {
+            alert('No se identificó el producto.');
+            return;
+          }
+          if (typeof window.INV_URL_PROMO_ACTUALIZAR !== 'function') return;
+          var pwd = (document.getElementById('edit_confirmacion_contrasena').value || '').trim();
+          if (!pwd) {
+            alert('Ingresa tu contraseña en el campo de confirmación (abajo) para guardar la promoción.');
+            document.getElementById('edit_confirmacion_contrasena').focus();
+            return;
+          }
+          var fd = new FormData();
+          fd.append('confirmacion_contrasena', pwd);
+          fd.append('precio_promocion', (document.getElementById('edit_promo_precio').value || '').trim());
+          fd.append('fecha_fin_promocion', (document.getElementById('edit_promo_fecha_fin').value || '').trim());
+          if (!String(fd.get('fecha_fin_promocion') || '').trim()) {
+            alert('Por favor, selecciona una fecha de vencimiento para la oferta.');
+            return;
+          }
+          btnG.disabled = true;
+          postPromoForm(window.INV_URL_PROMO_ACTUALIZAR(pid), fd)
+            .then(function (res) {
+              if (!res.ok || !res.data.success) {
+                alert(res.data.error || 'No se pudo actualizar la promoción.');
+                return;
+              }
+              if (typeof window.invPromoTrasExito === 'function' && res.data.producto_fila) {
+                window.invPromoTrasExito({ producto_fila: res.data.producto_fila });
+              }
+              alert(res.data.message || 'Listo.');
+            })
+            .catch(function () {
+              alert('Error de conexión.');
+            })
+            .finally(function () {
+              btnG.disabled = false;
+            });
+        });
+      }
+      if (btnT) {
+        btnT.addEventListener('click', function () {
+          if (!confirm('¿Terminar la promoción ahora? El producto volverá al precio regular en la tienda.')) {
+            return;
+          }
+          var pid = window.__editProductoId;
+          if (!Number.isFinite(pid)) {
+            alert('No se identificó el producto.');
+            return;
+          }
+          var pwd = (document.getElementById('edit_confirmacion_contrasena').value || '').trim();
+          if (!pwd) {
+            alert('Ingresa tu contraseña en el campo de confirmación para terminar la promoción.');
+            document.getElementById('edit_confirmacion_contrasena').focus();
+            return;
+          }
+          var fd = new FormData();
+          fd.append('confirmacion_contrasena', pwd);
+          btnT.disabled = true;
+          postPromoForm(window.INV_URL_PROMO_TERMINAR(pid), fd)
+            .then(function (res) {
+              if (!res.ok || !res.data.success) {
+                alert(res.data.error || 'No se pudo terminar la promoción.');
+                return;
+              }
+              var wrap = document.getElementById('edit_gestion_promocion');
+              if (wrap) wrap.style.display = 'none';
+              if (typeof window.invPromoTrasExito === 'function' && res.data.producto_fila) {
+                window.invPromoTrasExito({ producto_fila: res.data.producto_fila });
+              }
+              alert(res.data.message || 'Promoción terminada.');
+            })
+            .catch(function () {
+              alert('Error de conexión.');
+            })
+            .finally(function () {
+              btnT.disabled = false;
+            });
+        });
+      }
+    })();
 
     (function bindFormEditarProducto() {
       var modalEl = document.getElementById('modalEditarProducto');
@@ -2724,7 +2963,7 @@
       } else {
         botonEnviar.classList.remove('btn-success');
         botonEnviar.classList.add('btn-secondary');
-        botonEnviar.innerHTML = '<i class="bx bx-send"></i> Enviar Promoción';
+        botonEnviar.innerHTML = '<i class="bx bx-send"></i> Promocionar y Notificar';
       }
 
       console.log(
@@ -2755,6 +2994,16 @@
     });
     
     window.enviarPromocion = function() {
+      const precioPromocion = document.getElementById('precioPromocion').value;
+      if (!precioPromocion || parseFloat(precioPromocion) <= 0) {
+        alert('Debes ingresar un precio de promoción válido');
+        document.getElementById('precioPromocion').focus();
+        return;
+      }
+      if (typeof window.invValidarFechaFinPromocion === 'function' && !window.invValidarFechaFinPromocion()) {
+        return;
+      }
+
       const usingPromoGrid =
         !!document.getElementById('contenedor_usuarios_promo') &&
         Array.isArray(window.__promoUsuarios) &&
@@ -2784,14 +3033,6 @@
 
       if (usuarioIds.length === 0) {
         alert('Debes seleccionar al menos un destinatario');
-        return;
-      }
-      
-      // Validar precio de promoción
-      const precioPromocion = document.getElementById('precioPromocion').value;
-      if (!precioPromocion || parseFloat(precioPromocion) <= 0) {
-        alert('Debes ingresar un precio de promoción válido');
-        document.getElementById('precioPromocion').focus();
         return;
       }
       
@@ -2868,7 +3109,7 @@
         if (!productoIdEnvio) {
           alert('No se encontró el producto a promocionar. Cierra y vuelve a abrir el modal.');
           botonEnviar.disabled = false;
-          botonEnviar.innerHTML = '<i class="bx bx-send"></i> Enviar Promoción';
+          botonEnviar.innerHTML = '<i class="bx bx-send"></i> Promocionar y Notificar';
           document.getElementById('loadingOverlay').style.display = 'none';
           return;
         }
@@ -2888,6 +3129,9 @@
           console.log('✅ Datos recibidos:', data); // ✅ DEBUG: Ver datos
           if (data.success) {
             alert('✅ ¡Promoción enviada con éxito!\n\n' + data.message + '\n\n📊 Enviado a ' + usuarioIds.length + ' usuario(s)\n💰 Precio promoción: ' + _fmtPromoCop(parseFloat(precioPromocion)));
+            if (typeof window.invPromoTrasExito === 'function') {
+              window.invPromoTrasExito(data);
+            }
             cerrarModalPromocion();
             usuariosSeleccionadosGlobal.clear();
             if (window.usuariosSeleccionados) window.usuariosSeleccionados.clear();
@@ -2902,16 +3146,94 @@
         .finally(() => {
           // Restaurar botón
           botonEnviar.disabled = false;
-          botonEnviar.innerHTML = '<i class="bx bx-send"></i> Enviar Promoción';
+          botonEnviar.innerHTML = '<i class="bx bx-send"></i> Promocionar y Notificar';
           document.getElementById('loadingOverlay').style.display = 'none';
         });
       } catch (error) {
         console.error('Error en envío:', error);
         alert('❌ Error al preparar el envío. Por favor, inténtalo nuevamente.');
         botonEnviar.disabled = false;
-        botonEnviar.innerHTML = '<i class="bx bx-send"></i> Enviar Promoción';
+        botonEnviar.innerHTML = '<i class="bx bx-send"></i> Promocionar y Notificar';
         document.getElementById('loadingOverlay').style.display = 'none';
       }
+    };
+
+    window.aplicarPromocionSoloWeb = function () {
+      var precioPromocion = (document.getElementById('precioPromocion') || {}).value;
+      if (!precioPromocion || parseFloat(precioPromocion) <= 0) {
+        alert('Debes ingresar un precio de promoción válido');
+        return;
+      }
+      if (typeof window.invValidarFechaFinPromocion === 'function' && !window.invValidarFechaFinPromocion()) {
+        return;
+      }
+      var productoIdEnvio = (document.getElementById('producto_id_promo') || {}).value || '';
+      if (!String(productoIdEnvio).trim()) {
+        alert('No se encontró el producto a promocionar.');
+        return;
+      }
+      var productoPrecioNum = (function () {
+        if (typeof window.__promoPrecioBaseNum === 'number' && window.__promoPrecioBaseNum > 0) {
+          return window.__promoPrecioBaseNum;
+        }
+        var baseTxt = (document.getElementById('productoPrecioBase') || {}).textContent || '';
+        var regTxt = (document.getElementById('productoPrecio') || {}).textContent || '';
+        var txt = String(baseTxt || regTxt).trim();
+        var m = txt.match(/-?[\d.]+(?:,[\d]+)?/);
+        if (!m) return 0;
+        var n = parseFloat(String(m[0]).replace(/\./g, '').replace(',', '.'));
+        return Number.isFinite(n) ? n : 0;
+      })();
+      var mensajePersonalizado = (document.getElementById('mensajePromocion') || {}).value || '';
+      var formData = new FormData();
+      formData.append('asunto', 'Oferta en tienda (sin correo)');
+      formData.append('mensaje', 'Aplicación solo web.');
+      formData.append('mensaje_usuario', String(mensajePersonalizado).trim());
+      formData.append('precio_promocion', precioPromocion);
+      formData.append('fecha_fin_promocion', (document.getElementById('fechaFinPromocion') || {}).value || '');
+      formData.append('precio_regular', String(productoPrecioNum));
+      formData.append('solo_web', '1');
+      var ov = document.getElementById('loadingOverlay');
+      if (ov) {
+        ov.style.display = 'flex';
+        var pt = ov.querySelector('p');
+        if (pt) pt.textContent = 'Aplicando oferta en la tienda...';
+      }
+      var btnS = document.getElementById('btnSoloWebPromo');
+      if (btnS) btnS.disabled = true;
+      fetch('/correos/enviar-promocion/' + encodeURIComponent(productoIdEnvio) + '/', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      })
+        .then(function (r) {
+          return r.json();
+        })
+        .then(function (data) {
+          if (data.success) {
+            alert('✅ ' + (data.message || 'Oferta aplicada en la tienda.'));
+            if (typeof window.invPromoTrasExito === 'function') {
+              window.invPromoTrasExito(data);
+            }
+            if (typeof cerrarModalPromocion === 'function') {
+              cerrarModalPromocion();
+            }
+          } else {
+            alert('❌ ' + (data.error || 'No se pudo aplicar la oferta.'));
+          }
+        })
+        .catch(function () {
+          alert('❌ Error de conexión.');
+        })
+        .finally(function () {
+          if (ov) {
+            ov.style.display = 'none';
+            var pt2 = ov.querySelector('p');
+            if (pt2) pt2.textContent = 'Enviando promoción...';
+          }
+          if (btnS) btnS.disabled = false;
+        });
     };
     
     function getCookie(name) {
@@ -3086,8 +3408,8 @@
               <input type="number" id="valorDescuento" min="0" step="0.01" placeholder="0.00" oninput="if (window.recalcularPrecioPromocion) window.recalcularPrecioPromocion();" style="width:100%;padding:10px;border:1px solid #dbe3ef;border-radius:8px;">
             </div>
             <div style="grid-column:1 / -1;">
-              <label style="display:block;margin-bottom:8px;font-weight:600;color:#2c3e50;">Fecha fin promoción</label>
-              <input type="datetime-local" id="fechaFinPromocion" style="width:100%;padding:10px;border:1px solid #dbe3ef;border-radius:8px;">
+              <label style="display:block;margin-bottom:8px;font-weight:600;color:#2c3e50;">Fecha fin promoción <span style="color:#b91c1c;">*</span></label>
+              <input type="datetime-local" id="fechaFinPromocion" required style="width:100%;padding:10px;border:1px solid #dbe3ef;border-radius:8px;" aria-required="true">
             </div>
           </div>
           <div style="margin-bottom: 15px;">
@@ -3096,7 +3418,13 @@
             </label>
             <textarea id="mensajePromocion" style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; resize: vertical; font-family: inherit;" placeholder="Ej: ¡Oferta especial por tiempo limitado!"></textarea>
           </div>
-          <div id="productoDescripcion" style="color: #6c757d; line-height: 1.6; margin-bottom: 15px;">Cargando descripción...</div>
+          <div id="productoDescripcion" style="color: #6c757d; line-height: 1.6; margin-bottom: 12px;">Cargando descripción...</div>
+          <div style="margin-bottom:16px;">
+            <button type="button" id="btnSoloWebPromo" class="btn-solo-web-promo" style="width:100%;max-width:360px;padding:12px 16px;border-radius:10px;border:2px solid #0d9488;background:#f0fdfa;color:#0f766e;font-weight:700;cursor:pointer;font-size:0.95rem;display:inline-flex;align-items:center;justify-content:center;gap:8px;" onclick="if(typeof window.aplicarPromocionSoloWeb==='function')window.aplicarPromocionSoloWeb();">
+              <i class="bx bx-store-alt"></i> Promoción sin correo
+            </button>
+            <small style="display:block;margin-top:8px;color:#64748b;font-size:0.82rem;">Actualiza precio y oferta en la tienda <strong>sin</strong> enviar correos (liquidaciones silenciosas).</small>
+          </div>
         </div>
         <div class="destinatarios-section" style="background: white;">
           <h3 class="section-title" style="font-size: 1.2rem; font-weight: 600; color: #2c3e50; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
@@ -3129,7 +3457,7 @@
       </div>
       <div class="modal-footer" style="padding: 20px 30px; background: #f8f9fa; border-top: 1px solid #e9ecef; display: flex; justify-content: flex-end; gap: 15px; margin-top: 0;">
         <button type="button" class="btn-cancelar" style="background: #6c757d; color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-size: 1rem;" onclick="cerrarModal()"><i class='bx bx-x'></i> Cancelar</button>
-        <button type="button" class="btn-enviar" id="btnEnviarPromocion" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600;" onclick="window.enviarPromocion()"><i class='bx bx-send'></i> Enviar Promoción</button>
+        <button type="button" class="btn-enviar" id="btnEnviarPromocion" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600;" onclick="window.enviarPromocion()"><i class='bx bx-send'></i> Promocionar y Notificar</button>
       </div>
     </div>
   </div>
@@ -3396,6 +3724,15 @@
           });
         }
 
+        var pp = (document.getElementById('precioPromocion') || {}).value || '';
+        if (!pp || parseFloat(pp) <= 0) {
+          alert('Debes ingresar un precio de promoción válido');
+          return;
+        }
+        if (typeof window.invValidarFechaFinPromocion === 'function' && !window.invValidarFechaFinPromocion()) {
+          return;
+        }
+
         if (seleccionados.length === 0) {
             alert("⚠️ Por favor, selecciona al menos un destinatario.");
             return;
@@ -3435,6 +3772,9 @@
         .then(data => {
             if (data.success) {
                 alert('✅ ¡Promoción enviada con éxito!\n\n' + data.message + '\n\n📊 Enviado a ' + seleccionados.length + ' usuario(s)');
+                if (typeof window.invPromoTrasExito === 'function') {
+                  window.invPromoTrasExito(data);
+                }
                 if (window.usuariosSeleccionados) window.usuariosSeleccionados.clear();
                 cerrarModal();
             } else {

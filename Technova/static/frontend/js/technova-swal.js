@@ -32,9 +32,13 @@
         var ok = window.confirm(msg);
         return Promise.resolve({ isConfirmed: ok });
       },
-      successChooseCart: function (msg, url) {
+      successChooseCart: function (msg, url, onContinue) {
         fallbackAlert(msg || "Agregado.");
-        if (window.confirm("¿Ir al carrito?") && url) window.location.href = url;
+        if (window.confirm("¿Ir al carrito?") && url) {
+          window.location.href = url;
+        } else if (typeof onContinue === "function") {
+          onContinue();
+        }
         return Promise.resolve({});
       },
     };
@@ -134,49 +138,31 @@
       });
     },
 
-    /** Tras agregar al carrito: éxito y opción de ir al carrito en un solo paso */
-    successChooseCart: function (message, cartUrl) {
+    /**
+     * Tras agregar al carrito: diálogo por encima del modal de producto.
+     * @param {string} [message] - Texto bajo el título
+     * @param {string} cartUrl - URL de la página del carrito
+     * @param {function} [onContinueShopping] - Si no va al carrito (cancelar, backdrop, Esc)
+     */
+    successChooseCart: function (message, cartUrl, onContinueShopping) {
       return Swal.fire({
-        icon: false,
-        html: `
-          <div style="text-align: center; padding: 30px 20px;">
-            <div style="margin-bottom: 20px;">
-              <div style="width: 100px; height: 100px; margin: 0 auto; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: scaleIn 0.5s ease-out;">
-                <i class="bx bx-check" style="font-size: 50px; color: white;"></i>
-              </div>
-            </div>
-            <h3 style="color: #0f172a; font-size: 1.8rem; font-weight: 700; margin-bottom: 12px;">¡Agregado al carrito!</h3>
-            <p style="color: #64748b; font-size: 1.1rem; margin: 0 0 20px 0; font-weight: 500;">${message || "Tu producto ya está en el carrito."}</p>
-            <div style="margin-bottom: 25px; display: flex; justify-content: center; gap: 10px;">
-              <span style="background: #f1f5f9; color: #334155; padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">
-                <i class="bx bx-cart" style="margin-right: 6px;"></i>Carrito actualizado
-              </span>
-              <span style="background: #dcfce7; color: #15803d; padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">
-                <i class="bx bx-check-circle" style="margin-right: 6px;"></i>Disponible
-              </span>
-            </div>
-          </div>
-        `,
+        icon: "success",
+        title: "¡Producto añadido al carrito!",
+        text: message || "¿Qué deseas hacer ahora?",
         showCancelButton: true,
-        showConfirmButton: true,
-        confirmButtonText: '<i class="bx bx-shopping-bag" style="margin-right: 8px;"></i>Ir al carrito',
-        cancelButtonText: '<i class="bx bx-arrow-back" style="margin-right: 8px;"></i>Seguir comprando',
-        confirmButtonColor: '#10b981',
-        cancelButtonColor: '#64748b',
+        confirmButtonText: "Ir al carrito",
+        cancelButtonText: "Seguir comprando",
         customClass: {
-          popup: 'custom-swal-popup',
-          confirmButton: 'custom-swal-confirm',
-          cancelButton: 'custom-swal-cancel'
+          popup: "technova-swal-popup",
+          confirmButton: "technova-swal-confirm",
+          cancelButton: "technova-swal-cancel",
         },
-        backdrop: 'rgba(0, 0, 0, 0.4)',
-        showClass: {
-          popup: 'animate__animated animate__zoomIn'
-        },
-        hideClass: {
-          popup: 'animate__animated animate__zoomOut'
-        }
       }).then(function (r) {
-        if (r.isConfirmed && cartUrl) window.location.href = cartUrl;
+        if (r.isConfirmed && cartUrl) {
+          window.location.href = cartUrl;
+        } else if (typeof onContinueShopping === "function") {
+          onContinueShopping();
+        }
         return r;
       });
     },

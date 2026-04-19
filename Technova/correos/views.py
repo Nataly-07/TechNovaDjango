@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.views.decorators.http import require_GET, require_POST
@@ -6,8 +7,8 @@ from django.template.loader import render_to_string
 from django.core.mail import EmailMessage, EmailMultiAlternatives, get_connection
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.urls import reverse
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 from decimal import Decimal, InvalidOperation
 import json
 import logging
@@ -19,6 +20,13 @@ from .models import HistorialEnvio, DestinatarioEnvio
 from producto.models import Producto
 
 from correos.email_logo import get_email_logo_src
+from web.application.promociones_admin import (
+    aplicar_promocion_en_producto,
+    decimal_desde_str,
+    producto_fila_precio_tabla,
+    validar_parse_fecha_fin_promocion,
+    validar_precio_promocion_contra_base,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +52,15 @@ def _decimal_desde_post(val):
         return Decimal(s.replace(",", "."))
     except InvalidOperation:
         return None
+
+
+def _url_producto_catalogo_publico(producto_id: int) -> str:
+    """URL absoluta a la ficha pública del producto (catálogo cliente)."""
+    base = (getattr(settings, "TECHNOVA_PUBLIC_BASE_URL", "") or "").strip().rstrip("/")
+    if not base:
+        base = "http://127.0.0.1:8000"
+    path = reverse("web_producto_detalle", args=[producto_id])
+    return f"{base}{path}"
 
 
 def _imagen_url_producto(producto: Producto) -> str:
@@ -233,63 +250,73 @@ def modal_promocion_producto(request, producto_id):
         return JsonResponse({'error': str(e)}, status=500)
 
 
+def _producto_fila_json(producto: Producto) -> dict:
+    return producto_fila_precio_tabla(producto)
+
+
 @admin_login_required
 @require_POST
 def enviar_promocion_producto(request, producto_id):
     """
-    Enviar promoción de un producto específico
+    Aplica precio y fecha de promoción en el producto.
+
+    - ``solo_web=1``: solo persiste en BD (tienda), sin correos.
+    - Sin ``solo_web``: persiste y envía correos masivos (requiere destinatarios).
+    La fecha de fin de promoción es siempre obligatoria.
     """
     try:
         usuario_actual = _usuario_sesion(request)
         if usuario_actual is None:
             return JsonResponse(
-                {'success': False, 'message': 'Sesión expirada. Por favor, reingresa.'},
+                {"success": False, "message": "Sesión expirada. Por favor, reingresa."},
                 status=401,
             )
 
-        producto = Producto.objects.get(id=producto_id)
-        asunto = request.POST.get('asunto', f'¡Promoción Especial: {producto.nombre}!')
-        mensaje = request.POST.get('mensaje', '')
-        mensaje_usuario = (request.POST.get('mensaje_usuario') or '').strip()
-        usuarios_seleccionados = request.POST.getlist('usuarios_seleccionados')
-        
-        # CORRECCIÓN: Obtener y validar precios del formulario
-        precio_promocion = request.POST.get('precio_promocion')
-        precio_regular_post = _decimal_desde_post(request.POST.get('precio_regular'))
-        fecha_fin_promocion_raw = request.POST.get('fecha_fin_promocion')
-        
-        # Validar que el precio de promoción sea válido
-        if precio_promocion:
-            try:
-                precio_promocion = float(precio_promocion)
-                if precio_promocion <= 0:
-                    return JsonResponse({'error': 'El precio de promoción debe ser mayor a 0'}, status=400)
-            except (ValueError, TypeError):
-                return JsonResponse({'error': 'El precio de promoción debe ser un número válido'}, status=400)
-        
-        if not usuarios_seleccionados:
-            return JsonResponse({'error': 'Debes seleccionar al menos un destinatario'}, status=400)
+        solo_web = request.POST.get("solo_web") in ("1", "true", "yes", "on")
 
-        # Persistir promoción activa en el producto sin tocar el precio original
-        if precio_promocion not in (None, ""):
-            dt_fin = None
-            if fecha_fin_promocion_raw:
-                dt_fin = parse_datetime(fecha_fin_promocion_raw)
-                if dt_fin is None:
-                    return JsonResponse(
-                        {'error': 'Fecha fin de promoción inválida.'}, status=400
-                    )
-                if timezone.is_naive(dt_fin):
-                    dt_fin = timezone.make_aware(dt_fin, timezone.get_current_timezone())
-                if dt_fin <= timezone.now():
-                    return JsonResponse(
-                        {'error': 'La fecha fin de promoción debe ser futura.'}, status=400
-                    )
-            producto.precio_promocion = precio_promocion
-            producto.fecha_fin_promocion = dt_fin
-            producto.save(update_fields=['precio_promocion', 'fecha_fin_promocion', 'actualizado_en'])
-        
-        # Precio regular: POST o fallback al precio base del producto (evita $0 cruzado)
+        producto = Producto.objects.get(id=producto_id)
+        asunto = request.POST.get("asunto", f"¡Promoción Especial: {producto.nombre}!")
+        mensaje = request.POST.get("mensaje", "")
+        mensaje_usuario = (request.POST.get("mensaje_usuario") or "").strip()
+        usuarios_seleccionados = request.POST.getlist("usuarios_seleccionados")
+
+        precio_promocion_raw = request.POST.get("precio_promocion")
+        precio_regular_post = _decimal_desde_post(request.POST.get("precio_regular"))
+        fecha_fin_promocion_raw = request.POST.get("fecha_fin_promocion")
+
+        precio_promocion_dec = decimal_desde_str(precio_promocion_raw)
+        if precio_promocion_dec is None or precio_promocion_dec <= 0:
+            return JsonResponse(
+                {"error": "El precio de promoción debe ser un número mayor a 0."},
+                status=400,
+            )
+
+        err_precio = validar_precio_promocion_contra_base(precio_promocion_dec, producto)
+        if err_precio:
+            return JsonResponse({"error": err_precio}, status=400)
+
+        dt_fin, err_fecha = validar_parse_fecha_fin_promocion(fecha_fin_promocion_raw)
+        if err_fecha:
+            return JsonResponse({"error": err_fecha}, status=400)
+
+        aplicar_promocion_en_producto(producto, precio_promocion_dec, dt_fin)
+
+        if solo_web:
+            msg = "Oferta aplicada en la tienda (sin envío de correos)."
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": msg,
+                    "solo_web": True,
+                    "producto_fila": _producto_fila_json(producto),
+                }
+            )
+
+        if not usuarios_seleccionados:
+            return JsonResponse(
+                {"error": "Debes seleccionar al menos un destinatario"}, status=400
+            )
+
         precio_regular_final = precio_regular_post
         if precio_regular_final is None or precio_regular_final <= 0:
             pb = producto.precio_base
@@ -298,17 +325,16 @@ def enviar_promocion_producto(request, producto_id):
             else:
                 precio_regular_final = Decimal("0")
 
-        precio_promocion_dec = _decimal_desde_post(precio_promocion) if precio_promocion else None
         ahorro = Decimal("0")
-        if precio_promocion_dec is not None and precio_regular_final is not None:
+        if precio_regular_final is not None:
             diff = precio_regular_final - precio_promocion_dec
             if diff > 0:
                 ahorro = diff
 
         imagen_raw = _imagen_url_producto(producto)
         imagen_absoluta = _url_absoluta_email(request, imagen_raw)
+        producto_url = _url_producto_catalogo_publico(producto.id)
 
-        # Generar mensaje HTML con información del producto y precios
         mensaje_html = render_to_string(
             "correos/email_promocion.html",
             {
@@ -316,30 +342,27 @@ def enviar_promocion_producto(request, producto_id):
                 "mensaje_usuario": mensaje_usuario,
                 "mensaje_sistema": mensaje,
                 "asunto": asunto,
-                "precio_promocion": float(precio_promocion_dec)
-                if precio_promocion_dec is not None
-                else None,
+                "precio_promocion": float(precio_promocion_dec),
                 "precio_regular": float(precio_regular_final),
                 "ahorro": float(ahorro),
                 "imagen_producto_url": imagen_absoluta,
                 "logo_src": get_email_logo_src(),
+                "producto_url": producto_url,
             },
         )
-        
-        # Crear historial de envío
+
         with transaction.atomic():
             historial = HistorialEnvio.objects.create(
                 asunto=asunto,
                 cuerpo_mensaje=mensaje_html,
                 total_destinatarios=len(usuarios_seleccionados),
-                tipo_envio='promocion',
+                tipo_envio="promocion",
                 autor=usuario_actual,
                 producto=producto,
-                ip_origen=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT', '')[:500]
+                ip_origen=request.META.get("REMOTE_ADDR"),
+                user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
             )
-            
-            # Crear registros de destinatarios
+
             destinatarios = Usuario.objects.filter(id__in=usuarios_seleccionados)
             destinatarios_envio = []
             for destinatario in destinatarios:
@@ -347,12 +370,12 @@ def enviar_promocion_producto(request, producto_id):
                     DestinatarioEnvio(
                         historial=historial,
                         destinatario=destinatario,
-                        email=destinatario.correo_electronico  # CORREGIDO: campo correcto
+                        email=destinatario.correo_electronico,
                     )
                 )
-            
+
             DestinatarioEnvio.objects.bulk_create(destinatarios_envio)
-        
+
         try:
             ok, fail = _procesar_envio_correos(historial, html_content=True)
             if ok == 0:
@@ -366,7 +389,13 @@ def enviar_promocion_producto(request, producto_id):
             msg = f"Promoción enviada a {ok} destinatario(s)."
             if fail:
                 msg += f" {fail} fallido(s)."
-            return JsonResponse({"success": True, "message": msg})
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": msg,
+                    "producto_fila": _producto_fila_json(producto),
+                }
+            )
         except Exception as e:
             logger.error(f"Error al enviar promoción: {e}")
             historial.refresh_from_db()
@@ -374,12 +403,12 @@ def enviar_promocion_producto(request, producto_id):
                 historial.estado = "error"
                 historial.save(update_fields=["estado"])
             return JsonResponse({"error": f"Error al enviar: {str(e)}"}, status=500)
-        
+
     except Producto.DoesNotExist:
-        return JsonResponse({'error': 'Producto no encontrado'}, status=404)
+        return JsonResponse({"error": "Producto no encontrado"}, status=404)
     except Exception as e:
         logger.error(f"Error en enviar_promocion_producto: {e}")
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @admin_login_required

@@ -170,6 +170,16 @@ urlpatterns = [
         name="web_admin_producto_editar",
     ),
     path(
+        "admin/inventario/producto/<int:producto_id>/promocion/actualizar/",
+        views.admin_producto_promocion_actualizar,
+        name="web_admin_producto_promocion_actualizar",
+    ),
+    path(
+        "admin/inventario/producto/<int:producto_id>/promocion/terminar/",
+        views.admin_producto_promocion_terminar,
+        name="web_admin_producto_promocion_terminar",
+    ),
+    path(
         "admin/inventario/catalogo/categoria/",
         views.admin_catalogo_categoria_agregar,
         name="web_admin_catalogo_categoria_agregar",

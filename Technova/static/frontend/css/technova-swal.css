@@ -1,3 +1,8 @@
+/* Por encima del modal de ficha (.producto-modal-root z-index: 1300) y paneles del header */
+.swal2-container {
+  z-index: 10000 !important;
+}
+
 /* Ajustes visuales SweetAlert2 — Technova */
 .technova-swal-popup {
   border-radius: 18px !important;

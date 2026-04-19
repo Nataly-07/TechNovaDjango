@@ -29,6 +29,16 @@
     );
   }
 
+  document.addEventListener("technova:carrito-preview-update", function (ev) {
+    var items = ev.detail && ev.detail.items;
+    if (!Array.isArray(items)) return;
+    carritoPreviewItems.length = 0;
+    items.forEach(function (it) {
+      carritoPreviewItems.push(it);
+    });
+    document.dispatchEvent(new CustomEvent("technova:carrito-preview-synced"));
+  });
+
   async function postJsonSesion(url, body) {
     var t = csrfToken();
     var r = await fetch(url, {
@@ -426,6 +436,9 @@
             }
             return it;
           });
+          if (typeof window.TechnovaApplyCarritoBadgeFromPreview === "function") {
+            window.TechnovaApplyCarritoBadgeFromPreview(carritoPreviewItems);
+          }
           showPanel("carrito");
         } else if (action === "restar-carrito") {
           var qtyDec = parseInt(el.getAttribute("data-cantidad") || "1", 10) - 1;
@@ -442,6 +455,9 @@
             }
             return it;
           });
+          if (typeof window.TechnovaApplyCarritoBadgeFromPreview === "function") {
+            window.TechnovaApplyCarritoBadgeFromPreview(carritoPreviewItems);
+          }
           showPanel("carrito");
         } else if (action === "quitar-carrito") {
           await postFormJson(window.TECHNOVA_URL_CARRITO_ELIMINAR, {
@@ -450,6 +466,9 @@
           carritoPreviewItems = carritoPreviewItems.filter(function (it) {
             return Number(it.detalle_id) !== detalleId;
           });
+          if (typeof window.TechnovaApplyCarritoBadgeFromPreview === "function") {
+            window.TechnovaApplyCarritoBadgeFromPreview(carritoPreviewItems);
+          }
           showPanel("carrito");
         }
       } catch (e) {
@@ -466,6 +485,10 @@
     document.addEventListener("technova:carrito-preview-synced", function () {
       if (panel.style.display !== "none" && currentPanel === "carrito") renderCarrito();
     });
+
+    if (typeof window.TechnovaApplyCarritoBadgeFromPreview === "function") {
+      window.TechnovaApplyCarritoBadgeFromPreview(carritoPreviewItems);
+    }
   }
 
   /** El clic puede caer en un nodo #text (p. ej. emoji dentro del boton); esos nodos no tienen .closest(). */
@@ -561,11 +584,11 @@
           producto_id: parseInt(productoId, 10),
         });
         if (Array.isArray(j.carrito_preview)) {
-          carritoPreviewItems.length = 0;
-          j.carrito_preview.forEach(function (it) {
-            carritoPreviewItems.push(it);
-          });
-          document.dispatchEvent(new CustomEvent("technova:carrito-preview-synced"));
+          document.dispatchEvent(
+            new CustomEvent("technova:carrito-preview-update", {
+              detail: { items: j.carrito_preview },
+            })
+          );
         }
         if (window.TechnovaUi) {
           var pid = parseInt(productoId, 10);

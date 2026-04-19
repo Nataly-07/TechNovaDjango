@@ -221,6 +221,33 @@
   opacity: 0.95;
 }
 
+.tecn-header-shell .acciones-usuario .account.account--cart-badge {
+  position: relative;
+  padding-right: 22px;
+}
+
+.tecn-header-shell .acciones-usuario .tecn-cart-count {
+  position: absolute;
+  top: -5px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e63946;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+
+.tecn-header-shell .acciones-usuario .tecn-cart-count[hidden] {
+  display: none;
+}
+
 .tecn-header-shell .menu-principal.menu-principal--tecn {
   margin: 0;
   padding: 8px 16px 14px;

@@ -66,6 +66,14 @@ from web.application.admin_web_service import (
     producto_modal_dict,
     validar_color_producto_normalizado,
 )
+from web.application.promociones_admin import (
+    aplicar_promocion_en_producto,
+    decimal_desde_str,
+    producto_fila_precio_tabla,
+    terminar_promocion_en_producto,
+    validar_parse_fecha_fin_promocion,
+    validar_precio_promocion_contra_base,
+)
 from web.application.checkout_web_service import (
     paypal_create_order,
     paypal_is_configured,
@@ -2695,6 +2703,82 @@ def admin_producto_editar(request, producto_id: int):
 
     messages.success(request, f"Producto «{nombre}» actualizado correctamente.")
     return redirect("web_admin_inventario")
+
+
+@_admin_login_required
+@require_http_methods(["POST"])
+def admin_producto_promocion_actualizar(request, producto_id: int):
+    """JSON: ajustar fecha fin y precio de promoción (producto con oferta vigente)."""
+    admin = _admin_usuario_sesion(request)
+    pwd = (request.POST.get("confirmacion_contrasena") or "").strip()
+    if not pwd or not credenciales_coinciden(pwd, admin.contrasena_hash):
+        return JsonResponse(
+            {"success": False, "error": "La contraseña de confirmación no es correcta."},
+            status=403,
+        )
+    p = get_object_or_404(Producto, pk=producto_id)
+    if not p.promocion_activa:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Este producto no tiene una promoción activa en este momento.",
+            },
+            status=400,
+        )
+
+    precio_dec = decimal_desde_str(request.POST.get("precio_promocion"))
+    if precio_dec is None or precio_dec <= 0:
+        return JsonResponse(
+            {"success": False, "error": "Indica un precio de promoción válido (mayor que 0)."},
+            status=400,
+        )
+    err_p = validar_precio_promocion_contra_base(precio_dec, p)
+    if err_p:
+        return JsonResponse({"success": False, "error": err_p}, status=400)
+
+    dt_fin, err_f = validar_parse_fecha_fin_promocion(request.POST.get("fecha_fin_promocion"))
+    if err_f:
+        return JsonResponse({"success": False, "error": err_f}, status=400)
+
+    aplicar_promocion_en_producto(p, precio_dec, dt_fin)
+    p.refresh_from_db()
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Promoción actualizada correctamente.",
+            "producto": producto_modal_dict(p),
+            "producto_fila": producto_fila_precio_tabla(p),
+        }
+    )
+
+
+@_admin_login_required
+@require_http_methods(["POST"])
+def admin_producto_promocion_terminar(request, producto_id: int):
+    """JSON: quita la promoción del producto de inmediato."""
+    admin = _admin_usuario_sesion(request)
+    pwd = (request.POST.get("confirmacion_contrasena") or "").strip()
+    if not pwd or not credenciales_coinciden(pwd, admin.contrasena_hash):
+        return JsonResponse(
+            {"success": False, "error": "La contraseña de confirmación no es correcta."},
+            status=403,
+        )
+    p = get_object_or_404(Producto, pk=producto_id)
+    if p.precio_promocion is None and p.fecha_fin_promocion is None:
+        return JsonResponse(
+            {"success": False, "error": "No hay datos de promoción que eliminar."},
+            status=400,
+        )
+    terminar_promocion_en_producto(p)
+    p.refresh_from_db()
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "La promoción se terminó; el producto volvió al precio regular.",
+            "producto": producto_modal_dict(p),
+            "producto_fila": producto_fila_precio_tabla(p),
+        }
+    )
 
 
 def _redirect_inventario_tab_marcas():
@@ -6896,11 +6980,33 @@ def cliente_reclamos(request):
 
 def producto_detalle(request, producto_id: int):
     """Detalle público del producto (catálogo); datos vía API en cliente."""
+    uid = request.session.get(SESSION_USUARIO_ID)
+    favoritos_preview: list[dict] = []
+    carrito_preview: list[dict] = []
+    if uid:
+        favoritos_qs = (
+            Favorito.objects.select_related("producto")
+            .filter(usuario_id=uid)
+            .order_by("-id")[:8]
+        )
+        favoritos_preview = [
+            {
+                "id": f.producto.id,
+                "nombre": f.producto.nombre,
+                "imagen": f.producto.imagen_url or "",
+                "precio": str(f.producto.precio_venta or "0"),
+            }
+            for f in favoritos_qs
+        ]
+        carrito_preview = _carrito_preview_para_usuario(uid)
     return render(
         request,
         "frontend/cliente/producto_detalle.html",
         {
             "producto_id": producto_id,
-            "usuario_id": request.session.get(SESSION_USUARIO_ID),
+            "usuario_id": uid,
+            "favoritos_preview": favoritos_preview,
+            "carrito_preview": carrito_preview,
+            "sesion_servidor": bool(uid),
         },
     )

@@ -52,6 +52,8 @@ body {
     margin-right: 15px;
     object-fit: contain;
     flex-shrink: 0;
+    /* Fondo claro del PNG: se funde con el gradiente del header (cian/morado) */
+    mix-blend-mode: multiply;
 }
 
 .header .logo span {

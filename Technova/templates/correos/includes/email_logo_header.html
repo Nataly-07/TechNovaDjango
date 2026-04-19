@@ -1,0 +1,10 @@
+{# Requiere ``logo_src`` en el contexto (URL absoluta). Tabla + <td> con ancho fijo: Gmail a veces ignora width en <img>. #}
+{% if logo_src %}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 20px auto;border-collapse:collapse;">
+  <tr>
+    <td width="150" style="width:150px;max-width:150px;text-align:center;padding:0;">
+      <img src="{{ logo_src }}" alt="TechNova Logo" width="150" style="width:150px;max-width:150px;height:auto;display:block;margin:0 auto;border:0;outline:none;text-decoration:none;">
+    </td>
+  </tr>
+</table>
+{% endif %}

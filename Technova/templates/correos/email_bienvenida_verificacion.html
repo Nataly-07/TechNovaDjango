@@ -20,12 +20,6 @@
             overflow: hidden;
             box-shadow: 0 4px 12px rgba(80, 60, 120, 0.12);
         }
-        .logo-wrap {
-            padding: 28px 20px 14px;
-            text-align: center;
-            background: #ffffff;
-        }
-        .logo-wrap img { max-width: 140px; height: auto; display: inline-block; }
         .header {
             background: linear-gradient(135deg, #5f72d8 0%, #6f43bf 100%);
             padding: 26px 28px;
@@ -84,8 +78,9 @@
 </head>
 <body>
     <div class="email-container">
-        <div class="logo-wrap">
-            <img src="cid:logo_technova" alt="Technova">
+        {# Pasar logo_src en el contexto (p. ej. get_email_logo_src()) al enviar este correo #}
+        <div style="padding:24px 20px 8px;text-align:center;background:#ffffff;">
+            {% include "correos/includes/email_logo_header.html" %}
         </div>
         <div class="header">
             <h1>Bienvenida a Technova</h1>

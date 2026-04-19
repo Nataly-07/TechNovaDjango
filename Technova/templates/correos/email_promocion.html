@@ -33,11 +33,6 @@
             text-align: center;
         }
         
-        .header img {
-            max-width: 150px;
-            height: auto;
-        }
-        
         .header h1 {
             color: white;
             font-size: 1.8rem;
@@ -172,6 +167,9 @@
 </head>
 <body>
     <div class="email-container">
+        <div style="padding:24px 20px 8px;text-align:center;background:#ffffff;">
+            {% include "correos/includes/email_logo_header.html" %}
+        </div>
         <!-- Header -->
         <div class="header">
             <h1>🔥 PROMOCIÓN ESPECIAL</h1>

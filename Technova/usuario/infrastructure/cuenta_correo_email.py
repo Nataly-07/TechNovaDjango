@@ -1,53 +1,24 @@
 """
 Correo de bienvenida: HTML + texto plano mínimo, sin .attach() ni CID.
 
-Logo en el HTML:
-- Si existe TECHNOVA_EMAIL_LOGO_URL → esa URL (producción / CDN).
-- Si no → data URI (base64) del PNG en static/frontend/imagenes/logo-technova.png,
-  para que Gmail no dependa de localhost ni de hotlinks bloqueados.
+Logo: URL absoluta vía ``correos.email_logo.get_email_logo_src`` (env / sitio público).
 """
 
 from __future__ import annotations
 
-import base64
 import logging
 import threading
-from pathlib import Path
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db import close_old_connections
 from django.template.loader import render_to_string
 
+from correos.email_logo import get_email_logo_src
+
 from usuario.models import Usuario
 
 logger = logging.getLogger(__name__)
-
-
-def _logo_data_uri_technova() -> str | None:
-    """PNG del proyecto embebido en data: — sin peticiones HTTP externas."""
-    p = Path(settings.BASE_DIR) / "static" / "frontend" / "imagenes" / "logo-technova.png"
-    if not p.is_file():
-        return None
-    try:
-        raw = p.read_bytes()
-    except OSError:
-        return None
-    b64 = base64.standard_b64encode(raw).decode("ascii")
-    return f"data:image/png;base64,{b64}"
-
-
-def _src_logo_para_email(base_publica: str) -> str:
-    url = (getattr(settings, "TECHNOVA_EMAIL_LOGO_URL", "") or "").strip()
-    if url:
-        return url
-    data = _logo_data_uri_technova()
-    if data:
-        return data
-    base = base_publica.strip().rstrip("/")
-    if not base:
-        base = "http://127.0.0.1:8000"
-    return f"{base}/static/frontend/imagenes/logo-technova.png"
 
 
 def enviar_bienvenida_correo(usuario_id: int) -> None:
@@ -77,7 +48,7 @@ def enviar_bienvenida_correo(usuario_id: int) -> None:
         if not base:
             base = "http://127.0.0.1:8000"
         tienda_url = f"{base}/"
-        logo_src = _src_logo_para_email(base)
+        logo_src = get_email_logo_src()
         log_logo = (
             f"data:image/png;base64,<{len(logo_src)} chars>"
             if logo_src.startswith("data:")

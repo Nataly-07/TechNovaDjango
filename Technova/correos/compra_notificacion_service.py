@@ -11,6 +11,8 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
+from correos.email_logo import get_email_logo_src
+
 from pago.models import MedioPago, Pago
 from venta.models import Venta
 
@@ -95,7 +97,11 @@ def enviar_correo_compra_confirmada_cliente(
             for d in venta.detalles.select_related("producto").all()
         ]
 
-        base = (getattr(settings, "TECHNOVA_PUBLIC_URL", "") or "").strip().rstrip("/")
+        base = (
+            getattr(settings, "TECHNOVA_PUBLIC_BASE_URL", "")
+            or getattr(settings, "TECHNOVA_PUBLIC_URL", "")
+            or ""
+        ).strip().rstrip("/")
         if not base:
             base = "http://127.0.0.1:8000"
         tienda_url = f"{base}/"
@@ -108,6 +114,7 @@ def enviar_correo_compra_confirmada_cliente(
             "canal": canal,
             "metodo_pago": _etiqueta_metodo_pago(pago),
             "tienda_url": tienda_url,
+            "logo_src": get_email_logo_src(),
         }
 
         html = render_to_string("correos/email_compra_confirmada.html", ctx)

@@ -27,20 +27,6 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
         
-        .logo-wrap {
-            padding: 28px 20px 14px;
-            text-align: center;
-            background: #ffffff;
-        }
-
-        .logo-wrap img {
-            max-width: 160px;
-            width: 140px;
-            height: auto;
-            display: block;
-            margin: 0 auto;
-        }
-
         .header {
             background: linear-gradient(135deg, #5f72d8 0%, #6f43bf 100%);
             padding: 28px 30px;
@@ -181,11 +167,10 @@
 </head>
 <body>
     <div class="email-container">
-        <!-- Tabla para centrado fiable en clientes de correo -->
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#ffffff;">
             <tr>
-                <td align="center" class="logo-wrap" style="padding:28px 20px 14px;text-align:center;background:#ffffff;">
-                    <img src="{{ logo_src }}" alt="Technova" width="200" style="display:block;margin:0 auto;max-width:200px;width:200px;height:auto;border:0;outline:none;text-decoration:none;">
+                <td style="padding:24px 20px 8px;text-align:center;background:#ffffff;">
+                    {% include "correos/includes/email_logo_header.html" %}
                 </td>
             </tr>
         </table>

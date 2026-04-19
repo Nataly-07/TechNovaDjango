@@ -68,18 +68,25 @@
     }
 
     .form-header .logo {
-      width: 72px;
-      height: 88px;
-      background: #fff;
-      border-radius: 14px;
+      width: auto;
+      max-width: 160px;
+      margin: 0 auto 20px;
+      padding: 0;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 20px;
-      padding: 6px;
-      box-sizing: border-box;
-      box-shadow: 0 6px 22px rgba(30, 80, 140, 0.14);
-      border: 1px solid rgba(102, 180, 220, 0.2);
+    }
+
+    .form-header .logo img {
+      width: auto;
+      height: 72px;
+      max-width: 100%;
+      object-fit: contain;
+      display: block;
     }
 
     .logo i {
@@ -1049,6 +1056,7 @@
       height: 46px;
       margin-right: 12px;
       filter: brightness(1.2) contrast(1.1);
+      mix-blend-mode: multiply;
     }
 
     .header .acciones-usuario {
@@ -1381,7 +1389,7 @@
     <div class="form-wrapper">
       <div class="form-header">
         <div class="logo">
-          <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Logo Technova" style="width: 100%; height: 100%; object-fit: contain;">
+          <img src="{% static 'frontend/imagenes/logo-technova.png' %}" alt="Logo Technova">
         </div>
         <h1 class="form-title">Crear Cuenta</h1>
         <p class="form-subtitle">Únete a la comunidad TechNova</p>

@@ -18,6 +18,8 @@ from usuario.infrastructure.models.usuario_model import Usuario
 from .models import HistorialEnvio, DestinatarioEnvio
 from producto.models import Producto
 
+from correos.email_logo import get_email_logo_src
+
 logger = logging.getLogger(__name__)
 
 
@@ -307,16 +309,22 @@ def enviar_promocion_producto(request, producto_id):
         imagen_absoluta = _url_absoluta_email(request, imagen_raw)
 
         # Generar mensaje HTML con información del producto y precios
-        mensaje_html = render_to_string('correos/email_promocion.html', {
-            'producto': producto,
-            'mensaje_usuario': mensaje_usuario,
-            'mensaje_sistema': mensaje,
-            'asunto': asunto,
-            'precio_promocion': float(precio_promocion_dec) if precio_promocion_dec is not None else None,
-            'precio_regular': float(precio_regular_final),
-            'ahorro': float(ahorro),
-            'imagen_producto_url': imagen_absoluta,
-        })
+        mensaje_html = render_to_string(
+            "correos/email_promocion.html",
+            {
+                "producto": producto,
+                "mensaje_usuario": mensaje_usuario,
+                "mensaje_sistema": mensaje,
+                "asunto": asunto,
+                "precio_promocion": float(precio_promocion_dec)
+                if precio_promocion_dec is not None
+                else None,
+                "precio_regular": float(precio_regular_final),
+                "ahorro": float(ahorro),
+                "imagen_producto_url": imagen_absoluta,
+                "logo_src": get_email_logo_src(),
+            },
+        )
         
         # Crear historial de envío
         with transaction.atomic():

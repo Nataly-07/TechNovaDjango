@@ -545,6 +545,11 @@
     {% include "frontend/layouts/sidebar_admin.html" %}
     <main class="main-content main-content--visible">
       <div class="inventario-container inv-module container-fluid" data-inv-filters-active="{% if busqueda or categoria %}1{% else %}0{% endif %}" data-inv-nivel-stock="{{ nivel_stock|default:'' }}">
+        <datalist id="colores-producto-datalist">
+          {% for col in colores_sugeridos %}
+          <option value="{{ col }}"></option>
+          {% endfor %}
+        </datalist>
         <div class="inventario-header inv-page-header">
           <div class="inv-page-header__titles">
             <p class="inv-page-header__eyebrow">Inventario</p>
@@ -897,19 +902,7 @@
         </div>
         <div class="form-group field-neutral" data-field-wrap="color">
           <label for="color"><i class="bx bx-palette"></i> Color *</label>
-          <select name="color" id="color" required aria-describedby="feed-color">
-            <option value="">Selecciona un color</option>
-            <option value="Negro">Negro</option>
-            <option value="Blanco">Blanco</option>
-            <option value="Gris">Gris</option>
-            <option value="Azul">Azul</option>
-            <option value="Rojo">Rojo</option>
-            <option value="Dorado">Dorado</option>
-            <option value="Plateado">Plateado</option>
-            <option value="Verde">Verde</option>
-            <option value="Morado">Morado</option>
-            <option value="Rosa">Rosa</option>
-          </select>
+          <input type="text" name="color" id="color" list="colores-producto-datalist" required maxlength="40" autocomplete="off" placeholder="Elige una sugerencia o escribe un color nuevo" aria-describedby="feed-color">
           <p class="field-feedback" id="feed-color" role="status"></p>
         </div>
         <div class="form-row">
@@ -1027,19 +1020,7 @@
         </div>
         <div class="form-group field-neutral" data-edit-wrap="color">
           <label for="edit_color"><i class="bx bx-palette"></i> Color *</label>
-          <select name="color" id="edit_color" required aria-describedby="edit-feed-color">
-            <option value="">Selecciona un color</option>
-            <option value="Negro">Negro</option>
-            <option value="Blanco">Blanco</option>
-            <option value="Gris">Gris</option>
-            <option value="Azul">Azul</option>
-            <option value="Rojo">Rojo</option>
-            <option value="Dorado">Dorado</option>
-            <option value="Plateado">Plateado</option>
-            <option value="Verde">Verde</option>
-            <option value="Morado">Morado</option>
-            <option value="Rosa">Rosa</option>
-          </select>
+          <input type="text" name="color" id="edit_color" list="colores-producto-datalist" required maxlength="40" autocomplete="off" placeholder="Elige una sugerencia o escribe un color nuevo" aria-describedby="edit-feed-color">
           <p class="field-feedback" id="edit-feed-color" role="status"></p>
         </div>
         <div class="form-row">
@@ -1340,11 +1321,6 @@
       return true;
     }
 
-    var _COLORES_OK = {
-      Negro: true, Blanco: true, Gris: true, Azul: true, Rojo: true, Dorado: true,
-      Plateado: true, Verde: true, Morado: true, Rosa: true
-    };
-
     function validateMarcaProd() {
       var v = document.getElementById('marca').value.trim();
       if (!v) {
@@ -1362,14 +1338,14 @@
     function validateColorProd() {
       var v = document.getElementById('color').value.trim();
       if (!v) {
-        setFieldStateProd('color', 'muted', 'Selecciona un color.');
+        setFieldStateProd('color', 'muted', 'Indica un color (sugerencia o texto nuevo).');
         return false;
       }
-      if (!_COLORES_OK[v]) {
-        setFieldStateProd('color', 'err', 'Color no válido.');
+      if (v.length > 40) {
+        setFieldStateProd('color', 'err', 'Máximo 40 caracteres.');
         return false;
       }
-      setFieldStateProd('color', 'ok', 'Color seleccionado.');
+      setFieldStateProd('color', 'ok', '');
       return true;
     }
 
@@ -2016,15 +1992,14 @@
     function validateColorEdit() {
       var v = document.getElementById('edit_color').value.trim();
       if (!v) {
-        setFieldStateEdit('color', 'muted', 'Selecciona un color.');
+        setFieldStateEdit('color', 'muted', 'Indica un color (sugerencia o texto nuevo).');
         return false;
       }
-      var leg = window.__editProdLegacy || {};
-      if (!_COLORES_OK[v] && v !== (leg.color || '')) {
-        setFieldStateEdit('color', 'err', 'Color no válido.');
+      if (v.length > 40) {
+        setFieldStateEdit('color', 'err', 'Máximo 40 caracteres.');
         return false;
       }
-      setFieldStateEdit('color', 'ok', 'Color seleccionado.');
+      setFieldStateEdit('color', 'ok', '');
       return true;
     }
 
@@ -2258,7 +2233,7 @@
           document.getElementById('edit_nombre').value = p.nombre || '';
           ensureSelectHasValue('edit_categoria', p.categoria || '');
           ensureSelectHasValue('edit_marca', p.marca || '');
-          ensureSelectHasValue('edit_color', p.color || '');
+          document.getElementById('edit_color').value = p.color || '';
           document.getElementById('edit_stock').value =
             p.stock != null && p.stock !== '' ? String(p.stock) : '0';
           var costo = p.costo_unitario != null ? Number(p.costo_unitario) : 0;

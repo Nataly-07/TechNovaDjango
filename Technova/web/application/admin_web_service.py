@@ -31,6 +31,31 @@ PRODUCTO_COLORES_ALTA_WEB = frozenset(
     }
 )
 
+
+def normalizar_color_producto(val: str | None) -> str:
+    """Espacios extremos + ``str.capitalize()`` (evita duplicados por mayúsculas)."""
+    return (val or "").strip().capitalize()
+
+
+def validar_color_producto_normalizado(s: str) -> str | None:
+    """None si es válido; mensaje corto en español si no."""
+    if not s:
+        return "Indica un color."
+    if len(s) > 40:
+        return "El color admite máximo 40 caracteres."
+    return None
+
+
+def colores_sugeridos_inventario() -> list[str]:
+    """Colores base + valores distintos ya usados en productos (normalizados), ordenados."""
+    merged: set[str] = set(PRODUCTO_COLORES_ALTA_WEB)
+    for raw in Producto.objects.exclude(color="").values_list("color", flat=True):
+        n = normalizar_color_producto(raw)
+        if n:
+            merged.add(n)
+    return sorted(merged, key=lambda x: x.lower())
+
+
 TELEFONO_PROV_RE = re.compile(r"^[\d\s+\-().]{7,20}$")
 
 

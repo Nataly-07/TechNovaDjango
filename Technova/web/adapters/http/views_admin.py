@@ -28,18 +28,20 @@ from venta.models import Venta
 from web.application.admin_web_service import (
     EMAIL_ALTA_RE,
     PRODUCTO_CATEGORIAS_ALTA_WEB,
-    PRODUCTO_COLORES_ALTA_WEB,
     PRODUCTO_MARCAS_ALTA_WEB,
     TELEFONO_PROV_RE,
     admin_usuario_sesion,
     categorias_alta_permitidas,
+    colores_sugeridos_inventario,
     decimal_desde_post,
     marcas_alta_permitidas,
+    normalizar_color_producto,
     normalizar_nombre_catalogo,
     producto_modal_dict,
     proveedor_modal_dict,
     redirect_inventario_tab_marcas,
     usuario_modal_dict,
+    validar_color_producto_normalizado,
     validar_nombre_persona,
 )
 from web.application.pagos_admin_service import (
@@ -321,6 +323,7 @@ def admin_inventario(request):
         "proveedores": Proveedor.objects.filter(activo=True).order_by("nombre"),
         "categorias_alta_list": sorted(categorias_alta_permitidas(), key=str.lower),
         "marcas_alta_list": sorted(marcas_alta_permitidas(), key=str.lower),
+        "colores_sugeridos": colores_sugeridos_inventario(),
     }
     return render(request, "frontend/admin/inventario.html", ctx)
 
@@ -335,7 +338,7 @@ def admin_producto_crear(request):
     nombre = (request.POST.get("nombre") or "").strip()
     categoria = (request.POST.get("categoria") or "").strip()
     marca = (request.POST.get("marca") or "").strip()
-    color = (request.POST.get("color") or "").strip()
+    color = normalizar_color_producto(request.POST.get("color"))
     descripcion = (request.POST.get("descripcion") or "").strip()
     imagen_url = (request.POST.get("imagen_url") or "").strip()
     
@@ -355,8 +358,9 @@ def admin_producto_crear(request):
     if marca not in marcas_alta_permitidas():
         messages.error(request, "Selecciona una marca válida de la lista.")
         return redirect("web_admin_inventario")
-    if color not in PRODUCTO_COLORES_ALTA_WEB:
-        messages.error(request, "Selecciona un color de la lista.")
+    err_color = validar_color_producto_normalizado(color)
+    if err_color:
+        messages.error(request, err_color)
         return redirect("web_admin_inventario")
 
     try:

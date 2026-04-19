@@ -195,10 +195,11 @@ TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL = _env_bool("TECHNOVA_ADMIN_PSE_LEGACY_COM
 
 # URL pública del sitio (enlaces absolutos en correos: confirmación de cuenta). Sin barra final.
 TECHNOVA_PUBLIC_BASE_URL = os.getenv("TECHNOVA_PUBLIC_BASE_URL", "http://127.0.0.1:8000").strip().rstrip("/")
-# URL absoluta del logo en correos. Si TECHNOVA_EMAIL_LOGO_URL no está en el .env: ImgBB por defecto (estable en Gmail).
+# URL absoluta del logo en correos. Por defecto (variable no definida): vacío → ``get_email_logo_src()`` usa
+# ``TECHNOVA_PUBLIC_BASE_URL`` + ``/static/.../logo-technova-email.png`` (alta densidad para tamaño pequeño).
 _logo_url_env = os.getenv("TECHNOVA_EMAIL_LOGO_URL")
 if _logo_url_env is None:
-    TECHNOVA_EMAIL_LOGO_URL = "https://i.ibb.co/tPZf30Tv/logo-TN.png"
+    TECHNOVA_EMAIL_LOGO_URL = ""
 else:
     TECHNOVA_EMAIL_LOGO_URL = _logo_url_env.strip()
 # 0/false = solo URL en <img>. 1/true = incrustar Base64 en HTML si el código lo soporta (desactivado por defecto).

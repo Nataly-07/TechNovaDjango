@@ -60,7 +60,12 @@ from usuario.application.use_cases.autenticacion_usecases import credenciales_co
 from usuario.infrastructure.models.usuario_model import Usuario
 from venta.models import Venta
 from venta.models import DetalleVenta
-from web.application.admin_web_service import producto_modal_dict  # ✅ AGREGAR IMPORTACIÓN FALTANTE
+from web.application.admin_web_service import (
+    colores_sugeridos_inventario,
+    normalizar_color_producto,
+    producto_modal_dict,
+    validar_color_producto_normalizado,
+)
 from web.application.checkout_web_service import (
     paypal_create_order,
     paypal_is_configured,
@@ -2321,6 +2326,7 @@ def admin_inventario(request):
         "proveedores": Proveedor.objects.filter(activo=True).order_by("nombre"),
         "categorias_alta_list": sorted(_categorias_alta_permitidas(), key=str.lower),
         "marcas_alta_list": sorted(_marcas_alta_permitidas(), key=str.lower),
+        "colores_sugeridos": colores_sugeridos_inventario(),
     }
     return render(request, "frontend/admin/inventario.html", ctx)
 
@@ -2372,20 +2378,6 @@ def _decimal_desde_post(val: str | None) -> Decimal | None:
 
 _PRODUCTO_CATEGORIAS_ALTA_WEB = frozenset({"Celulares", "Portátiles"})
 _PRODUCTO_MARCAS_ALTA_WEB = frozenset({"Apple", "Lenovo", "Motorola", "Xiaomi"})
-_PRODUCTO_COLORES_ALTA_WEB = frozenset(
-    {
-        "Negro",
-        "Blanco",
-        "Gris",
-        "Azul",
-        "Rojo",
-        "Dorado",
-        "Plateado",
-        "Verde",
-        "Morado",
-        "Rosa",
-    }
-)
 
 
 def _normalizar_nombre_catalogo(s: str) -> str:
@@ -2446,7 +2438,7 @@ def admin_producto_crear(request):
     nombre = (request.POST.get("nombre") or "").strip()
     categoria = (request.POST.get("categoria") or "").strip()
     marca = (request.POST.get("marca") or "").strip()
-    color = (request.POST.get("color") or "").strip()
+    color = normalizar_color_producto(request.POST.get("color"))
     descripcion = (request.POST.get("descripcion") or "").strip()
     imagen_url = (request.POST.get("imagen_url") or "").strip()
     imagenes_adicionales = _imagenes_adicionales_desde_post(request)
@@ -2463,8 +2455,9 @@ def admin_producto_crear(request):
     if marca not in _marcas_alta_permitidas():
         messages.error(request, "Selecciona una marca válida de la lista.")
         return redirect("web_admin_inventario")
-    if color not in _PRODUCTO_COLORES_ALTA_WEB:
-        messages.error(request, "Selecciona un color de la lista.")
+    err_color = validar_color_producto_normalizado(color)
+    if err_color:
+        messages.error(request, err_color)
         return redirect("web_admin_inventario")
 
     try:
@@ -2584,7 +2577,7 @@ def admin_producto_editar(request, producto_id: int):
     nombre = (request.POST.get("nombre") or "").strip()
     categoria = (request.POST.get("categoria") or "").strip()
     marca = (request.POST.get("marca") or "").strip()
-    color = (request.POST.get("color") or "").strip()
+    color = normalizar_color_producto(request.POST.get("color"))
     descripcion = (request.POST.get("descripcion") or "").strip()
     imagen_url = (request.POST.get("imagen_url") or "").strip()
     imagenes_adicionales = _imagenes_adicionales_desde_post(request)
@@ -2603,8 +2596,9 @@ def admin_producto_editar(request, producto_id: int):
         messages.error(request, "Selecciona una marca válida de la lista.")
         return redirect("web_admin_inventario")
 
-    if color not in _PRODUCTO_COLORES_ALTA_WEB and color != (p.color or "").strip():
-        messages.error(request, "Selecciona un color de la lista.")
+    err_color = validar_color_producto_normalizado(color)
+    if err_color:
+        messages.error(request, err_color)
         return redirect("web_admin_inventario")
 
     # El stock no se ajusta desde este formulario (solo lectura en UI).
@@ -2651,7 +2645,7 @@ def admin_producto_editar(request, producto_id: int):
         cambios.append("categoría")
     if (p.marca or "") != marca:
         cambios.append("marca")
-    if (p.color or "") != color:
+    if normalizar_color_producto(p.color) != color:
         cambios.append("color")
     if (p.descripcion or "") != descripcion:
         cambios.append("descripción")

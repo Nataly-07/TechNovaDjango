@@ -4,34 +4,25 @@
 {% block head_title %}Órdenes de compra — Recepción{% endblock %}
 
 {% block extra_css %}
-<style>
-  .oc-list-wrap { max-width: 1000px; }
-  .oc-list-card {
-    background: #fff; border-radius: 16px; padding: 1.25rem 1.5rem; border: 1px solid #e8edf7;
-    box-shadow: 0 8px 24px rgba(24, 39, 75, 0.06);
-  }
-  .oc-list-card h2 { margin: 0 0 1rem; font-size: 1.2rem; color: #0f172a; }
-  .oc-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-  .oc-table th, .oc-table td { padding: 0.65rem 0.5rem; text-align: left; border-bottom: 1px solid #f1f5f9; }
-  .oc-table th { background: #f8fafc; color: #64748b; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
-  .badge-a { background: #fef3c7; color: #92400e; padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
-  .badge-c { background: #d1fae5; color: #065f46; padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
-  .btn-vr {
-    display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.85rem; border-radius: 10px;
-    font-weight: 700; font-size: 0.8rem; text-decoration: none; color: #fff;
-    background: linear-gradient(135deg, #059669, #047857);
-  }
-  .btn-vr:hover { color: #fff; opacity: 0.95; }
-</style>
+<link rel="stylesheet" href="{% static 'frontend/css/empleado-ordenes-recepcion.css' %}?v=1">
 {% endblock %}
 
 {% block empleado_content %}
-<div class="oc-list-wrap">
-  <div class="oc-list-card">
-    <h2><i class="bx bx-cart-download"></i> Órdenes de compra — Recepción</h2>
-    <p style="color:#64748b;font-size:0.88rem;margin:0 0 1rem;">Las órdenes <span class="badge-a">Aprobadas</span> pendientes de ingreso pueden validarse aquí.</p>
-    <div style="overflow-x:auto;">
-      <table class="oc-table">
+<div class="ocr-page">
+  <header class="ocr-hero" aria-labelledby="ocr-hero-title">
+    <div class="ocr-hero-icon" aria-hidden="true"><i class="bx bx-cart-download"></i></div>
+    <div>
+      <p class="ocr-hero-kicker">Inventario</p>
+      <h1 id="ocr-hero-title" class="ocr-hero-title">Órdenes de compra — Recepción</h1>
+      <p class="ocr-hero-desc">Valida el ingreso de mercancía y mantén el stock alineado con lo recibido del proveedor.</p>
+    </div>
+  </header>
+
+  <div class="ocr-card">
+    <h2 class="ocr-card-h2"><i class="bx bx-list-check"></i> Órdenes pendientes y completadas</h2>
+    <p class="ocr-intro">Las órdenes <span class="ocr-badge-aprob">Aprobadas</span> pendientes de ingreso pueden validarse aquí.</p>
+    <div class="ocr-table-wrap">
+      <table class="ocr-table">
         <thead>
           <tr>
             <th>#</th>
@@ -45,23 +36,23 @@
         <tbody>
           {% for o in ordenes %}
           <tr>
-            <td><strong>#{{ o.id }}</strong></td>
+            <td><span class="ocr-table-num">#{{ o.id }}</span></td>
             <td>{{ o.proveedor.nombre }}</td>
             <td>{{ o.fecha|date:"d/m/Y" }}</td>
-            <td>${{ o.total }}</td>
+            <td><span class="ocr-table-num">${{ o.total }}</span></td>
             <td>
-              {% if o.estado == 'pendiente' %}<span class="badge-a">Aprobada</span>
-              {% elif o.estado == 'completada' or o.estado == 'recibida' %}<span class="badge-c">Completada</span>
+              {% if o.estado == 'pendiente' %}<span class="ocr-badge-aprob">Aprobada</span>
+              {% elif o.estado == 'completada' or o.estado == 'recibida' %}<span class="ocr-badge-ok">Completada</span>
               {% else %}{{ o.get_estado_display }}{% endif %}
             </td>
             <td>
               {% if o.estado == 'pendiente' %}
-              <a class="btn-vr" href="{% url 'web_empleado_orden_validar_recepcion' orden_id=o.id %}"><i class="bx bx-check-shield"></i> Validar recepción</a>
+              <a class="ocr-btn-validar" href="{% url 'web_empleado_orden_validar_recepcion' orden_id=o.id %}"><i class="bx bx-check-shield"></i> Validar recepción</a>
               {% else %}—{% endif %}
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="6" style="text-align:center;color:#64748b;padding:1.5rem;">No hay órdenes registradas.</td></tr>
+          <tr><td colspan="6" class="ocr-empty-cell">No hay órdenes registradas.</td></tr>
           {% endfor %}
         </tbody>
       </table>

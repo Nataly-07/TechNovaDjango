@@ -93,6 +93,10 @@ from web.application.guest_carrito import (
     guest_cart_update,
 )
 from web.adapters.http import views_empleado as _empleado_pos_views
+from web.session_cliente import (
+    compra_tienda_bloqueada_por_perfil_gestion,
+    sesion_es_cliente as _sesion_es_cliente,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1314,6 +1318,13 @@ def home(request):
 def catalogo_agregar_carrito(request):
     """Agregar al carrito desde el catálogo (sesión Django + CSRF). Invitados: carrito en sesión."""
     uid = request.session.get(SESSION_USUARIO_ID)
+    bloqueada, etiqueta_rol = compra_tienda_bloqueada_por_perfil_gestion(request)
+    if bloqueada:
+        msg = (
+            f"Tu perfil de {etiqueta_rol} no está habilitado para realizar compras. "
+            "Por favor, inicia sesión con una cuenta de Cliente para continuar."
+        )
+        return JsonResponse({"ok": False, "message": msg}, status=403)
     try:
         payload = json.loads(request.body.decode() or "{}")
         producto_id = int(payload.get("producto_id"))
@@ -1433,6 +1444,11 @@ def _dashboard_bucket_categoria(categoria_raw: str | None) -> str:
 @require_POST
 def catalogo_toggle_favorito(request):
     """Alternar favorito desde el catálogo (sesión Django + CSRF). Sin JWT."""
+    if not _sesion_es_cliente(request):
+        return JsonResponse(
+            {"ok": False, "message": "Solo los clientes pueden usar favoritos."},
+            status=403,
+        )
     uid = request.session.get(SESSION_USUARIO_ID)
     try:
         payload = json.loads(request.body.decode() or "{}")
@@ -6160,6 +6176,8 @@ def admin_reportes_pdf(request, tipo: str):
 
 @_cliente_login_required
 def perfil_cliente(request):
+    from web.catalogo_nav import ctx_catalogo_index
+
     uid = request.session.get(SESSION_USUARIO_ID)
     usuario = None
     if uid:
@@ -6194,15 +6212,18 @@ def perfil_cliente(request):
         nuevos_productos_count = Producto.objects.filter(activo=True).count()
         notificaciones_count += min(nuevos_productos_count, 12)
 
-    ctx = {
-        "usuario": usuario,
-        "favoritos_count": favoritos_count,
-        "carrito_count": carrito_count,
-        "pedidos_count": pedidos_count,
-        "notificaciones_count": notificaciones_count,
-        "medios_pago_count": medios_pago_count,
-        "compras_count": compras_count,
-    }
+    ctx = ctx_catalogo_index()
+    ctx.update(
+        {
+            "usuario": usuario,
+            "favoritos_count": favoritos_count,
+            "carrito_count": carrito_count,
+            "pedidos_count": pedidos_count,
+            "notificaciones_count": notificaciones_count,
+            "medios_pago_count": medios_pago_count,
+            "compras_count": compras_count,
+        }
+    )
     return render(request, "frontend/cliente/perfil.html", ctx)
 
 

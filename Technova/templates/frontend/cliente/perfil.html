@@ -141,7 +141,9 @@
         <p><strong>$<span>{{ p.precio_descuento|floatformat:0 }}</span></strong></p>
         {% endif %}
         <button type="button" class="carrito-btn carrito-btn--carrusel js-carrito" data-producto-id="{{ p.id }}" title="Agregar al carrito">&#128722;</button>
+        {% if mostrar_favoritos %}
         <button type="button" class="favorito-btn js-favorito" data-producto-id="{{ p.id }}" title="Favorito">&#10084;&#65039;</button>
+        {% endif %}
       </div>
       {% empty %}
       <p style="padding:20px;text-align:center;color:#666;">No hay productos disponibles por ahora.</p>

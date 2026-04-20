@@ -5,6 +5,7 @@ from django.views.decorators.http import require_GET, require_http_methods
 from common.api import error_response, success_response
 from common.auth import require_auth
 from common.container import get_carrito_query_service
+from usuario.infrastructure.models.usuario_model import Usuario
 
 
 def _forbidden_si_otro_usuario(request, usuario_id: int):
@@ -34,6 +35,8 @@ def listar_favoritos_por_usuario(request, usuario_id: int):
 @require_http_methods(["POST", "DELETE"])
 @require_auth()
 def favorito_usuario_producto(request, usuario_id: int, producto_id: int):
+    if request.usuario_actual.rol != Usuario.Rol.CLIENTE:
+        return error_response("Solo los clientes pueden usar favoritos.", status=403)
     err = _forbidden_si_otro_usuario(request, usuario_id)
     if err:
         return err
@@ -50,6 +53,8 @@ def favorito_usuario_producto(request, usuario_id: int, producto_id: int):
 @require_http_methods(["POST"])
 @require_auth()
 def toggle_favorito(request, usuario_id: int, producto_id: int):
+    if request.usuario_actual.rol != Usuario.Rol.CLIENTE:
+        return error_response("Solo los clientes pueden usar favoritos.", status=403)
     err = _forbidden_si_otro_usuario(request, usuario_id)
     if err:
         return err

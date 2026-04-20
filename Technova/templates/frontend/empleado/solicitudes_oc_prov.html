@@ -1,57 +1,29 @@
 {% extends "frontend/empleado/base_empleado.html" %}
 {% load static %}
 
-{% block head_title %}Solicitudes OC Prov. — Technova{% endblock %}
+{% block head_title %}Órdenes Compra Prov. — Technova{% endblock %}
 
 {% block extra_css %}
-<style>
-  .oc-wrap { max-width: 1100px; }
-  .oc-card {
-    background: #fff;
-    border-radius: 16px;
-    padding: 22px 24px;
-    margin-bottom: 20px;
-    border: 1px solid #e8edf7;
-    box-shadow: 0 8px 24px rgba(24, 39, 75, 0.06);
-  }
-  .oc-card h3 { margin: 0 0 14px; font-size: 1.15rem; color: #1e293b; display: flex; align-items: center; gap: 8px; }
-  .stock-bajo {
-    border-color: #fecaca;
-    background: linear-gradient(135deg, #fff7ed 0%, #fff 50%);
-  }
-  .stock-bajo .tag { background: #ef4444; color: #fff; font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; }
-  .grid-form { display: grid; gap: 14px; grid-template-columns: 1fr 100px 130px 1fr; align-items: end; }
-  @media (max-width: 900px) { .grid-form { grid-template-columns: 1fr; } }
-  .grid-form label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 6px; }
-  .grid-form select, .grid-form input, .grid-form textarea {
-    width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 0.95rem;
-  }
-  .btn-primary {
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-    color: #fff; border: none; padding: 11px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;
-  }
-  .table-oc { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-  .table-oc th, .table-oc td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eef2f7; }
-  .table-oc th { background: #f8fafc; color: #475569; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
-  .b-edicion { background: #e0e7ff; color: #3730a3; }
-  .b-pendiente { background: #fef3c7; color: #92400e; }
-  .b-aprobada { background: #d1fae5; color: #065f46; }
-  .b-rechazada { background: #fee2e2; color: #991b1b; }
-  .link-oc { color: #4f46e5; font-weight: 600; text-decoration: none; }
-  .link-oc:hover { text-decoration: underline; }
-  .mini { font-size: 0.8rem; color: #64748b; margin-top: 4px; }
-</style>
+<link rel="stylesheet" href="{% static 'frontend/css/empleado-oc-prov.css' %}?v=2">
 {% endblock %}
 
 {% block empleado_content %}
-<div class="oc-wrap">
-  <div class="oc-card stock-bajo">
-    <h3><i class="bx bx-error-alt"></i> Stock bajo <span class="tag">stock ≤ {{ stock_bajo_umbral }}</span></h3>
-    <p class="mini">Productos con stock menor a 3 unidades. Prioriza el reabastecimiento de estos artículos.</p>
+<div class="oc-prov">
+  <header class="oc-prov-hero" aria-labelledby="oc-prov-title">
+    <div class="oc-prov-hero-icon" aria-hidden="true"><i class="bx bx-package"></i></div>
+    <div>
+      <p class="oc-prov-hero-kicker">Reabastecimiento</p>
+      <h1 id="oc-prov-title" class="oc-prov-hero-title">Órdenes Compra Prov.</h1>
+      <p class="oc-prov-hero-desc">Crea solicitudes al administrador y da seguimiento al estado de cada una.</p>
+    </div>
+  </header>
+
+  <div class="oc-prov-card oc-prov-card--alert">
+    <h3><i class="bx bx-error-alt"></i> Stock bajo</h3>
+    <p class="oc-prov-card-intro">Productos con stock menor a 3 unidades. Prioriza el reabastecimiento de estos artículos.</p>
     {% if productos_bajo_stock %}
-    <div class="table-container" style="overflow-x:auto;margin-top:12px;">
-      <table class="table-oc">
+    <div class="oc-prov-table-wrap">
+      <table class="oc-prov-table">
         <thead>
           <tr>
             <th>Código</th>
@@ -65,7 +37,7 @@
           <tr>
             <td>{{ p.codigo }}</td>
             <td><strong>{{ p.nombre }}</strong></td>
-            <td><strong style="color:#b91c1c;">{{ p.stock }}</strong></td>
+            <td><span class="oc-prov-stock-num">{{ p.stock }}</span></td>
             <td>{% if p.proveedor %}{{ p.proveedor.nombre }}{% else %}—{% endif %}</td>
           </tr>
           {% endfor %}
@@ -73,49 +45,60 @@
       </table>
     </div>
     {% else %}
-    <p style="margin:12px 0 0;color:#64748b;">No hay productos con stock bajo en este momento.</p>
+    <p class="oc-prov-empty">No hay productos con stock bajo en este momento.</p>
     {% endif %}
   </div>
 
-  <div class="oc-card">
-    <h3><i class="bx bx-plus-circle"></i> Crear Nueva Solicitud</h3>
-    <form method="post" action="{% url 'web_empleado_solicitudes_oc_prov' %}">
+  <div class="oc-prov-card oc-prov-card--create oc-prov-card--create-rich">
+    <div class="oc-prov-create-head">
+      <span class="oc-prov-pill"><i class="bx bx-edit-alt"></i> Generar solicitud</span>
+      <h3><i class="bx bx-plus-circle"></i> Nueva solicitud de reabastecimiento</h3>
+      <p class="oc-prov-create-tagline">Elige el artículo y la cantidad; el costo se completa solo al seleccionar producto (puedes ajustarlo).</p>
+    </div>
+    <form class="oc-prov-create-form" method="post" action="{% url 'web_empleado_solicitudes_oc_prov' %}" data-producto-api-tpl="{% url 'web_empleado_api_producto_oc_prov' producto_id=999999 %}">
       {% csrf_token %}
-      <div class="grid-form">
-        <div>
-          <label for="producto_id">Producto</label>
-          <select name="producto_id" id="producto_id" required>
-            <option value="">— Seleccionar —</option>
-            {% for p in productos_todos %}
-            <option value="{{ p.id }}">{{ p.codigo }} — {{ p.nombre }} (stock: {{ p.stock }})</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div>
-          <label for="cantidad">Cantidad</label>
-          <input type="number" name="cantidad" id="cantidad" min="1" value="1" required>
-        </div>
-        <div>
-          <label for="costo_unitario">Costo unitario</label>
-          <input type="number" name="costo_unitario" id="costo_unitario" step="0.01" min="0" value="" placeholder="Se llena al elegir producto">
-        </div>
-        <div>
-          <label for="comentario_empleado">Comentario (opcional)</label>
-          <textarea name="comentario_empleado" id="comentario_empleado" rows="2" placeholder="Ej.: Los clientes piden mucho este color"></textarea>
+      <div class="oc-prov-form-section">
+        <p class="oc-prov-form-section-title"><i class="bx bx-package"></i> Artículo y montos</p>
+        <div class="oc-prov-grid-form">
+          <div class="oc-prov-field">
+            <label for="producto_id">Producto</label>
+            <select name="producto_id" id="producto_id" required>
+              <option value="">— Seleccionar —</option>
+              {% for p in productos_todos %}
+              <option value="{{ p.id }}">{{ p.codigo }} — {{ p.nombre }} (stock: {{ p.stock }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="oc-prov-field">
+            <label for="cantidad">Cantidad</label>
+            <input type="number" name="cantidad" id="cantidad" min="1" value="1" required>
+          </div>
+          <div class="oc-prov-field oc-prov-field--wide">
+            <label for="costo_unitario">Costo unitario <span class="oc-prov-label-tag">COP</span></label>
+            <p class="oc-prov-field-hint" id="hint-costo-short">Se sugiere del catálogo; formato pesos colombianos. Editable.</p>
+            <input type="text" name="costo_unitario" id="costo_unitario" inputmode="decimal" autocomplete="off" value="" placeholder="$ 0 COP" aria-describedby="hint-costo-oc hint-costo-short">
+          </div>
         </div>
       </div>
-      <div style="margin-top:16px;">
-        <button type="submit" class="btn-primary"><i class="bx bx-save"></i> Generar Solicitud</button>
+      <div class="oc-prov-form-section oc-prov-form-section--notes">
+        <p class="oc-prov-form-section-title"><i class="bx bx-message-rounded-dots"></i> Comentario para el administrador</p>
+        <div class="oc-prov-field">
+          <label for="comentario_empleado" class="oc-prov-label-soft">Opcional — contexto del pedido</label>
+          <textarea name="comentario_empleado" id="comentario_empleado" rows="3" placeholder="Ej.: Los clientes piden mucho este color o talla."></textarea>
+        </div>
+      </div>
+      <div class="oc-prov-actions oc-prov-actions--create">
+        <button type="submit" class="oc-prov-btn-primary oc-prov-btn-primary--lg"><i class="bx bx-rocket"></i> Generar solicitud</button>
       </div>
     </form>
-    <p class="mini">Al generar la solicitud, podrás revisarla antes de enviarla formalmente al administrador. Proveedor, marca y color se toman del catálogo; el <strong>costo unitario</strong> se sugiere desde el catálogo pero puedes ajustarlo (por ejemplo si el proveedor confirmó un precio distinto hoy).</p>
+    <p class="oc-prov-hint" id="hint-costo-oc">Al generar la solicitud podrás revisarla y enviarla al administrador cuando esté lista. Proveedor, marca y color salen del catálogo.</p>
   </div>
 
-  <div class="oc-card">
+  <div class="oc-prov-card">
     <h3><i class="bx bx-list-ul"></i> Mis solicitudes</h3>
     {% if solicitudes %}
-    <div style="overflow-x:auto;">
-      <table class="table-oc">
+    <div class="oc-prov-table-wrap">
+      <table class="oc-prov-table">
         <thead>
           <tr>
             <th>#</th>
@@ -133,19 +116,19 @@
             <td>{{ s.producto.nombre }}</td>
             <td>{{ s.cantidad }}</td>
             <td>
-              {% if s.estado == 'borrador' %}<span class="badge b-edicion">{{ s.get_estado_display }}</span>
-              {% elif s.estado == 'pendiente' %}<span class="badge b-pendiente">Pendiente</span>
-              {% elif s.estado == 'aprobada' %}<span class="badge b-aprobada">Aprobada</span>
-              {% else %}<span class="badge b-rechazada">Rechazada</span>{% endif %}
+              {% if s.estado == 'borrador' %}<span class="oc-prov-badge oc-prov-badge--borrador">{{ s.get_estado_display }}</span>
+              {% elif s.estado == 'pendiente' %}<span class="oc-prov-badge oc-prov-badge--pendiente">Pendiente</span>
+              {% elif s.estado == 'aprobada' %}<span class="oc-prov-badge oc-prov-badge--aprobada">Aprobada</span>
+              {% else %}<span class="oc-prov-badge oc-prov-badge--rechazada">Rechazada</span>{% endif %}
             </td>
             <td>{% if s.orden_compra %}#{{ s.orden_compra.id }}{% else %}—{% endif %}</td>
             <td>
               {% if s.estado == 'borrador' %}
-              <a class="link-oc" href="{% url 'web_empleado_solicitud_oc_prov_editar' solicitud_id=s.id %}">Revisar y enviar</a>
+              <a class="oc-prov-link" href="{% url 'web_empleado_solicitud_oc_prov_editar' solicitud_id=s.id %}">Revisar y enviar</a>
               {% elif s.estado == 'pendiente' %}
-              <span class="mini">En revisión</span>
+              <span class="oc-prov-muted">En revisión</span>
               {% else %}
-              <span class="mini">Solo lectura</span>
+              <span class="oc-prov-muted">Solo lectura</span>
               {% endif %}
             </td>
           </tr>
@@ -154,28 +137,12 @@
       </table>
     </div>
     {% else %}
-    <p style="color:#64748b;">Aún no tienes solicitudes.</p>
+    <p class="oc-prov-empty">Aún no tienes solicitudes.</p>
     {% endif %}
   </div>
 </div>
-<script>
-(function() {
-  var sel = document.getElementById('producto_id');
-  var costIn = document.getElementById('costo_unitario');
-  var tpl = "{% url 'web_empleado_api_producto_oc_prov' producto_id=999999 %}";
-  function loadCost(pid) {
-    if (!pid || !costIn) return;
-    fetch(tpl.replace('999999', String(pid)))
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        costIn.value = d.costo_unitario || '0';
-      })
-      .catch(function() {});
-  }
-  if (sel && costIn) {
-    sel.addEventListener('change', function() { loadCost(sel.value); });
-    if (sel.value) loadCost(sel.value);
-  }
-})();
-</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'frontend/js/solicitud_oc_prov_costo.js' %}"></script>
 {% endblock %}

@@ -328,6 +328,7 @@
 {% block extra_js %}
 <script>
   window.TECHNOVA_INDEX_PUBLIC = true;
+  window.TECHNOVA_MOSTRAR_FAVORITOS = {% if mostrar_favoritos %}true{% else %}false{% endif %};
   window.TECHNOVA_URL_LOGIN = "{% filter escapejs %}{% url 'web_login' %}{% endfilter %}";
   window.TECHNOVA_URL_CATALOGO_CARRITO = "{% filter escapejs %}{% url 'web_catalogo_agregar_carrito' %}{% endfilter %}";
   window.TECHNOVA_URL_CARRITO = "{% filter escapejs %}{% url 'web_carrito' %}{% endfilter %}";
@@ -335,6 +336,6 @@
   window.TECHNOVA_URL_CHECKOUT_INFO = "{% filter escapejs %}{% url 'web_cliente_checkout_info' %}{% endfilter %}";
 </script>
 <script src="{% static 'frontend/js/carrusel.js' %}"></script>
-<script src="{% static 'frontend/js/technova-producto-modal.js' %}?v=7"></script>
-<script src="{% static 'frontend/js/technova-index-public.js' %}?v=9"></script>
+<script src="{% static 'frontend/js/technova-producto-modal.js' %}?v=9"></script>
+<script src="{% static 'frontend/js/technova-index-public.js' %}?v=10"></script>
 {% endblock %}

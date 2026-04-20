@@ -109,13 +109,14 @@ function crearTarjetaProducto(producto) {
     // Determinar si el usuario está autenticado (verificar si existe el formulario de carrito)
     const isAuthenticated = document.querySelector('form[action*="/carrito/agregar"]') !== null;
     
+    const mostrarFav = typeof window.TECHNOVA_MOSTRAR_FAVORITOS !== 'undefined' && window.TECHNOVA_MOSTRAR_FAVORITOS === true;
     const botonesHtml = isAuthenticated 
         ? `
             <form action="/carrito/agregar/${producto.id}" method="POST" style="display: inline;">
                 <input type="hidden" name="${document.querySelector('input[name*="_csrf"]')?.name || '_csrf'}" value="${document.querySelector('input[name*="_csrf"]')?.value || ''}" />
                 <button type="submit" class="carrito-btn" style="background: var(--gradient-secondary); border: none; border-radius: 50%; width: 40px; height: 40px; color: white; font-size: 18px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">&#128722;</button>
             </form>
-            <button class="favorito-btn" data-producto-id="${producto.id}" style="background: #ff6b9d; border: none; border-radius: 50%; width: 40px; height: 40px; color: white; font-size: 18px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s ease;">❤️</button>
+            ${mostrarFav ? `<button class="favorito-btn" data-producto-id="${producto.id}" style="background: #ff6b9d; border: none; border-radius: 50%; width: 40px; height: 40px; color: white; font-size: 18px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s ease;">❤️</button>` : ''}
         `
         : `
             <a href="/login" class="carrito-btn" style="text-decoration: none; color: white; display: inline-flex; align-items: center; justify-content: center; background: var(--gradient-secondary); border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 18px; cursor: pointer;">&#128722;</a>

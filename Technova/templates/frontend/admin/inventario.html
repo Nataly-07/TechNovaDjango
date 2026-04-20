@@ -72,6 +72,24 @@
       if (f) f.reset();
     };
 
+    /** Sincroniza el texto formateado COP con el valor numérico en #precioPromocion (hidden). */
+    window.invPrecioPromoActualizarVisual = window.invPrecioPromoActualizarVisual || function () {
+      var h = document.getElementById("precioPromocion");
+      var disp = document.getElementById("precioPromocionDisplay");
+      if (!h) return;
+      var raw = parseFloat(String(h.value || "").replace(",", "."));
+      if (!Number.isFinite(raw)) raw = 0;
+      var txt =
+        typeof window.TechnovaFormatCOP === "function"
+          ? window.TechnovaFormatCOP(raw)
+          : "$ " +
+            raw.toLocaleString("es-CO", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            });
+      if (disp) disp.textContent = txt;
+    };
+
     // ===========================
     // Funciones globales del modal
     // (para que nunca quede undefined aunque falle otro bloque JS)
@@ -106,7 +124,12 @@
 
         if (!Number.isFinite(promo) || promo < 0.01) promo = 0.01;
         var out = document.getElementById("precioPromocion");
-        if (out) out.value = promo.toFixed(2);
+        if (out) {
+          out.value = promo.toFixed(2);
+          if (typeof window.invPrecioPromoActualizarVisual === "function") {
+            window.invPrecioPromoActualizarVisual();
+          }
+        }
       };
 
     window.cargarInformacionProducto =
@@ -2740,11 +2763,16 @@
       }
       if (promo < 0.01) promo = 0.01;
       const out = document.getElementById('precioPromocion');
-      if (out) out.value = promo.toFixed(2);
+      if (out) {
+        out.value = promo.toFixed(2);
+        if (typeof window.invPrecioPromoActualizarVisual === 'function') {
+          window.invPrecioPromoActualizarVisual();
+        }
+      }
     }
 
-    // Asegura que oninput/callbacks inline lo encuentren.
-    window.recalcularPrecioPromocion = window.recalcularPrecioPromocion || recalcularPrecioPromocion;
+    // Sobrescribe el stub inicial: esta versión usa __promoPrecioBaseNum / texto base y actualiza el precio visible.
+    window.recalcularPrecioPromocion = recalcularPrecioPromocion;
     // Listeners tipoDescuento/valorDescuento: se enlazan al final cuando el modal ya está en el DOM.
 
     function cerrarModalPromocion() {
@@ -2997,7 +3025,8 @@
       const precioPromocion = document.getElementById('precioPromocion').value;
       if (!precioPromocion || parseFloat(precioPromocion) <= 0) {
         alert('Debes ingresar un precio de promoción válido');
-        document.getElementById('precioPromocion').focus();
+        var vd = document.getElementById('valorDescuento');
+        if (vd) vd.focus();
         return;
       }
       if (typeof window.invValidarFechaFinPromocion === 'function' && !window.invValidarFechaFinPromocion()) {
@@ -3258,17 +3287,18 @@
   
   <!-- ========== PROMOCIÓN: CSS + HTML + JS (único #modalPromocion, pie de página) ========== -->
   <style id="styles-promo-modal-unificado">
-    /* Por encima del .modal del admin-panel; ancho: vencer .modal-content { max-width: 640px } */
+    /* Por encima del .modal del admin-panel; más ancho para columnas + acciones sin apretar */
     #modalPromocion.modal-promocion-overlay {
       z-index: 100600 !important;
       align-items: center !important;
       justify-content: center !important;
+      padding: 16px !important;
     }
     #modalPromocion.modal-promocion-overlay .modal-content.promo-main-content {
-      width: 90% !important;
-      max-width: 1000px !important;
+      width: 92% !important;
+      max-width: min(1120px, 96vw) !important;
       box-sizing: border-box !important;
-      max-height: 90vh !important;
+      max-height: 92vh !important;
     }
     #modalPromocion .promo-main-content {
       display: flex;
@@ -3390,7 +3420,8 @@
                   <span style="color:#334155;font-size:.85rem;font-weight:700;">Precio base:</span>
                   <div id="productoPrecioBase" style="font-size:1.02rem;color:#0f172a;font-weight:700;">$0.00</div>
                   <span style="color:#28a745;font-size:.85rem;font-weight:700;">Precio promoción:</span>
-                  <input type="text" id="precioPromocion" readonly style="font-size:1.1rem;color:#16a34a;font-weight:800;border:2px solid #bbf7d0;border-radius:8px;padding:5px 8px;width:130px;background:#f0fdf4;" value="0.00">
+                  <input type="hidden" id="precioPromocion" value="0">
+                  <span id="precioPromocionDisplay" class="promo-precio-valor" aria-live="polite" title="Precio calculado para la promoción" style="display:inline-block;font-size:1.08rem;color:#15803d;font-weight:800;border:2px solid #bbf7d0;border-radius:8px;padding:6px 12px;min-width:140px;background:#f0fdf4;font-variant-numeric:tabular-nums;">—</span>
                 </div>
               </div>
             </div>

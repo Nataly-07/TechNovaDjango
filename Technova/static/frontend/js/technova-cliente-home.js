@@ -150,9 +150,11 @@
       '<button type="button" class="carrito-btn js-carrito" data-producto-id="' +
       p.id +
       '" title="Agregar al carrito">&#128722;</button>' +
-      '<button type="button" class="favorito-btn js-favorito" data-producto-id="' +
-      p.id +
-      '" title="Favorito">&#10084;&#65039;</button>' +
+      (window.TECHNOVA_MOSTRAR_FAVORITOS === true
+        ? '<button type="button" class="favorito-btn js-favorito" data-producto-id="' +
+          p.id +
+          '" title="Favorito">&#10084;&#65039;</button>'
+        : "") +
       "</div></div>"
     );
   }
@@ -577,6 +579,14 @@
   });
 
   async function importarCarrito(productoId) {
+    if (
+      window.TechnovaCompraBloqueoGestion &&
+      typeof window.TechnovaCompraBloqueoGestion.estaBloqueada === "function" &&
+      window.TechnovaCompraBloqueoGestion.estaBloqueada()
+    ) {
+      await window.TechnovaCompraBloqueoGestion.mostrarAlerta();
+      return;
+    }
     /* /inicio/ solo es accesible con sesion Django: priorizar POST con CSRF (no JWT). */
     if (catalogoTieneEndpointsSesion()) {
       try {

@@ -95,6 +95,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "web.context_processors.technova_frontend",
                 "web.context_processors.technova_catalogo_nav",
+                "web.context_processors.technova_cliente_flags",
             ],
         },
     },

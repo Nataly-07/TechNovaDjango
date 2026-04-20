@@ -1,7 +1,7 @@
 {% extends "frontend/base_admin.html" %}
 {% load static %}
 
-{% block title %}Solicitudes Órdenes de Compra Proveedor | Technova{% endblock %}
+{% block title %}Solicitudes de Compra | Technova{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -43,6 +43,24 @@
     color: #4338ca;
   }
   .socp-breadcrumb span { opacity: 0.5; }
+  .socp-breadcrumb.socp-breadcrumb--bar {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .socp-breadcrumb.socp-breadcrumb--bar .socp-breadcrumb-current {
+    opacity: 1;
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
 
   .socp-hero {
     position: relative;
@@ -337,20 +355,19 @@
 
 {% block content %}
 <div class="socp-page">
-  <nav class="socp-breadcrumb" aria-label="Navegación">
-    <a href="{% url 'web_admin_ordenes_compra' %}"><i class="bx bx-arrow-back"></i> Órdenes de compra</a>
-    <span>/</span>
-    <span>Solicitudes Órdenes de Compra Proveedor</span>
+  <nav class="socp-breadcrumb socp-breadcrumb--bar" aria-label="Navegación">
+    <span class="socp-breadcrumb-current"><i class="bx bx-help-circle"></i> Solicitudes de Compra</span>
+    <a href="{% url 'web_admin_ordenes_compra' %}"><i class="bx bx-truck"></i> Órdenes de Compra (OC)</a>
   </nav>
 
   <header class="socp-hero">
     <div class="socp-hero-inner">
       <div>
         <div class="socp-hero-badge"><i class="bx bx-shield-quarter"></i> Reabastecimiento</div>
-        <h1>Solicitudes Órdenes de Compra Proveedor</h1>
+        <h1>Solicitudes de Compra</h1>
         <p>Gestiona las propuestas de compra del personal. Al aprobar, se genera una orden oficial vinculada para trazabilidad.</p>
       </div>
-      <div class="socp-hero-icon" aria-hidden="true"><i class="bx bx-clipboard"></i></div>
+      <div class="socp-hero-icon" aria-hidden="true"><i class="bx bx-help-circle"></i></div>
     </div>
   </header>
 

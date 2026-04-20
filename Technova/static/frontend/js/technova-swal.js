@@ -13,6 +13,10 @@
         fallbackAlert(text || title);
         return Promise.resolve();
       },
+      info: function (text, title) {
+        fallbackAlert(text || title || "");
+        return Promise.resolve();
+      },
       error: function (text) {
         fallbackAlert(text);
         return Promise.resolve();
@@ -75,6 +79,16 @@
       return Swal.fire({
         icon: "error",
         title: title || "Algo salió mal",
+        text: text || "",
+        confirmButtonText: "Entendido",
+      });
+    },
+
+    /** Aviso informativo (p. ej. restricciones de perfil) */
+    info: function (text, title) {
+      return Swal.fire({
+        icon: "info",
+        title: title || "Información",
         text: text || "",
         confirmButtonText: "Entendido",
       });

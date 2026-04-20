@@ -1,5 +1,5 @@
 {% load static %}
-{# Mismo bloque de contenido que el index público; cliente_autenticado = botones carrito/favoritos por sesión #}
+{# cliente_autenticado = carrito SSR; mostrar_favoritos = corazón solo rol Cliente #}
 <div class="busqueda-filtros-container">
   <div id="resultadosBusqueda" class="resultados-container">
     <h3 class="resultados-titulo">Resultados de búsqueda</h3>
@@ -40,7 +40,9 @@
         {% endif %}
         {% if cliente_autenticado %}
         <button type="button" class="carrito-btn carrito-btn--carrusel js-carrito" data-producto-id="{{ p.id }}" title="Agregar al carrito">&#128722;</button>
+        {% if mostrar_favoritos %}
         <button type="button" class="favorito-btn js-favorito" data-producto-id="{{ p.id }}" title="Favorito">&#10084;&#65039;</button>
+        {% endif %}
         {% else %}
         <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--carrusel">&#128722;</a>
         {% endif %}
@@ -103,7 +105,9 @@
         {% endif %}
         {% if cliente_autenticado %}
         <button type="button" class="carrito-btn carrito-btn--carrusel js-carrito" data-producto-id="{{ p.id }}">&#128722;</button>
+        {% if mostrar_favoritos %}
         <button type="button" class="favorito-btn js-favorito" data-producto-id="{{ p.id }}">&#10084;&#65039;</button>
+        {% endif %}
         {% else %}
         <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--carrusel">&#128722;</a>
         {% endif %}
@@ -142,6 +146,9 @@
       {% endif %}
       {% if cliente_autenticado %}
       <button type="button" class="carrito-btn carrito-btn--dia js-carrito" data-producto-id="{{ oferta_dia.id }}">&#128722;</button>
+      {% if mostrar_favoritos %}
+      <button type="button" class="favorito-btn js-favorito" data-producto-id="{{ oferta_dia.id }}" title="Favorito">&#10084;&#65039;</button>
+      {% endif %}
       {% else %}
       <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--dia">&#128722;</a>
       {% endif %}
@@ -177,6 +184,9 @@
         {% endif %}
         {% if cliente_autenticado %}
         <button type="button" class="carrito-btn carrito-btn--mini js-carrito" data-producto-id="{{ p.id }}">&#128722;</button>
+        {% if mostrar_favoritos %}
+        <button type="button" class="favorito-btn js-favorito" data-producto-id="{{ p.id }}" title="Favorito">&#10084;&#65039;</button>
+        {% endif %}
         {% else %}
         <a href="{% url 'web_login' %}" class="carrito-btn carrito-btn--mini">&#128722;</a>
         {% endif %}

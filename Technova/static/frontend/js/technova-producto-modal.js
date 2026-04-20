@@ -44,7 +44,7 @@
     );
   }
 
-  function sesionClienteActiva() {
+  function sesionUsuarioLogueado() {
     var u = window.TECHNOVA_USUARIO_ID;
     return (
       u != null &&
@@ -55,17 +55,61 @@
     );
   }
 
+  function uiClientePuedeFavoritos() {
+    return window.TECHNOVA_MOSTRAR_FAVORITOS === true;
+  }
+
+  function compraBloqueadaPorPerfilGestion() {
+    if (
+      window.TechnovaCompraBloqueoGestion &&
+      typeof window.TechnovaCompraBloqueoGestion.estaBloqueada === "function"
+    ) {
+      return window.TechnovaCompraBloqueoGestion.estaBloqueada();
+    }
+    return window.TECHNOVA_COMPRA_BLOQUEADA_GESTION === true;
+  }
+
+  function alertCompraNoPermitidaGestion() {
+    if (
+      window.TechnovaCompraBloqueoGestion &&
+      typeof window.TechnovaCompraBloqueoGestion.mostrarAlerta === "function"
+    ) {
+      return window.TechnovaCompraBloqueoGestion.mostrarAlerta();
+    }
+    var rol = String(window.TECHNOVA_ROL_COMPRA_BLOQUEADA_ETIQUETA || "").trim();
+    if (!rol) rol = "este perfil";
+    var msg =
+      "Tu perfil de " +
+      rol +
+      " no está habilitado para realizar compras. Por favor, inicia sesión con una cuenta de Cliente para continuar.";
+    if (window.TechnovaUi && typeof window.TechnovaUi.info === "function") {
+      return window.TechnovaUi.info(msg, "Compra no disponible");
+    }
+    if (typeof Swal !== "undefined") {
+      return Swal.fire({
+        icon: "info",
+        title: "Compra no disponible",
+        text: msg,
+        confirmButtonText: "Entendido",
+      });
+    }
+    window.alert(msg);
+    return Promise.resolve();
+  }
+
   function buildAccionesHtml(productoId, stockNum) {
     var agotado = stockNum !== null && stockNum <= 0;
     var dis = agotado ? " disabled aria-disabled=\"true\"" : "";
-    var favBtn = sesionClienteActiva()
+    var favBtn = uiClientePuedeFavoritos()
       ? '<button type="button" class="producto-detalle-btn producto-detalle-btn--favorito" data-accion="favorito" data-producto-id="' +
         String(productoId) +
         '" title="Añadir a favoritos" aria-label="Añadir a favoritos"><i class="bx bx-heart"></i></button>'
       : "";
-    var hint = sesionClienteActiva()
-      ? ""
-      : '<p class="producto-detalle-favorito-hint">Inicia sesión para guardar en favoritos.</p>';
+    var hint = "";
+    if (!uiClientePuedeFavoritos() && !sesionUsuarioLogueado()) {
+      hint =
+        '<p class="producto-detalle-favorito-hint">Inicia sesión para guardar en favoritos.</p>';
+    }
     return (
       '<div class="producto-detalle-acciones producto-detalle-acciones--bajo-imagen" data-producto-detalle-acciones>' +
       '<div class="producto-detalle-acciones-row">' +
@@ -175,6 +219,10 @@
     if (btnC) {
       btnC.addEventListener("click", function () {
         if (btnC.disabled) return;
+        if (compraBloqueadaPorPerfilGestion()) {
+          alertCompraNoPermitidaGestion();
+          return;
+        }
         postJsonSesion(urlCarritoSesion(), { producto_id: productoId })
           .then(function (j) {
             if (Array.isArray(j.carrito_preview)) {

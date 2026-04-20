@@ -1,7 +1,7 @@
 {% extends "frontend/base_admin.html" %}
 {% load static %}
 
-{% block title %}Solicitud #{{ solicitud.id }} — Órdenes de Compra Proveedor | Technova{% endblock %}
+{% block title %}Solicitud #{{ solicitud.id }} — Solicitudes de Compra | Technova{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -69,7 +69,13 @@
     letter-spacing: 0.02em;
   }
   .socpd-badge--pend { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-  .socpd-badge--edicion { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+  .socpd-badge--borrador {
+    background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+    color: #92400e;
+    border: 1px solid #fde68a;
+    gap: 0.35rem;
+  }
+  .socpd-badge--borrador i { font-size: 1rem; opacity: 0.95; }
   .socpd-badge--ok { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
   .socpd-badge--no { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
   .socpd-badge--neutral { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
@@ -247,6 +253,24 @@
   }
   .socpd-btn--no:hover { box-shadow: 0 8px 26px rgba(220, 38, 38, 0.4); }
 
+  .socpd-waiting {
+    text-align: center;
+    padding: 1.75rem 1.35rem;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #fffbeb 0%, #ffffff 72%);
+    border: 1px solid #fde68a;
+    color: #78350f;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    box-shadow: 0 8px 24px rgba(245, 158, 11, 0.08);
+  }
+  .socpd-waiting i {
+    font-size: 2.25rem;
+    color: #d97706;
+    display: block;
+    margin-bottom: 0.55rem;
+  }
+
   .socpd-resolved {
     text-align: center;
     padding: 1.75rem 1.25rem;
@@ -255,6 +279,7 @@
     border: 1px dashed #cbd5e1;
     color: var(--slate);
     font-size: 0.95rem;
+    line-height: 1.5;
   }
   .socpd-resolved i {
     font-size: 2.25rem;
@@ -296,7 +321,7 @@
       {% if solicitud.estado == 'pendiente' %}
       <span class="socpd-badge socpd-badge--pend"><i class="bx bx-time-five"></i> Pendiente</span>
       {% elif solicitud.estado == 'borrador' %}
-      <span class="socpd-badge socpd-badge--edicion">{{ solicitud.get_estado_display }}</span>
+      <span class="socpd-badge socpd-badge--borrador"><i class="bx bx-edit-alt"></i> En edición</span>
       {% elif solicitud.estado == 'aprobada' %}
       <span class="socpd-badge socpd-badge--ok"><i class="bx bx-check"></i> Aprobada</span>
       {% elif solicitud.estado == 'rechazada' %}
@@ -331,7 +356,12 @@
     {% endif %}
   </section>
 
-  {% if solicitud.estado == 'pendiente' %}
+  {% if solicitud.estado == 'borrador' %}
+  <div class="socpd-waiting">
+    <i class="bx bx-time-five" aria-hidden="true"></i>
+    Esta solicitud aún se encuentra en borrador por parte del empleado. Estará disponible para revisión una vez sea enviada.
+  </div>
+  {% elif solicitud.estado == 'pendiente' %}
   <section class="socpd-card">
     <h2><i class="bx bx-check-shield"></i> Resolver solicitud</h2>
     <p style="margin:0 0 1.15rem;color:#64748b;font-size:0.9rem;line-height:1.55;">Ajusta proveedor, cantidad y <strong>costo unitario</strong> si es necesario. El total se actualiza al instante. Al aprobar, el sistema crea la <strong>orden de compra</strong> con ese precio, actualiza el costo en catálogo y, si aplica, recalcula el precio de venta manteniendo el margen relativo previo.</p>
@@ -380,10 +410,15 @@
       </div>
     </div>
   </section>
+  {% elif solicitud.estado == 'aprobada' or solicitud.estado == 'rechazada' %}
+  <div class="socpd-resolved">
+    <i class="bx bx-lock-alt" aria-hidden="true"></i>
+    Esta solicitud ya fue resuelta. No hay acciones disponibles.
+  </div>
   {% else %}
   <div class="socpd-resolved">
-    <i class="bx bx-lock-alt"></i>
-    Esta solicitud ya fue resuelta. No hay acciones disponibles.
+    <i class="bx bx-info-circle" aria-hidden="true"></i>
+    No hay acciones disponibles para este estado.
   </div>
   {% endif %}
 </div>

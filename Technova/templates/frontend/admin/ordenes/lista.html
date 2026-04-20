@@ -1,7 +1,7 @@
 {% extends "frontend/base_admin.html" %}
 {% load static %}
 
-{% block title %}Gestión de Órdenes de Compra - Technova{% endblock %}
+{% block title %}Órdenes de Compra (OC) — Technova{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -380,10 +380,10 @@
 {% block content %}
 <div class="ordenes-container">
   <div class="ordenes-header">
-    <h2><i class='bx bx-cart'></i> Gestión de Órdenes de Compra</h2>
+    <h2><i class='bx bx-truck'></i> Órdenes de Compra (OC)</h2>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
       <a href="{% url 'web_admin_solicitudes_oc_prov' %}" class="btn-agregar" style="{% if solicitudes_oc_prov_pendientes %}background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);{% endif %}">
-        <i class='bx bx-clipboard'></i> Solicitudes de empleados
+        <i class='bx bx-help-circle'></i> Solicitudes de Compra
         {% if solicitudes_oc_prov_pendientes %}
           <span style="background: rgba(255,255,255,0.25); padding: 2px 8px; border-radius: 999px; font-size: 0.85rem;">{{ solicitudes_oc_prov_pendientes }} pendiente{% if solicitudes_oc_prov_pendientes != 1 %}s{% endif %}</span>
         {% endif %}
@@ -398,7 +398,7 @@
   <div class="alert" style="background: #fff7ed; border: 1px solid #fdba74; color: #9a3412; margin-bottom: 20px;">
     <i class='bx bx-bell'></i>
     <span>Hay <strong>{{ solicitudes_oc_prov_pendientes }}</strong> solicitud{% if solicitudes_oc_prov_pendientes != 1 %}es{% endif %} de reabastecimiento pendiente{% if solicitudes_oc_prov_pendientes != 1 %}s{% endif %} de revisión.</span>
-    <a href="{% url 'web_admin_solicitudes_oc_prov' %}" style="margin-left: auto; font-weight: 600; color: #c2410c;">Ver solicitudes →</a>
+    <a href="{% url 'web_admin_solicitudes_oc_prov' %}" style="margin-left: auto; font-weight: 600; color: #c2410c;">Ver Solicitudes de Compra →</a>
   </div>
   {% endif %}
 

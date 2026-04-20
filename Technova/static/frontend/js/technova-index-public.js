@@ -168,6 +168,14 @@
   }
 
   async function agregarCarritoIndexProducto(productoId, nombre) {
+    if (
+      window.TechnovaCompraBloqueoGestion &&
+      typeof window.TechnovaCompraBloqueoGestion.estaBloqueada === "function" &&
+      window.TechnovaCompraBloqueoGestion.estaBloqueada()
+    ) {
+      await window.TechnovaCompraBloqueoGestion.mostrarAlerta();
+      return;
+    }
     if (!catalogoTieneEndpointCarrito()) {
       throw new Error("Carrito no disponible en esta página.");
     }

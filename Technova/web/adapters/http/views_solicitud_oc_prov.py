@@ -1,5 +1,5 @@
 """
-Solicitudes Órdenes de Compra Prov — empleado (crear/enviar) y admin (revisar/aprobar/rechazar).
+Órdenes Compra Prov. — empleado (crear/enviar) y admin (revisar/aprobar/rechazar).
 """
 
 from __future__ import annotations
@@ -28,11 +28,29 @@ STOCK_BAJO_MAX = 2  # stock < 3
 
 
 def _parse_costo_unitario(raw) -> Decimal | None:
+    """Acepta decimal simple (1500.00) y formato es-CO con miles (1.500,00)."""
     if raw is None:
         return None
-    s = str(raw).strip().replace(",", ".")
+    s = str(raw).strip()
     if not s:
         return None
+    if "," in s:
+        s = s.replace(".", "").replace(",", ".")
+    else:
+        parts = s.split(".")
+        if len(parts) > 2:
+            s = "".join(parts)
+        elif len(parts) == 2:
+            left, right = parts[0], parts[1]
+            if (
+                len(right) == 3
+                and len(left) <= 3
+                and left.isdigit()
+                and right.isdigit()
+            ):
+                s = left + right
+            else:
+                s = left + "." + right
     try:
         return Decimal(s).quantize(Decimal("0.01"))
     except InvalidOperation:
@@ -101,11 +119,10 @@ def empleado_solicitudes_oc_prov_lista(request):
         {
             "empleado": empleado,
             "usuario": empleado,
-            "seccion": "solicitudes-oc-prov",
+            "seccion": "ordenes-compra-prov",
             "productos_bajo_stock": productos_bajo_stock,
             "productos_todos": productos_todos,
             "solicitudes": solicitudes,
-            "stock_bajo_umbral": STOCK_BAJO_MAX,
         },
     )
 
@@ -156,7 +173,7 @@ def empleado_solicitud_oc_prov_editar(request, solicitud_id: int):
             "solicitud": sol,
             "productos": productos,
             "usuario": sol.empleado,
-            "seccion": "solicitudes-oc-prov",
+            "seccion": "ordenes-compra-prov",
         },
     )
 

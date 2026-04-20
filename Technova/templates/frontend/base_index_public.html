@@ -19,12 +19,17 @@
 </head>
 <body>
 <form style="display:none" aria-hidden="true">{% csrf_token %}</form>
+<script>
+  window.TECHNOVA_COMPRA_BLOQUEADA_GESTION = {% if compra_bloqueada_perfil_gestion %}true{% else %}false{% endif %};
+  window.TECHNOVA_ROL_COMPRA_BLOQUEADA_ETIQUETA = "{{ rol_compra_bloqueada_etiqueta|default:''|escapejs }}";
+</script>
 {% block body %}{% endblock %}
 <script>
   window.TECHNOVA_API_PREFIX = "{{ TECHNOVA_API_PREFIX|default:'/api/v1' }}";
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="{% static 'frontend/js/technova-swal.js' %}?v=4"></script>
+<script src="{% static 'frontend/js/technova-swal.js' %}?v=5"></script>
+<script src="{% static 'frontend/js/technova-compra-bloqueo-gestion.js' %}?v=1"></script>
 <script src="{% static 'frontend/js/carrito-alerts.js' %}?v=2"></script>
 <script src="{% static 'frontend/js/carrito-mejorado.js' %}?v=1"></script>
 <script src="{% static 'frontend/js/carrito-inline.js' %}?v=1"></script>

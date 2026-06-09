@@ -63,7 +63,7 @@
     <form method="post" action="{% url 'web_cliente_mensajes_responder' %}">
       {% csrf_token %}
       <input type="hidden" name="conversationId" value="{{ conversation_id }}">
-      <input type="hidden" name="mensaje_padre_id" value="{{ md_mensajes|last.id }}">
+      <input type="hidden" name="mensaje_padre_id" value="{{ ultimo_mensaje.id }}">
       <textarea name="mensaje" required rows="2" placeholder="Responder..." style="width:100%;padding:10px;border-radius:12px;border:1px solid #e2e8f0;"></textarea>
       <button type="submit" class="btn-enviar" style="margin-top:10px;border:none;cursor:pointer;"><i class="bx bx-reply"></i> Responder</button>
     </form>

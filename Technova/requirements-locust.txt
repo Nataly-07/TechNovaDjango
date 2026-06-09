@@ -1,0 +1,2 @@
+# Dependencias opcionales para pruebas de carga (locustfile.py)
+locust>=2.20.0

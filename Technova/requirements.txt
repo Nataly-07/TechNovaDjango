@@ -9,3 +9,5 @@ drf-spectacular
 django-cors-headers
 reportlab
 openpyxl
+gunicorn
+whitenoise

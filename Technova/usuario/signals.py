@@ -4,6 +4,8 @@ Al crear un usuario con rol cliente se dispara el correo de bienvenida tras el c
 
 from __future__ import annotations
 
+import logging
+
 from django.conf import settings
 from django.db import transaction
 from django.db.models.signals import post_save
@@ -14,6 +16,8 @@ from usuario.infrastructure.cuenta_correo_email import (
     programar_envio_bienvenida_en_hilo,
 )
 from usuario.infrastructure.models.usuario_model import Usuario
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(
@@ -37,9 +41,15 @@ def cliente_nuevo_correo_bienvenida(
     uid = instance.pk
 
     def _enqueue() -> None:
-        if getattr(settings, "TECHNOVA_EMAIL_REGISTRO_ASYNC", False):
-            programar_envio_bienvenida_en_hilo(uid)
-        else:
-            enviar_bienvenida_correo(uid)
+        try:
+            if getattr(settings, "TECHNOVA_EMAIL_REGISTRO_ASYNC", False):
+                programar_envio_bienvenida_en_hilo(uid)
+            else:
+                enviar_bienvenida_correo(uid)
+        except Exception:
+            logger.exception(
+                "No se pudo enviar correo de bienvenida (usuario_id=%s); el registro sigue vigente.",
+                uid,
+            )
 
     transaction.on_commit(_enqueue)

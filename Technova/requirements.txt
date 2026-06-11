@@ -11,3 +11,4 @@ reportlab
 openpyxl
 gunicorn
 whitenoise
+django-anymail[resend]>=12.0

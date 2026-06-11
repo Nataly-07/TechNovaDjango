@@ -1,29 +1,33 @@
 from .settings_base import *  # noqa: F403,F401
-from .settings_base import _env_bool, _env_list  # import * no incluye nombres con _
+from .settings_base import _env_list  # import * no incluye nombres con _
 
 import os
 
 DEBUG = False
 
-# Correo: sin credenciales SMTP → consola (evita 500 en registro en Railway).
-_email_backend = os.getenv("DJANGO_EMAIL_BACKEND", "").strip()
-if _email_backend:
-    EMAIL_BACKEND = _email_backend
-elif os.getenv("EMAIL_HOST_USER", "").strip() and os.getenv("EMAIL_HOST_PASSWORD", "").strip():
-    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# --- Correo en producción (Railway): Resend por API HTTPS ---
+# SMTP (Gmail:587) está bloqueado en Railway Hobby; usar RESEND_API_KEY.
+_resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
+_email_backend_override = os.getenv("DJANGO_EMAIL_BACKEND", "").strip()
+
+if _email_backend_override:
+    EMAIL_BACKEND = _email_backend_override
+elif _resend_api_key:
+    INSTALLED_APPS = [*INSTALLED_APPS, "anymail"]
+    EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+    ANYMAIL = {"RESEND_API_KEY": _resend_api_key}
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com").strip()
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "").strip()
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "").strip()
+if _resend_api_key and not os.environ.get("DEFAULT_FROM_EMAIL", "").strip():
+    DEFAULT_FROM_EMAIL = os.getenv(
+        "RESEND_FROM_EMAIL",
+        "Technova <onboarding@resend.dev>",
+    ).strip()
 
-if not os.environ.get("DEFAULT_FROM_EMAIL", "").strip() and EMAIL_HOST_USER:
-    DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-if os.environ.get("TECHNOVA_BULK_MAIL_VISIBLE_TO") is None and EMAIL_HOST_USER:
-    TECHNOVA_BULK_MAIL_VISIBLE_TO = DEFAULT_FROM_EMAIL
+# Registro web: no bloquear el POST mientras se llama a la API de Resend.
+if os.getenv("TECHNOVA_EMAIL_REGISTRO_ASYNC", "").strip() == "":
+    TECHNOVA_EMAIL_REGISTRO_ASYNC = True
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True

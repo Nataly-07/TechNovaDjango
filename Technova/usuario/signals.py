@@ -48,7 +48,7 @@ def cliente_nuevo_correo_bienvenida(
                 enviar_bienvenida_correo(uid)
         except Exception:
             logger.exception(
-                "No se pudo enviar correo de bienvenida (usuario_id=%s); el registro sigue vigente.",
+                "Correo de bienvenida no enviado (usuario_id=%s); la cuenta ya fue creada.",
                 uid,
             )
 

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -111,6 +112,22 @@ CHANNEL_LAYERS = {
     },
 }
 
+def _database_from_url(url: str) -> dict:
+    """Parsea DATABASE_URL (Railway, Heroku, etc.) a configuración Django."""
+    parsed = urlparse(url)
+    config = {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": (parsed.path or "").lstrip("/"),
+        "USER": parsed.username or "",
+        "PASSWORD": parsed.password or "",
+        "HOST": parsed.hostname or "",
+        "PORT": str(parsed.port or 5432),
+    }
+    if parsed.scheme in ("postgres", "postgresql") and parsed.hostname:
+        config["OPTIONS"] = {"sslmode": "require"}
+    return config
+
+
 DATABASES = {
     "default": {
         "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql"),
@@ -121,6 +138,10 @@ DATABASES = {
         "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
+
+_database_url = os.getenv("DATABASE_URL", "").strip()
+if _database_url:
+    DATABASES["default"] = _database_from_url(_database_url)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

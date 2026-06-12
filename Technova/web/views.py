@@ -75,6 +75,7 @@ from web.application.promociones_admin import (
     validar_precio_promocion_contra_base,
 )
 from web.application.checkout_web_service import (
+    paypal_capture_order,
     paypal_create_order,
     paypal_is_configured,
 )
@@ -6744,7 +6745,7 @@ def checkout_paypal_iniciar(request):
     return_url = request.build_absolute_uri(reverse("web_cliente_checkout_paypal_retorno"))
     cancel_url = request.build_absolute_uri(reverse("web_cliente_checkout_paypal_retorno")) + "?cancel=true"
     try:
-        order_id, approval_url = _paypal_create_order(
+        order_id, approval_url = paypal_create_order(
             amount=total_carrito,
             reference_code=reference,
             customer_email=user.correo_electronico,
@@ -6774,7 +6775,7 @@ def checkout_paypal_retorno(request):
     if expected_order_id and expected_order_id != order_id:
         messages.error(request, "El orderId devuelto por PayPal no coincide con la sesion.")
         return redirect("web_cliente_checkout_revision")
-    ok, status = _paypal_capture_order(order_id)
+    ok, status = paypal_capture_order(order_id)
     if not ok:
         messages.error(request, f"No se pudo capturar el pago en PayPal ({status}).")
         return redirect("web_cliente_checkout_revision")

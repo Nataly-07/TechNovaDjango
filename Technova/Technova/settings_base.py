@@ -213,6 +213,8 @@ TECHNOVA_PAYPAL_BASE_URL = os.getenv(
     "https://api-m.sandbox.paypal.com",
 ).strip()
 TECHNOVA_PAYPAL_CURRENCY = os.getenv("TECHNOVA_PAYPAL_CURRENCY", "USD").strip().upper()
+# Tasa COP por 1 USD al enviar pagos con TECHNOVA_PAYPAL_CURRENCY=USD (precios del catálogo en COP).
+TECHNOVA_PAYPAL_COP_PER_USD = os.getenv("TECHNOVA_PAYPAL_COP_PER_USD", "4000").strip()
 # Admin: mostrar "PayPal" en lugar de "PSE" para medios guardados con el mapeo antiguo (paypal_sandbox → PSE).
 # Pon TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL=0 si tienes pagos PSE bancarios reales en "pse".
 TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL = _env_bool("TECHNOVA_ADMIN_PSE_LEGACY_COMO_PAYPAL", True)

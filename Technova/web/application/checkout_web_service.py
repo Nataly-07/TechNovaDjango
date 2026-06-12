@@ -1,7 +1,7 @@
 import base64
 import json
 import uuid
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from urllib import error as urllib_error
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
@@ -137,11 +137,44 @@ def paypal_base_url() -> str:
     ).rstrip("/")
 
 
-def paypal_currency() -> str:
+def paypal_checkout_currency() -> str:
     raw = (getattr(settings, "TECHNOVA_PAYPAL_CURRENCY", "") or "USD").strip().upper()
     if raw == "COP":
-        return "USD"
+        return "COP"
     return raw or "USD"
+
+
+def paypal_currency() -> str:
+    return paypal_checkout_currency()
+
+
+def paypal_cop_per_usd_rate() -> Decimal:
+    raw = getattr(settings, "TECHNOVA_PAYPAL_COP_PER_USD", "4000")
+    try:
+        rate = Decimal(str(raw).strip())
+    except Exception:
+        return Decimal("4000")
+    if rate <= 0:
+        return Decimal("4000")
+    return rate
+
+
+def paypal_amount_for_api(amount_cop: Decimal) -> tuple[str, str]:
+    """
+    Convierte el total del carrito (COP) al monto y moneda que exige PayPal.
+    Con TECHNOVA_PAYPAL_CURRENCY=USD divide por TECHNOVA_PAYPAL_COP_PER_USD.
+    """
+    currency = paypal_checkout_currency()
+    if currency == "COP":
+        pesos = int(amount_cop.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+        if pesos < 1:
+            pesos = 1
+        return "COP", str(pesos)
+    rate = paypal_cop_per_usd_rate()
+    usd = (amount_cop / rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if usd < Decimal("0.01"):
+        usd = Decimal("0.01")
+    return "USD", str(usd)
 
 
 def paypal_is_configured() -> bool:
@@ -180,13 +213,13 @@ def paypal_create_order(
     cancel_url: str,
 ) -> tuple[str, str]:
     token = paypal_fetch_access_token()
-    total = str(amount.quantize(Decimal("0.01")))
+    currency_code, total = paypal_amount_for_api(amount)
     payload = {
         "intent": "CAPTURE",
         "purchase_units": [
             {
                 "reference_id": reference_code,
-                "amount": {"currency_code": paypal_currency(), "value": total},
+                "amount": {"currency_code": currency_code, "value": total},
             }
         ],
         "payer": {"email_address": customer_email} if customer_email else {},
